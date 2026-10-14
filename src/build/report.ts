@@ -6,12 +6,18 @@ import { displayPath } from '../config/paths.ts'
 import type { UapaConfig } from '../config/types.ts'
 import type { BuildReport, TargetReport } from '../report/types.ts'
 import type { GuardCheck } from '../runtime/core/types.ts'
-import { succeeded, type TargetState } from './state.ts'
+import { type GatedCheck, succeeded, type TargetState } from './state.ts'
 
 const CHECK_LABELS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: '执行前检查',
   beforePrompt: '提示提交前检查',
   beforeStop: '停机前检查',
+}
+
+// 省略检查的原因（hooks 适配第 6 节）
+const OMITTED_RISKS: Readonly<Record<GatedCheck, string>> = {
+  beforePrompt: '本目标缺少 promptGate，未生成提示提交前检查的 hook：提示不受检查',
+  beforeStop: '本目标缺少 stopGate，未生成停机前检查的 hook：停机不受检查',
 }
 
 export function toReport(states: readonly TargetState[]): BuildReport {
@@ -51,6 +57,7 @@ function capabilityRisks(state: TargetState): string[] {
       )
     }
   }
+  for (const check of state.omitted) risks.push(OMITTED_RISKS[check])
   if (
     checks.length > 0 &&
     hookTimeoutSeconds === null &&

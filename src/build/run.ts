@@ -8,6 +8,7 @@ import { generateHosts, type HostDeps } from './generate.ts'
 import type { BuildOutcome } from './index.ts'
 import { planTargets } from './plan.ts'
 import { toReport, writeReport } from './report.ts'
+import { verifyHosts } from './verify.ts'
 import { writeOutputs } from './write.ts'
 
 export interface BuildDeps extends HostDeps {
@@ -33,6 +34,7 @@ export async function runBuild(
   const states = planTargets(config, source.value, guard.value, deps.targetCapabilities)
   const hostFiles = await generateHosts(config, guard.value, states, deps)
   await writeOutputs(config, root, states, hostFiles)
+  await verifyHosts(config, root, states, deps.hostModules)
   const report = toReport(states)
   const reportPath = await writeReport(config, root, report)
   return { kind: 'done', report, reportPath, changes: null }

@@ -7,7 +7,7 @@
       "host": {
         "name": "claude-code",
         "version": "2.1.296",
-        "checked": "2026-10-13",
+        "checked": "2026-10-14",
         "source": "claude-code-plugins.md"
       },
       "units": [
@@ -19,7 +19,7 @@
       "skipped": [],
       "degraded": [],
       "overridden": [],
-      "hostValidation": "none",
+      "hostValidation": "skipped",
       "residualRisks": []
     }
   ]

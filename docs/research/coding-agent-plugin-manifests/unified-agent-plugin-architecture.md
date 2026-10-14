@@ -268,7 +268,7 @@ dist/
 ## 10. 未决问题
 
 - **用户提示的检查。** 公共类型增加 `beforePrompt` 与能力 `promptGate`，列入 v0.1.0（功能清单
-  SD-03、SD-18）；各宿主提示事件能否阻断待 TA-15 实测。
+  SD-03、SD-18）；Claude Code 的提示事件可以阻断（2.1.296 本地实测），Codex 待 TA-15 实测。
 - **守卫配置的传递。** v0.1.0 只透传 Claude Code 的 `userConfig`，统一接口延后（功能清单 SD-10）。
 - **CodeBuddy Mods。** 是否增设 `codebuddy:in-process` 目标，取决于其 API 与 Claude Code 的
   对照结果与实测。

@@ -75,7 +75,8 @@ F-02-01、F-02-02 导出守卫公共类型。
 | M6 发布 | 夹具表全部夹具比对通过；生成发布提交与 tag，安装冒烟通过 | F-10-04, F-10-05 |
 
 - [SD-22](scope-decisions.md) 列出的 TA-15 入口前提须在对应宿主的子进程入口实现前得出结论：
-  Claude Code 在 M3 之前，Codex 在 M4 之前；agy 的各项已于 1.3.4 实测。[SD-23](scope-decisions.md)
+  Claude Code 在 M3 之前（已于 2.1.296 实测），Codex 在 M4 之前；agy 的各项已于 1.3.4 实测。
+  [SD-23](scope-decisions.md)
   的两项在发布前须有结论。其余实测项不阻塞实现与发布，实测前相关能力在能力数据中记为不支持；
   结论决定各目标 `promptGate` 的取值。
 

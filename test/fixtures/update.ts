@@ -6,7 +6,14 @@
 import { existsSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { FIXTURES_DIR, fixtureNames, readCase, readTree, runFixture } from './run.ts'
+import {
+  FIXTURES_DIR,
+  type FixtureRun,
+  fixtureNames,
+  readCase,
+  readTree,
+  withFixtureRun,
+} from './run.ts'
 
 function handWritten(path: string, source: ReadonlyMap<string, Buffer>): boolean {
   if (!path.endsWith('.json') || source.has(path)) return false
@@ -14,9 +21,16 @@ function handWritten(path: string, source: ReadonlyMap<string, Buffer>): boolean
 }
 
 async function update(name: string): Promise<string[]> {
-  const problems: string[] = []
   const fixtureCase = await readCase(name)
-  const result = await runFixture(name, fixtureCase)
+  return withFixtureRun(name, fixtureCase, result => write(name, fixtureCase, result))
+}
+
+async function write(
+  name: string,
+  fixtureCase: { readonly exitCode: number },
+  result: FixtureRun,
+): Promise<string[]> {
+  const problems: string[] = []
   if (result.exitCode !== fixtureCase.exitCode) {
     problems.push(
       `${name}: 退出码为 ${result.exitCode}，case.json 期望 ${fixtureCase.exitCode}`,

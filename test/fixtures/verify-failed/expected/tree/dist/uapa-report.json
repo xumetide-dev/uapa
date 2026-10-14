@@ -1,0 +1,33 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:subprocess",
+      "status": "failed",
+      "errors": [
+        "宿主校验失败：claude plugin validate --strict 以退出码 1 结束",
+        "plugin.json: author.name is required (fixture)"
+      ],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "failed",
+      "residualRisks": [
+        "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
+        "缺少 Node ≥ 22 或入口无法启动时，提示提交前检查不生效（宿主在 hook 出错时放行）",
+        "缺少 Node ≥ 22 或入口无法启动时，停机前检查不生效（宿主在 hook 出错时放行）"
+      ]
+    }
+  ]
+}

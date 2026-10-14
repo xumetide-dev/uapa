@@ -1,0 +1,2 @@
+uapa: claude-code:subprocess: 宿主校验失败：claude plugin validate --strict 以退出码 1 结束
+uapa: claude-code:subprocess: plugin.json: author.name is required (fixture)

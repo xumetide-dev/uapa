@@ -2,7 +2,8 @@
 
 本文说明 Claude Code 插件（plugin）的目录结构、`plugin.json` 与 `marketplace.json`
 的字段、两种 hooks 形态的控制语义、开发调试命令与分发方式。事实核对日期为
-2026-10-13，以官方文档与 Claude Code 2.1.296 本地实测为准。进程内 hooks 模块（mod）
+2026-10-13（「命令 hooks 的本地实测」一节为 2026-10-14），以官方文档与 Claude Code 2.1.296
+本地实测为准。进程内 hooks 模块（mod）
 的开发细节见 [Claude Code Mods 开发指南](claude-code-mods-guide.md)，横向对比见
 [跨平台对比](cross-platform-comparison.md)。
 
@@ -78,6 +79,9 @@
   出现未知键则插件不加载。
 - 名称以 `claude-`、`anthropic-`、`anthropics-`、`cc-plugin-` 开头，或等于 `claude`、
   `anthropic`、`claude-code`、`claude-mods` 等保留名时，`validate` 报错（2.1.296 本地实测）。
+- 名称中某个以 `-` 分隔的段为 `claude` 或 `anthropic` 时（如 `my-claude`、`demo-claude-plugin`、
+  `tool-anthropic`），`validate` 告警，`--strict` 下判为失败；`claudebot`、`myclaude` 不受影响
+  （2.1.296 本地实测，2026-10-14）。
 - 非 kebab-case 名称（如 `@org/foo`）在 `validate` 中为告警，但按路径加载
   （`--plugin-dir`）时被拒绝，也无法从 marketplace 按此名安装（本地实测）。
 
@@ -146,6 +150,19 @@
 - 默认超时 600 秒（v2.1.3 起由 60 秒调整），`UserPromptSubmit` 等少数事件更短。
 - hook 进程可读取 `CLAUDE_PROJECT_DIR`、`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA`、
   `CLAUDE_PLUGIN_OPTION_<KEY>`、`CLAUDECODE=1`；`SessionStart` 另有 `CLAUDE_ENV_FILE`。
+
+### 命令 hooks 的本地实测
+
+2.1.296 本地实测结论（`claude -p` + `--plugin-dir`），做法见
+[Claude Code 本地实测记录](claude-code-local-tests.md#命令-hooks)：
+
+- stdin 中会话 id 为 `session_id`，工具名为 `tool_name`，工具入参为 `tool_input`（Bash 的命令为
+  `tool_input.command`），提示文本为 `prompt`。
+- `PreToolUse` 只输出 `hookSpecificOutput.updatedInput`、不带 `permissionDecision` 时改写同样生效。
+- `PreToolUse` 条目省略 matcher 时对全部工具触发。
+- `UserPromptSubmit` 以退出码 2 或 `decision: "block"` 拦下提示，不调用模型。
+- 条目的 `timeout` 字段以秒为单位；超时后 hook 进程被结束，工具照常运行。
+- `SessionEnd` 在 `-p` 模式下也触发。
 
 ### hooks 模块与命令 hooks 并存
 

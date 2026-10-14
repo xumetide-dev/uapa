@@ -35,7 +35,7 @@ export interface CommandHookDecl {
 | 事件 | `claude-code:subprocess` | `codex:subprocess` | `agy:subprocess` | `copilot-cli:subprocess`（预留） | `kimi:subprocess`（预留） |
 |---|---|---|---|---|---|
 | `SessionStart` | `SessionStart` | `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
-| `SessionEnd` | `null`（调研未记载，待 TA-15） | `SessionEnd` | `null`（宿主没有该事件） | `sessionEnd` | `SessionEnd` |
+| `SessionEnd` | `SessionEnd`（2.1.296 本地实测，`-p` 模式也触发） | `SessionEnd` | `null`（宿主没有该事件） | `sessionEnd` | `SessionEnd` |
 | `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `null`（宿主没有该事件） | `userPromptSubmitted` | `UserPromptSubmit` |
 | `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
 | `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` |
@@ -44,7 +44,8 @@ export interface CommandHookDecl {
 - `claude-code:in-process` 不运行命令，各事件均为 `null`。
 - agy 的 `PreToolUse` 命令须在 stdout 输出含 `decision` 的 JSON，否则宿主阻断该次工具调用
   （F-11-06 写入残余风险）。
-- 出处：[Claude Code](../research/coding-agent-plugin-manifests/claude-code-plugins.md) 与
+- 出处：[Claude Code](../research/coding-agent-plugin-manifests/claude-code-plugins.md)、
+  [Claude Code 本地实测记录](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#命令-hooks) 与
   [hooks 适配](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md)、
   [Codex](../research/coding-agent-plugin-manifests/codex-plugins.md)、
   [agy](../research/coding-agent-plugin-manifests/agy-plugins.md)、

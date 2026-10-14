@@ -9,9 +9,11 @@
 ```text
 <夹具>/
 ├── source/              源项目，含 uapa.config.ts
+├── path/                可选：复制到 PATH 目录中的可执行文件（verify-failed 的 claude 脚本）
 ├── case.json            命令参数与期望退出码，如 { "args": ["build"], "exitCode": 0 }
 └── expected/
     ├── tree/            运行后整个源项目目录的期望内容
+    ├── stdin/<目标>/    可选：入口用例，目标名中的冒号换为 -，如 claude-code-subprocess/deny.json
     ├── stdout.txt
     └── stderr.txt
 ```
@@ -20,8 +22,12 @@
   `tsconfig.json` 把 `'uapa'` 映射到 `src/index.ts`，`tsc` 因此会检查夹具配置的类型。
   故意写错配置的夹具（如 `invalid-config`）不写 `satisfies`。
 - 含 Claude Code 目标的夹具都写 `author`。
-- 运行时把 `source/` 复制到临时目录，`PATH` 只含一个空的临时目录，以 `process.execPath`
-  运行 `src/cli/main.ts`，子进程不继承测试进程的环境变量。
+- 运行时把 `source/` 复制到临时目录，`PATH` 只含一个临时目录（复制 `path/` 中的文件，没有
+  `path/` 时为空），以 `process.execPath` 运行 `src/cli/main.ts`，子进程不继承测试进程的环境变量。
+- 入口用例含 `args`、`stdin`、`env` 与期望的 `exitCode`、`stdout`、`stderr`；`stdin` 为字符串时原样
+  写入，其余按 JSON 写入；文本中的 `{dataDir}` 换为本用例新建的临时目录。入口以插件目录为工作
+  目录、以 `process.execPath` 运行，环境只含用例的 `env`。需要多次调用的验收（如 TA-16）写成
+  `node --test` 测试代码，使用 `run.ts` 的 `withFixtureRun` 取得同一夹具的产物。
 
 ## 更新期望输出
 
