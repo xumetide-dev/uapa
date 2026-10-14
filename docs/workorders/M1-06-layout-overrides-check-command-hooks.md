@@ -73,6 +73,8 @@
   `added`、`modified`、`removed` 与排序；`commandHooks` 每条校验失败的字段路径；承载检查的失败与
   跳过两种结果。
 - 夹具：三个里程碑 M4 夹具的比对与入口用例。
+- 承接 [M1-03 验收 §7](../acceptance/M1-03-claude-code-command-hooks-guard.md#7-已知限制与技术债) 第 1 行（比对模式实现后）：
+  `--check` 模式不调用宿主模块的 `verify`，各目标报告的 `hostValidation` 为 `none`。
 
 ## 验收
 
