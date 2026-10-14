@@ -46,7 +46,7 @@ uni-app 用一份 Vue 源码编译出 H5、各家小程序与 App。UAPA 采用�
 | `manifest.json` 中按平台分节 | `uapa.config.ts` 中按目标写选项，由目标生成宿主 manifest |
 | 条件编译 `#ifdef`；`platforms/<平台>/` 目录 | 源文件 frontmatter 的 `targets` 字段；`targets/<target>/` 覆盖目录 |
 | `uni.*` 统一 API，运行时适配各端 | 守卫逻辑的公共类型，构建时为各宿主生成入口 |
-| `dist/build/<平台>/` | `dist/<target>/` |
+| `dist/build/<平台>/` | `dist/<宿主>/` |
 
 ### 领域差异
 
@@ -233,7 +233,7 @@ dist/
 └── dsh/           # package.json（dsh.bundle）、cordis.patch.yml、插件模块
 ```
 
-- 合并布局：配置可让多个目标写入同一插件目录（各宿主的 manifest 文件名不同，可以并存）。同名
+- 合并布局：配置可让多个宿主写入同一插件目录（各宿主的 manifest 文件名不同，可以并存）。同名
   文件（如共用的 `hooks/hooks.json`）内容必须逐字一致，否则构建失败。
 - hooks 模块只能导入相对路径文件与 `'claude-code'`，构建时把守卫逻辑打包为模块旁的相对
   文件，不能依赖 npm 包。

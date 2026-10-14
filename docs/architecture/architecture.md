@@ -4,7 +4,7 @@
 |---|---|
 | 选型依据 | [ARCH-001](ARCH-001-agent-plugin-build-tool.md) |
 | 更新日期 | 2026-10-14 |
-| 变更记录 | 无 |
+| 变更记录 | 2026-10-14 功能清单拆分：增加 `build` 模块；默认产物目录改为按宿主划分（[范围决策 SD-09、SD-13](../feature-list/scope-decisions.md)） |
 
 本文是 UAPA 的权威架构文档：由哪些模块组成、模块之间的依赖方向、各层的硬约束、目录与发布方式。
 选型理由与被否决的方案见 [ARCH-001](ARCH-001-agent-plugin-build-tool.md)；构建流程、目标列表与
@@ -31,7 +31,7 @@ hooks 适配见 [设计提案](../research/coding-agent-plugin-manifests/unified
 | 命令 hooks 入口运行时 | Node.js；入口打包为 ES2022 ESM 单文件，只用 `node:` 内置模块；构建报告写明 Node 要求与解释器缺失时各宿主的默认行为 |
 | 源配置加载 | Node 类型剥离直接导入 `uapa.config.ts`；只能使用可擦除语法，相对导入写明 `.ts` 扩展名 |
 | 目标能力数据 | TypeScript 数据模块，类型为 `TargetCapabilities`，带宿主版本、核对日期与出处 |
-| 产物布局 | 默认每个目标一个目录；可选合并布局，多个目标写入同一插件目录，同名文件内容必须逐字一致，否则构建失败 |
+| 产物布局 | 默认每个宿主一个目录，同一宿主的多个目标（如 Claude Code 的两种形态）写入同一目录；可选合并布局，多个宿主写入同一插件目录，同名文件内容必须逐字一致，否则构建失败 |
 | 发布形态 | main 不提交 `dist/`；发布提交含 `dist/` 并打 `vX.Y.Z` tag；0.x 期间次版本号可含不兼容变更 |
 | 公共导出面 | 包入口 `uapa` 导出 `defineConfig` 与公共类型；命令 `uapa build` 与 `uapa build --check` |
 
@@ -41,16 +41,19 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 
 1. `cli` 解析命令，调用 `config` 加载并校验 `uapa.config.ts`。
 2. `source` 读取源项目的 skills、MCP、rules、agents、commands 与 frontmatter。
-3. 对每个目标：`targets/<host>` 读取 `capabilities` 中的能力数据，检查组件与守卫能力，生成
-   manifest、组件文件与 hooks 配置；`bundle` 把守卫逻辑、`runtime/core` 与该目标的
-   `runtime/entries` 打包为单文件入口；随后校验产物。
-4. `report` 汇总各目标的产物、跳过项、降级项与残余风险。`--check` 模式只比对不写入。
+3. `build` 按宿主调用 `targets/<host>`：宿主模块为该宿主的每个目标读取 `capabilities` 中的能力
+   数据，检查组件与守卫能力，生成 manifest、组件文件与 hooks 配置，同一宿主的目标合成一套文件；`bundle` 把守卫逻辑、`runtime/core` 与
+   该目标的 `runtime/entries` 打包为单文件入口；随后校验产物。
+4. `build` 按产物布局写出各目标的文件：合并布局下，宿主模块声明为可合并的 JSON 按命名空间合并，
+   其余同名文件必须逐字一致。`--check` 模式只比对不写入。
+5. `report` 汇总各目标的产物、跳过项、降级项与残余风险。
 
 | 模块 | 职责 | 可以依赖 | 硬约束 |
 |---|---|---|---|
-| `cli` | 命令、参数与退出码 | `config`、`source`、`targets`、`report` | 只有它读取命令行参数与设置退出码 |
+| `cli` | 命令、参数与退出码 | `config`、`build`、`report` | 只有它读取命令行参数与设置退出码 |
 | `config` | `defineConfig`、配置加载与校验 | zod | 校验失败给出文件与字段位置 |
 | `source` | 读取源项目组件 | yaml、zod | 只读，不写文件 |
+| `build` | 逐目标构建、产物布局与合并、比对 | `config`、`source`、`capabilities`、`targets`、`report` | 不包含宿主格式知识；只写入配置指定的输出目录，不删除其中的其他文件；`--check` 模式不写文件 |
 | `capabilities` | 各目标的能力数据 | `runtime/core` 的类型 | 只含数据；每个模块写明宿主版本、核对日期与出处 |
 | `targets/<host>` | 生成与校验一个宿主的产物 | `capabilities`、`source`、`bundle`、yaml | 一个目标失败不影响其他目标；能力缺失且未声明降级时失败 |
 | `runtime/core` | 公共类型、工具名换算、决策换算 | 无 | 不做 I/O，不引用 Node 类型，由 `tsconfig.runtime-core.json` 检查 |
@@ -73,6 +76,7 @@ uapa/
 │   ├── cli/
 │   ├── config/
 │   ├── source/
+│   ├── build/
 │   ├── capabilities/
 │   ├── targets/             claude-code/、codex/、copilot-cli/、kimi/
 │   ├── runtime/
@@ -82,9 +86,10 @@ uapa/
 │   └── report/
 ├── test/                    node:test 测试
 │   └── fixtures/            源项目夹具与各目标的期望产物
-├── scripts/                 发布脚本；仓库中只有这里允许手写 .mjs
+├── scripts/                 发布与检查脚本；仓库中只有这里允许手写 .mjs
 ├── docs/
 │   ├── architecture/        本文与选型文档
+│   ├── feature-list/        功能清单
 │   └── research/coding-agent-plugin-manifests/   宿主调研与设计提案
 ├── dist/                    只出现在发布提交中
 ├── package.json
