@@ -9,8 +9,8 @@ UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构�
 ## v0.1.0 范围
 
 - 目标：`claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、
-  `copilot-cli:subprocess`、`kimi:subprocess`，覆盖 Claude Code、Codex、GitHub Copilot CLI、
-  Kimi Code 四个宿主。
+  `agy:subprocess`，覆盖 Claude Code、Codex、Antigravity CLI（agy）三个宿主。GitHub Copilot CLI
+  与 Kimi Code 的设计保留为预留，见[范围决策 SD-26、SD-27](docs/feature-list/scope-decisions.md)。
 - 组件：skills；守卫 hooks：执行前、提示提交前与停机前检查。
 - 命令 hooks：配置中原样声明、不经守卫逻辑的命令，由子进程目标按宿主事件名写入 hooks 配置，见
   [命令 hooks 声明](docs/architecture/command-hooks.md)。

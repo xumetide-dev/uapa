@@ -12,18 +12,19 @@
 
 ```ts
 // src/config/targets.ts：目标名与宿主标识的唯一定义处
-export type HostName = 'claude-code' | 'codex' | 'copilot-cli' | 'kimi'
+export type HostName = 'claude-code' | 'codex' | 'agy'
 export type TargetName =
   | 'claude-code:in-process' | 'claude-code:subprocess'
-  | 'codex:subprocess' | 'copilot-cli:subprocess' | 'kimi:subprocess'
+  | 'codex:subprocess' | 'agy:subprocess'
 ```
 
 - 目标名为 `<宿主>:<形态>`。宿主标识用于配置的 `hosts` 键、`overrides/<宿主>/`、
   `src/targets/<宿主>/` 与默认插件目录名。
 - `source`、`capabilities`、`targets` 从 `src/config/targets.ts` 引用这两个类型与名称列表。
-- v0.1.0 完成时为上面的取值。实现过程中，目标名与宿主标识随该目标的能力数据一起登记：M2 登记
-  `claude-code:subprocess`（F-05-01），M4 登记 `codex:subprocess`、`copilot-cli:subprocess`、
-  `kimi:subprocess`，M5 登记 `claude-code:in-process`（F-05-14）；未登记的目标名按未知目标名处理。
+- v0.1.0 完成时为上面的取值；`copilot-cli`、`kimi` 及其目标名为预留（SD-26、SD-27），恢复排期时
+  登记。实现过程中，目标名与宿主标识随该目标的能力数据一起登记：M2 登记 `claude-code:subprocess`
+  （F-05-01），M4 登记 `codex:subprocess`、`agy:subprocess`（F-06-01、F-11-01），M5 登记
+  `claude-code:in-process`（F-05-14）；未登记的目标名按未知目标名处理。
 
 ## 2. 构建配置
 
@@ -48,8 +49,7 @@ export interface UapaConfig {
     codex?: HostDir & {
       interface?: Readonly<Record<string, unknown>>; hooksFile?: string
     }
-    'copilot-cli'?: HostDir
-    kimi?: HostDir & { interface?: Readonly<Record<string, unknown>> }
+    agy?: HostDir
   }
 }
 export function defineConfig(config: UapaConfig): UapaConfig
@@ -148,7 +148,7 @@ export const targetCapabilities: Readonly<Record<TargetName, TargetCapabilities>
 - 取值见 hooks 适配第 4、6、7、8 节；宿主升级后只改数据模块。`targetCapabilities` 的键为全部
   已登记的目标名，漏登记时 `tsc` 报错。
 - `toolNames` 取自[跨平台对比「工具名差异」](../research/coding-agent-plugin-manifests/cross-platform-comparison.md#工具名差异)；
-  Copilot CLI 使用 camelCase 事件收到的运行时名（`bash`、`view`、`edit`、`create` 等）。
+  agy 的工具名为 stdin `toolCall.name` 的取值（`run_command`、`view_file` 等）。
 - `failureDefault` 中调研未记载的组合记为 `'allow'`，并在数据模块中注明“文档未写明”。
 
 ## 5. 宿主模块接口
@@ -171,7 +171,7 @@ export interface HostInput {
 export interface OutputFile {
   readonly path: string // 相对插件目录，POSIX 分隔，不含 '..'
   readonly content: string | Uint8Array
-  // 合并布局下按命名空间合并：解析后比较 extensions 以外的字段（与键序无关），见 F-03-07
+  // 预留（F-03-07）：按命名空间合并，解析后比较 extensions 以外的字段；v0.1.0 不设置
   readonly merge?: 'json-extensions'
   // 合并布局中与其他宿主的同名文件冲突时，附在冲突错误之后
   readonly conflictHint?: string
@@ -194,7 +194,7 @@ export interface HostModule {
 ```
 
 - `src/targets/index.ts` 导出登记处 `hostModules: Readonly<Record<HostName, HostModule>>`，各宿主
-  的条目由该宿主的 manifest 功能（F-05-02、F-06-02、F-07-02、F-08-02）加入。构建编排只导入
+  的条目由该宿主的 manifest 功能（F-05-02、F-06-02、F-11-02）加入。构建编排只导入
   `src/targets/index.ts` 与 `src/targets/types.ts`；宿主模块不导入 `src/build/`，宿主模块之间互不导入。
 - `src/build/` 的内部函数以参数接收 `hostModules` 与 `targetCapabilities`，`build` 传入两个登记处；
   构建编排的单元测试传入测试用的宿主模块与能力数据，不依赖宿主功能模块。
@@ -210,13 +210,13 @@ export interface HostModule {
 - 宿主模块只按 `TargetPlan.checks` 决定生成哪些 hook，不读取 `guard.checks` 或能力数据推导。
   `TargetPlan.checks` 为空（未配置守卫，或检查全部被省略）时，宿主模块不为该目标生成入口；
   `checks` 与 `commandHooks` 都为空时，也不生成 hooks 配置，manifest 中不写指向它们的字段
-  （Codex 的 `extensions.com.openai.hooks`、Kimi Code 的 `hooks`、Claude Code `hooks/hooks.json`
+  （Codex 的 `extensions.com.openai.hooks`、Claude Code `hooks/hooks.json`
   中该形态的键）；对象因此为空时不写该对象。同一宿主的目标都为空时不生成 `hooks/` 目录。`TargetPlan.skills` 为空时，manifest 不写指向 skills 的字段。
 - 宿主模块只读取 `config.hosts` 中本宿主的选项。JSON 文件由宿主模块序列化：键序为固定的插入
   顺序，两空格缩进，结尾换行。
-- 标为 `json-extensions` 的文件合并时，以宿主标识在 `src/config/targets.ts` 中排在最前的宿主
+- 预留（F-03-07）：标为 `json-extensions` 的文件合并时，以宿主标识在 `src/config/targets.ts` 中排在最前的宿主
   的文件为基准，保留其键序；`extensions` 中各命名空间按字典序写出；按上一条的格式序列化。
-- `$schema` 格式的根 `plugin.json`（Codex、Copilot CLI）顶层依次写 `$schema`
+- `$schema` 格式的根 `plugin.json`（Codex；预留的 Copilot CLI 相同）顶层依次写 `$schema`
   （`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`）、`name`、`version`、
   `description`，配置有值时写 `author`、`keywords`，最后写 `extensions`（没有内容时不写）；各宿主
   只在 `extensions` 的本宿主命名空间中写专有字段。

@@ -9,7 +9,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('../docs/feature-list/', import.meta.url))
-const PHASES = ['v0.1.0', 'v0.2.0']
+// 预留：设计保留、尚未排期的功能，对应宿主恢复排期时改为具体版本
+const PHASES = ['v0.1.0', 'v0.2.0', '预留']
+const RESERVED = '预留'
 const FEATURE_ID = /^F-(\d{2})-\d{2}$/
 const problems = []
 
@@ -64,8 +66,8 @@ for (const [id, feature] of features) {
     else if (phaseRank(dep) > phaseRank(id)) problems.push(`${id}: 依赖更晚阶段的 ${dep}`)
   }
 }
-// 依赖方向：跨功能模块的依赖不得指向宿主功能模块（05～08）；同一功能模块内的依赖不受限
-const HOST_MODULES = new Set(['05', '06', '07', '08'])
+// 依赖方向：跨功能模块的依赖不得指向宿主功能模块（05～08、11）；同一功能模块内的依赖不受限
+const HOST_MODULES = new Set(['05', '06', '07', '08', '11'])
 for (const [id, feature] of features) {
   for (const dep of feature.deps) {
     const depModule = dep.slice(2, 4)
@@ -90,7 +92,7 @@ function visit(id, path) {
 }
 for (const id of features.keys()) visit(id, [])
 
-// 承接：故事与技术验收引用的功能必须存在；每个功能至少被承接一次
+// 承接：故事与技术验收引用的功能必须存在，且不晚于其阶段；已排期的功能至少被承接一次
 const covered = new Set()
 const storiesFile = join(ROOT, 'stories.md')
 const personas = new Set(
@@ -109,15 +111,23 @@ for (const story of stories) {
     covered.add(ref)
   }
 }
-const checks = readTable(join(ROOT, 'technical-acceptance.md'), '| 编号 | 名称 |')
+const checks = readTable(join(ROOT, 'technical-acceptance.md'), '| 编号 | 名称 | 阶段 |')
 for (const check of checks) {
+  const id = check['编号']
+  if (!PHASES.includes(check['阶段'])) problems.push(`${id}: 未知阶段「${check['阶段']}」`)
   for (const ref of splitIds(check['功能'])) {
-    if (!features.has(ref)) problems.push(`${check['编号']}: 引用的 ${ref} 不存在`)
+    if (!features.has(ref)) problems.push(`${id}: 引用的 ${ref} 不存在`)
+    else if (phaseRank(ref) > PHASES.indexOf(check['阶段'])) {
+      problems.push(`${id}: 引用更晚阶段的 ${ref}`)
+    }
     covered.add(ref)
   }
 }
-for (const id of features.keys()) {
-  if (!covered.has(id)) problems.push(`${id}: 没有被用户故事或技术验收承接`)
+// 预留功能不排期，不要求承接
+for (const [id, feature] of features) {
+  if (feature['阶段'] !== RESERVED && !covered.has(id)) {
+    problems.push(`${id}: 没有被用户故事或技术验收承接`)
+  }
 }
 
 if (problems.length) {

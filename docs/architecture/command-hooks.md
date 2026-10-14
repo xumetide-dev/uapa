@@ -32,19 +32,22 @@ export interface CommandHookDecl {
 能力数据的 `commandHookEvents`（[模块接口 §4](module-interfaces.md#4-目标能力数据)）记录每个事件在
 该目标上的宿主事件名；`null` 表示不承载或调研未记载。
 
-| 事件 | `claude-code:subprocess` | `codex:subprocess` | `copilot-cli:subprocess` | `kimi:subprocess` |
-|---|---|---|---|---|
-| `SessionStart` | `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
-| `SessionEnd` | `null`（调研未记载，待 TA-15） | `SessionEnd` | `sessionEnd` | `SessionEnd` |
-| `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `userPromptSubmitted` | `UserPromptSubmit` |
-| `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
-| `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` |
-| `Stop` | `Stop` | `Stop` | `agentStop` | `Stop` |
+| 事件 | `claude-code:subprocess` | `codex:subprocess` | `agy:subprocess` | `copilot-cli:subprocess`（预留） | `kimi:subprocess`（预留） |
+|---|---|---|---|---|---|
+| `SessionStart` | `SessionStart` | `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
+| `SessionEnd` | `null`（调研未记载，待 TA-15） | `SessionEnd` | `null`（宿主没有该事件） | `sessionEnd` | `SessionEnd` |
+| `UserPromptSubmit` | `UserPromptSubmit` | `UserPromptSubmit` | `null`（宿主没有该事件） | `userPromptSubmitted` | `UserPromptSubmit` |
+| `PreToolUse` | `PreToolUse` | `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
+| `PostToolUse` | `PostToolUse` | `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` |
+| `Stop` | `Stop` | `Stop` | `Stop` | `agentStop` | `Stop` |
 
 - `claude-code:in-process` 不运行命令，各事件均为 `null`。
+- agy 的 `PreToolUse` 命令须在 stdout 输出含 `decision` 的 JSON，否则宿主阻断该次工具调用
+  （F-11-06 写入残余风险）。
 - 出处：[Claude Code](../research/coding-agent-plugin-manifests/claude-code-plugins.md) 与
   [hooks 适配](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md)、
   [Codex](../research/coding-agent-plugin-manifests/codex-plugins.md)、
+  [agy](../research/coding-agent-plugin-manifests/agy-plugins.md)、
   [GitHub Copilot](../research/coding-agent-plugin-manifests/github-copilot-plugins.md)、
   [Kimi Code](../research/coding-agent-plugin-manifests/kimi-code-plugins.md) 的 hooks 一节。
 
@@ -57,8 +60,9 @@ export interface CommandHookDecl {
 |---|---|
 | `claude-code:subprocess` | `${CLAUDE_PLUGIN_ROOT}` |
 | `codex:subprocess` | `$PLUGIN_ROOT`；命令是否经 shell 执行待 TA-15（SD-23） |
-| `copilot-cli:subprocess` | 处理器的 `bash` 中为 `$PLUGIN_ROOT`，`powershell` 中为 `$env:PLUGIN_ROOT` |
-| `kimi:subprocess` | `.`（插件 hook 以插件根目录为工作目录） |
+| `agy:subprocess` | `.`（hook 以插件目录为工作目录） |
+| `copilot-cli:subprocess`（预留） | 处理器的 `bash` 中为 `$PLUGIN_ROOT`，`powershell` 中为 `$env:PLUGIN_ROOT` |
+| `kimi:subprocess`（预留） | `.`（插件 hook 以插件根目录为工作目录） |
 
 ## 4. 处理规则
 
@@ -67,9 +71,9 @@ export interface CommandHookDecl {
   `TargetPlan.commandHooks`。适用但为 `null` 时：`targets` 显式列出该目标则该目标失败；否则在该
   目标报告的 `skipped` 中写 `{ component: 'commandHooks[<下标>]', reason }`，同一宿主的另一目标
   承载该声明时不写（如同时配置两个 Claude Code 目标时的 `claude-code:in-process`）。
-- 生成（F-05-15、F-06-08、F-07-09、F-08-08）：宿主模块按 `TargetPlan.commandHooks` 在该目标的
+- 生成（F-05-15、F-06-08、F-11-06）：宿主模块按 `TargetPlan.commandHooks` 在该目标的
   hooks 配置中写入条目，事件名取 `commandHookEvents`，条目结构与超时同该目标的守卫条目，不写
-  matcher；同一事件下排在守卫条目之后，按声明顺序。
+  matcher（agy 的工具事件同其守卫条目写 `"matcher": ""`）；同一事件下排在守卫条目之后，按声明顺序。
 - `TargetPlan.checks` 为空而 `commandHooks` 非空时，宿主模块只生成 hooks 配置与 manifest 中指向它
   的字段，不生成入口。
 - Claude Code 双形态去重（F-05-08）只作用于守卫入口；声明的命令只写在 `hooks/hooks.json` 的

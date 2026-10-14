@@ -1,7 +1,8 @@
 # UAPA hooks 适配
 
-**状态：** 第 1、2、3、5 节，以及第 4、6、7、8 节中 v0.1.0 五个目标的行，是 v0.1.0 的实现
-依据，功能清单逐条引用；其他目标的行是后续版本的设计，尚未排期；第 9 节的测试分层以功能清单的
+**状态：** 第 1、2、3、5 节，以及第 4、6、7、8 节中 v0.1.0 四个目标（Claude Code 两种形态、
+Codex、agy）的行，是 v0.1.0 的实现依据，功能清单逐条引用；Copilot CLI 与 Kimi Code 的行为预留
+（功能清单 SD-26、SD-27），其他目标的行是后续版本的设计，尚未排期；第 9 节的测试分层以功能清单的
 技术验收为准。文件
 位置与数据结构以 [模块接口](../../architecture/module-interfaces.md) 为准，验收以
 [功能清单](../../feature-list/README.md) 为准，冲突时的依据见
@@ -12,7 +13,7 @@
 目标上如何换算为宿主的 hooks 协议：工具名映射、决策输出、Claude Code 双形态去重、能力缺失
 与失败处理、状态与测试。v0.1.0 目标见 [架构 §0](../../architecture/architecture.md#0-技术选型总览)，
 写出规则见 [模块接口 §8](../../architecture/module-interfaces.md)；后续目标见设计提案第 5 节。
-核对日期为 2026-10-13。
+核对日期为 2026-10-13，agy 为 2026-10-14。
 
 ## 1. 守卫逻辑的约束
 
@@ -111,6 +112,7 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 | `codex:subprocess` | 退出码 2（stderr 须非空）或 `permissionDecision: "deny"` | `updatedInput`（配合 `allow`） | 不能替换；扣留用 `PostToolUse` 的 `decision: "block"` 以反馈替换结果 | `Stop` 返回 `decision: "block"` + `reason` |
 | `copilot-cli:subprocess` | 退出码 2 或 `permissionDecision: "deny"` + `permissionDecisionReason` | `modifiedArgs` | `modifiedResult` | `agentStop` 返回 `decision: "block"`，连续 8 次后结束 |
 | `cursor:subprocess` | 退出码 2 或权限类 hook 返回 deny | `updated_input` | 只对 MCP 工具：`updated_mcp_tool_output` | 不支持 |
+| `agy:subprocess` | stdout `{"decision":"deny","reason":...}` | `decision: "allow"` + `overwrite`（按键浅合并） | 不支持 | `Stop` 返回 `decision: "continue"` + `reason` |
 | `kimi:subprocess` | 退出码 2 或 `permissionDecision: "deny"` | 不支持 | 不支持 | `Stop` 退出码 2 |
 | `kiro:workspace-hook` | 退出码 2 | 不支持 | 不支持 | 仅 CLI V3：退出码 1 或 `decision: "block"`；IDE 不支持 |
 | `codebuddy:subprocess` | 退出码 2，原因写入 stdout | `modifiedInput` | `updatedToolOutput` | `continue: false` + `reason`，或退出码 2 |
@@ -126,10 +128,11 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 | `claude-code:in-process` | `prompt.submit` | 返回 `{ drop: reason }` | [Mods 指南](claude-code-mods-guide.md) |
 | `claude-code:subprocess` | `UserPromptSubmit` | 待 TA-15 | — |
 | `codex:subprocess` | `UserPromptSubmit` | 待 TA-15 | — |
+| `agy:subprocess` | 无 | 宿主没有提示提交事件，`promptGate` 为不支持 | [agy](agy-plugins.md#hooks) |
 | `copilot-cli:subprocess` | `userPromptSubmitted` | 待 TA-15 | — |
 | `kimi:subprocess` | `UserPromptSubmit` | 退出码 2，原因写入 stderr | [Kimi Code](kimi-code-plugins.md) |
 
-提示文本在 stdin 中的字段名各宿主文档均未给出（含 Kimi Code），随 TA-15 写入调研文档与能力
+提示文本在 stdin 中的字段名各宿主文档均未给出（含 Kimi Code；agy 没有该事件），随 TA-15 写入调研文档与能力
 数据；确认前各子进程目标的 `promptGate` 记为不支持。
 
 ## 5. Claude Code 双形态去重
@@ -225,7 +228,7 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
 | `promptGate` | 能力数据记为不支持的目标（见第 4 节提示提交前检查表） | 声明需要时构建失败；否则不生成提示事件的 hook，并在构建报告中写明残余风险：提示不受检查 |
 
 停机门禁没有统一的次数上限：Claude Code 与 Copilot CLI 为连续 8 次，DSH 与 CodeBuddy 没有，
-Codex 与 Kimi Code 的文档未写明。`continuations` 由适配器按会话保存，`beforeStop` 返回
+Codex、Kimi Code 与 agy 的文档未写明。`continuations` 由适配器按会话保存，`beforeStop` 返回
 `continue` 时加 1、返回 `stop` 时清零；插件据此自行设上限。
 
 ## 7. 失败处理
@@ -250,13 +253,15 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 | `codex:subprocess` | 放行：非 0 非 2 退出码、超时、启动失败、非法 JSON 均放行 | 600 秒 |
 | `copilot-cli:subprocess` | `preToolUse` 非零退出码拒绝；超时对所有事件放行 | 30 秒 |
 | `cursor:subprocess` | 放行；生成的配置设 `failClosed: true`，崩溃、超时、无输出均阻断 | 未核实 |
+| `agy:subprocess` | `PreToolUse` 出错、超时或 stdout 不是 JSON 时阻断；`Stop` 出错时照常结束（1.3.4 本地实测） | 30 秒 |
 | `kimi:subprocess` | 放行 | 30 秒 |
 | `kiro:workspace-hook` | CLI 放行；IDE 文档矛盾；超时后的行为未说明 | IDE 60 秒（忽略 hook 的 `timeout`）；CLI 文档写 30 秒或 60 秒 |
 | `codebuddy:subprocess` | 放行 | 60 秒 |
 | `opencode:in-process`、`dsh:cordis` | 抛错即阻断 | 不适用 |
 
-- 超时只在字段名已核实的目标上写出，取 30 秒（Copilot CLI 与 Kimi Code 的默认值，为 v0.1.0
-  目标中最小）：Copilot CLI 为 `timeoutSec`，Kimi Code 为 `timeout`（秒，1～600）。Claude Code
+- 超时只在字段名已核实的目标上写出，取 30 秒（agy、Copilot CLI 与 Kimi Code 的默认值）：
+  agy 为 `timeout`（秒，1.3.4 实测生效），Copilot CLI 为 `timeoutSec`，Kimi Code 为
+  `timeout`（秒，1～600）。Claude Code
   与 Codex 的字段名待 TA-15 实测，实测前不写超时，构建报告写明沿用宿主默认值 600 秒。
   守卫逻辑的耗时应远低于 30 秒。
 - 在默认放行的目标上，守卫在入口无法启动时失效（例如缺少解释器），构建报告列为残余风险。
@@ -269,7 +274,7 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 |---|---|---|
 | `claude-code:in-process` | `$.state`，键为 `{ plugin, key }` 字面量，类型在 `types/index.d.ts` 中声明 | `$.store`，每个插件一个 JSON，上限 4 MiB |
 | `claude-code:subprocess`、`codebuddy:subprocess`、`codex:subprocess`、`copilot-cli:subprocess` | 插件数据目录下以 `session_id` 命名的文件，先写临时文件再重命名 | 插件数据目录：`CLAUDE_PLUGIN_DATA`、`CODEBUDDY_PLUGIN_DATA`、`PLUGIN_DATA`、`COPILOT_PLUGIN_DATA` |
-| `kimi:subprocess` | 宿主没有插件数据目录；系统临时目录下 `uapa-<插件名>/` 中以会话 id 命名的文件，先写临时文件再重命名，临时目录被清理时计数归零（功能清单 SD-06） | 不提供 |
+| `agy:subprocess`、`kimi:subprocess` | 宿主没有插件数据目录；系统临时目录下 `uapa-<插件名>/` 中以会话 id 命名的文件，先写临时文件再重命名，临时目录被清理时计数归零（功能清单 SD-06） | 不提供 |
 | `cursor:subprocess`、`kiro:workspace-hook` | 宿主没有插件数据目录，待定 | 不提供 |
 | `opencode:in-process` | 插件闭包内以会话 id 为键的 `Map` | v1 无约定 |
 | `dsh:cordis` | 以 agent 为键的 `Map`，在 `agent/disposed` 时清理 | `ctx.storageDomain`，json 后端位于 `$DSH_HOME/storages` |

@@ -43,13 +43,13 @@ stdout、stderr 分别与期望文件比对。入口用例以 `process.execPath`
 | `usage-error` | `case.json` 的 `args` 为 `["build", "--unknown"]`，期望退出码 2，不写任何文件 | M2 | F-09-02 |
 | `single-claude` | 与 `full` 相同的 skills 与守卫，只配置 `claude-code:subprocess` | M3 | F-05-03、F-05-04、TA-16 |
 | `verify-failed` | 同 `single-claude`；`PATH` 中放一个以退出码 1 结束的 `claude` 脚本 | M3 | F-03-14、F-05-09、F-09-02 |
-| `throwing-guard` | 各检查抛出 `new Error('throwing-guard')`；配置四个子进程目标，默认布局 | M4 | TA-03 |
-| `requires-missing` | 守卫 `requires: ['rewriteInput']`，只实现 `beforeTool` 与 `beforeStop`；配置四个子进程目标，默认布局；Kimi Code 失败，其他目标成功，hooks 配置不含提示事件 | M4 | TA-04 |
-| `unknown-override` | 只配置 `claude-code:subprocess`；存在 `overrides/kimi/` | M4 | F-01-06、F-09-02 |
+| `throwing-guard` | 各检查抛出 `new Error('throwing-guard')`；配置三个子进程目标，默认布局 | M4 | TA-03 |
+| `requires-missing` | 守卫 `requires: ['promptGate']`，实现 `beforeTool`、`beforePrompt` 与 `beforeStop`；配置三个子进程目标，默认布局；`agy:subprocess` 失败（宿主没有提示提交事件），报告写明缺少 `promptGate`；`claude-code:subprocess` 与 `codex:subprocess` 的结果按其能力数据中 `promptGate` 的取值 | M4 | TA-04 |
+| `unknown-override` | 只配置 `claude-code:subprocess`；存在 `overrides/codex/` | M4 | F-01-06、F-09-02 |
 | `in-process-only` | 只配置 `claude-code:in-process`；守卫只实现 `beforeTool`；断言 `hooks/uapa-guard.mjs` 不含 `$.env.set` | M5 | F-05-08、F-05-10 |
 | `claude-both` | 与 `full` 相同的 skills 与守卫，配置两个 Claude Code 目标；入口用例含去重变量等于与不等于 `session_id` 各一例 | M5 | F-05-08、F-05-10、TA-11、TA-17 |
-| `full` | skills 与守卫；守卫实现执行前（含返回 `rewrite` 的分支）、提示提交前与停机前检查，`beforeStop` 在 `continuations < 2` 时返回 `continue`，否则返回 `stop`；五个目标，默认布局 | M4、M5 之后 | US-01、US-02、F-04-02、TA-16 |
-| `merged` | 同 `full`，五个目标写入源项目根目录（`hosts.*.dir` 为 `'.'`）；Codex 设 `hooksFile`；源项目中另有一个无关文件 | M4、M5 之后 | US-05、TA-07 |
+| `full` | skills 与守卫；守卫实现执行前（含返回 `rewrite` 的分支）、提示提交前与停机前检查，`beforeStop` 在 `continuations < 2` 时返回 `continue`，否则返回 `stop`；四个目标，默认布局 | M4、M5 之后 | US-01、US-02、F-04-02、TA-16 |
+| `merged` | 同 `full`；Claude Code 的两个目标与 Codex 写入源项目根目录（`hosts['claude-code'].dir`、`hosts.codex.dir` 为 `'.'`），Codex 设 `hooksFile`；agy 使用默认目录；源项目中另有一个无关文件 | M4、M5 之后 | US-05、TA-07 |
 | `merged-conflict` | 同 `merged`，但 Codex 不设 `hooksFile`，Claude Code 与 Codex 都生成 `hooks/hooks.json` | M4、M5 之后 | F-03-06、TA-07 |
-| `targets-filter` | 五个目标，默认布局；一个 skill 的 frontmatter 只限定 `claude-code:in-process`，另一个只限定 `codex:subprocess`；`overrides/codex/` 中的 `plugin.json` 覆盖生成文件，另有一个 `README.md` 为新增文件 | M4、M5 之后 | F-01-05、F-03-04、F-03-12、US-04 |
-| `command-hooks` | 守卫只实现 `beforeTool`；`commandHooks` 声明一条 `SessionStart`（命令为 `node "{pluginRoot}/scripts/session.mjs"`）与一条 `SessionEnd`；五个目标，默认布局 | M4、M5 之后 | F-01-09、F-03-15、F-05-15、F-06-08、F-07-09、F-08-08、TA-18 |
+| `targets-filter` | 四个目标，默认布局；一个 skill 的 frontmatter 只限定 `claude-code:in-process`，另一个只限定 `codex:subprocess`；`overrides/codex/` 中的 `plugin.json` 覆盖生成文件，另有一个 `README.md` 为新增文件 | M4、M5 之后 | F-01-05、F-03-04、F-03-12、US-04 |
+| `command-hooks` | 守卫只实现 `beforeTool`；`commandHooks` 声明一条 `SessionStart`（命令为 `node "{pluginRoot}/scripts/session.mjs"`）与一条 `SessionEnd`；四个目标，默认布局 | M4、M5 之后 | F-01-09、F-03-15、F-05-15、F-06-08、F-11-06、TA-18 |

@@ -5,8 +5,8 @@
 本文与它们不一致处以它们为准。仓库中还没有实现代码，文中代码与配置均为示意写法。
 
 本文说明 UAPA（Unified Agent Plugin Architecture）的定位、源项目结构、构建流程与产物：
-从一份插件源项目，构建出 Claude Code、Codex、GitHub Copilot CLI、Cursor、Kimi Code、Kiro、
-CodeBuddy、OpenCode、DSH 各自可安装的插件包。守卫逻辑的公共类型、各宿主 hooks 的适配、
+从一份插件源项目，构建出 Claude Code、Codex、Antigravity CLI（agy）、GitHub Copilot CLI、Cursor、
+Kimi Code、Kiro、CodeBuddy、OpenCode、DSH 各自可安装的插件包。守卫逻辑的公共类型、各宿主 hooks 的适配、
 Claude Code 双形态去重与失败处理见 [UAPA hooks 适配](uapa-hook-adapters.md)。
 
 各宿主的 manifest 与 hooks 事实以各平台文档为准，横向结论见
@@ -123,7 +123,7 @@ export default defineConfig({
   author: { name: 'Example Team' },
   guard: './src/guard.ts',
   targets: ['claude-code:in-process', 'claude-code:subprocess', 'codex:subprocess',
-    'copilot-cli:subprocess', 'kimi:subprocess'],
+    'agy:subprocess'],
 })
 ```
 
@@ -143,6 +143,7 @@ export default defineConfig({
 | `claude-code:in-process` | hooks 模块（mod） | `hooks/hooks.json` 的 `"modules"` → `hooks/register.ts` | [Claude Code](claude-code-plugins.md)、[Mods 指南](claude-code-mods-guide.md) |
 | `claude-code:subprocess` | 命令 hooks | `hooks/hooks.json` 的 `"hooks"` → 子进程入口 | [Claude Code](claude-code-plugins.md) |
 | `codex:subprocess` | 命令 hooks | 插件 `hooks/hooks.json`；只对桌面端手动安装的插件生效 | [Codex](codex-plugins.md) |
+| `agy:subprocess` | 命令 hooks | 根 `hooks.json` → `hooks/uapa-agy.mjs` | [agy](agy-plugins.md) |
 | `copilot-cli:subprocess` | 命令 hooks | `com.github.copilot/hooks/hooks.json`（Copilot CLI 读取的位置待 TA-15） | [GitHub Copilot](github-copilot-plugins.md) |
 | `cursor:subprocess` | 命令 hooks | `.cursor-plugin/plugin.json` 与 `hooks/hooks.json` | [Cursor](cursor-plugins.md) |
 | `kimi:subprocess` | 命令 hooks | `kimi.plugin.json` 的 `hooks` 字段 | [Kimi Code](kimi-code-plugins.md) |

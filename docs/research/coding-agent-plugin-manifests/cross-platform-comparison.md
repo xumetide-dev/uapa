@@ -1,9 +1,10 @@
-# 跨平台对比：九个编码代理的插件与 manifest
+# 跨平台对比：十个编码代理的插件与 manifest
 
 本文横向比较 Claude Code、Codex、OpenCode、DeepSeek Harness（DSH）、Kimi Code、
-CodeBuddy / WorkBuddy、GitHub Copilot、Cursor、Kiro 的插件形态、manifest、skills、hooks 控制能力、
-MCP 配置与分发方式，并给出跨平台发布的取舍建议。各平台细节与出处见同目录的平台文档；
-扩展机制的分层见 [扩展形态与迁移指南](modular-development.md)。事实核对日期为 2026-10-13。
+CodeBuddy / WorkBuddy、GitHub Copilot、Cursor、Kiro、Antigravity CLI（agy）的插件形态、manifest、
+skills、hooks 控制能力、MCP 配置与分发方式，并给出跨平台发布的取舍建议。各平台细节与出处见
+同目录的平台文档；扩展机制的分层见 [扩展形态与迁移指南](modular-development.md)。事实核对日期为
+2026-10-13，agy 为 2026-10-14。
 
 ## 插件形态与 manifest
 
@@ -14,6 +15,7 @@ MCP 配置与分发方式，并给出跨平台发布的取舍建议。各平台�
 | OpenCode | JS/TS 代码模块 | 无；npm 包用 `package.json` | 不适用 | [链接](opencode-plugins.md) |
 | DSH | npm 包 + Cordis 配置层 | `package.json` 的 `dsh.bundle` + `cordis.patch.yml` | `dsh.bundle.patch` | [链接](dsh-plugins.md) |
 | Kimi Code | 声明式目录包 / zip | `kimi.plugin.json` 或 `.kimi-plugin/plugin.json` | `name` | [链接](kimi-code-plugins.md) |
+| agy | 声明式目录包 | 根 `plugin.json`；1.3.2 起也可在 `.antigravity-plugin/`、`.gemini-plugin/` 中 | `name`（CLI） | [链接](agy-plugins.md) |
 | CodeBuddy / WorkBuddy | 声明式目录包（Claude Code 兼容） | `.codebuddy-plugin/`、`.workbuddy-plugin/`、`.claude-plugin/` 下的 `plugin.json`，可选 | `name` | [链接](workbuddy-codebuddy-plugins.md) |
 | GitHub Copilot | 声明式目录包 | 根 `plugin.json`（带 `$schema`）；另识别 Copilot、Claude、OpenPlugin 旧格式 | `$schema`、`name` | [链接](github-copilot-plugins.md) |
 | Cursor | 声明式目录包 | `.cursor-plugin/plugin.json`；根 `plugin.json` 只承载 skills 与 MCP | `name` | [链接](cursor-plugins.md) |
@@ -23,11 +25,11 @@ MCP 配置与分发方式，并给出跨平台发布的取舍建议。各平台�
 
 ## manifest 位置的交叉读取
 
-- **根目录 `plugin.json`**：Codex、GitHub Copilot、Cursor、Kiro 都读取，但各自规则不同。
+- **根目录 `plugin.json`**：Codex、GitHub Copilot、Cursor、Kiro、agy 都读取，但各自规则不同。
   Copilot 与 Kiro 要求 `$schema` 并拒绝未知顶层字段（Copilot 报告并忽略，Kiro 校验失败），
   专有设置放在 `extensions` 下各自的命名空间（`com.openai`、`com.github.copilot`、
-  `dev.kiro`）；Cursor 的这种格式只承载 skills 与 MCP。同一份文件不能同时满足四家，
-  应按宿主分别生成。
+  `dev.kiro`）；Cursor 的这种格式只承载 skills 与 MCP；agy 的 schema 只允许 `name`、`description`。
+  同一份文件不能同时满足五家，应按宿主分别生成。
 - **`.claude-plugin/`**：Claude Code 本身使用；CodeBuddy / WorkBuddy 兼容其 `plugin.json` 并
   提供 `CLAUDE_*` 路径变量；VS Code 与 Copilot CLI 识别其 manifest；Codex 与 Copilot CLI
   识别其 `marketplace.json`。
@@ -44,6 +46,7 @@ MCP 配置与分发方式，并给出跨平台发布的取舍建议。各平台�
 | GitHub Copilot | `.github/plugin/marketplace.json`；CLI 兼容 `.claude-plugin/marketplace.json` | `copilot plugin install p@m` |
 | Cursor | `.cursor-plugin/marketplace.json` | 客户端内安装；公开发布需审核 |
 | Kimi Code | 自定义 JSON（`version: "2"`、`plugins[].id/source`） | `/plugins install` |
+| agy | 官方 marketplace `antigravity-plugins-official`；GitHub 仓库 URL、本地目录 | `agy plugin install p@m` |
 | Kiro | kiro.dev/powers 目录、GitHub URL | Powers 面板 |
 | DSH | npm 注册表 / git / 本地链接 | `dsh plugin --profile <n> add` |
 | OpenCode | npm 注册表 | 写入 `opencode.json` 的 `plugin` |
@@ -60,6 +63,7 @@ Agent Skills 规范定义 `SKILL.md`：必填 `name`（≤64 字符，小写字�
 | OpenCode | `.opencode/skills/`、`.claude/skills/`、`.agents/skills/` 及对应用户目录 |
 | DSH | `.dsh/skills`、`.agents/skills`、`customSkillDirs`、`<dshHome>/skills`、`<agentsHome>/skills` |
 | Kimi Code | `.kimi-code/skills/`、`.agents/skills/`、`$KIMI_CODE_HOME/skills/`、`~/.agents/skills/` |
+| agy | 插件 `skills/<name>/SKILL.md`；工作区与用户目录未逐字核实 |
 | WorkBuddy | `.workbuddy/skills/`、`~/.workbuddy/skills/`（只有社区资料佐证） |
 | Copilot / Cursor / Kiro | 插件 `skills/<name>/SKILL.md`；工作区目录未逐字核实 |
 
@@ -75,6 +79,7 @@ Agent Skills 规范定义 `SKILL.md`：必填 `name`（≤64 字符，小写字�
 | GitHub Copilot CLI | 退出码 2 / `permissionDecision` | `modifiedArgs` | `modifiedResult` | `agentStop` 阻断，上限 8 次 | `preToolUse` 拒绝；超时放行 | 否 |
 | Cursor | 退出码 2 / 权限决定 | `updated_input` | 只限 MCP 工具 | 不支持 | 放行；可设 `failClosed` | 否 |
 | Kimi Code | 退出码 2 / `permissionDecision` | 未提供 | 未提供 | `Stop` 可阻断 | 放行 | 否 |
+| agy | `decision: "deny"` | `overwrite` | 不支持 | `Stop` 返回 `decision: "continue"` | `PreToolUse` 阻断（本地实测）；`Stop` 照常结束 | 否 |
 | Kiro | 退出码 2（IDE 文档对其他非零码说法矛盾） | 未提供 | 未提供 | 仅 CLI V3 | CLI 放行；IDE 文档矛盾；超时未说明 | 否 |
 | CodeBuddy | 退出码 2，原因先取 stdout | `modifiedInput` | `updatedToolOutput` | `continue: false` 或退出码 2，无上限 | 放行 | Mods（Beta） |
 | OpenCode | 抛错 | `output.args` | `output.output` | 不支持 | 抛错即阻断 | 是 |
@@ -90,7 +95,7 @@ Agent Skills 规范定义 `SKILL.md`：必填 `name`（≤64 字符，小写字�
 
 | 风格 | 平台 | 示例事件 |
 |---|---|---|
-| PascalCase | Claude Code、Codex、Kimi Code、CodeBuddy、Kiro（JSON 示例） | `PreToolUse`、`PostToolUse`、`Stop` |
+| PascalCase | Claude Code、Codex、Kimi Code、CodeBuddy、Kiro（JSON 示例）、agy | `PreToolUse`、`PostToolUse`、`Stop` |
 | camelCase | GitHub Copilot CLI、Cursor | `preToolUse`、`agentStop`；Cursor 另有 `beforeShellExecution` 等 |
 | 点分事件名 | OpenCode、Claude Code hooks 模块 | `tool.execute.before`；`tool.call`、`session.start` |
 | Cordis 事件 | DSH | `tools/pre-execute`、`agent/turn-stopping` |
@@ -99,22 +104,22 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 
 ## 工具名差异
 
-执行前 hook 收到的内置工具名（核对日期 2026-10-13；“未查到”指官方文档与对应版本源码中均未
-找到）：
+执行前 hook 收到的内置工具名（核对日期 2026-10-13，agy 为 2026-10-14；“未查到”指官方文档与
+对应版本源码中均未找到）：
 
-| 能力 | Claude Code | Codex 0.162.1 | Copilot CLI | Cursor | Kimi Code 2.1.1 | Kiro IDE / CLI V3 | CodeBuddy | OpenCode 1.19.0 | DSH |
-|---|---|---|---|---|---|---|---|---|---|
-| 执行 shell | `Bash`、`PowerShell` | `Bash` | `bash`、`powershell` / `Bash` | `Shell` | `Bash` | `execute_bash`、`execute_pwsh` | `Bash`、`PowerShell` | `bash` | `bash` |
-| 读文件 | `Read` | 未查到 | `view` / `Read` | `Read` | `Read` | `read_file` | `Read` | `read` | `read` |
-| 编辑文件 | `Edit` | `apply_patch` | `edit` / `Edit` | `Write` | `Edit` | `str_replace` | `Edit`、`MultiEdit` | `edit` 或 `apply_patch` | `edit` |
-| 新建文件 | `Write` | `apply_patch` | `create` / `Write` | `Write` | `Write` | `fs_write` | `Write` | `write` 或 `apply_patch` | `write` |
-| 按模式找文件 | `Glob` | 未查到 | `glob` / `Glob` | 未查到 | `Glob` | `file_search` | `Glob` | `glob` | `glob` |
-| 内容搜索 | `Grep` | 未查到 | `grep` / `Grep` | `Grep` | `Grep` | `grep_search` | `Grep` | `grep` | `grep` |
-| 抓取网页 | `WebFetch` | 未查到 | `web_fetch` / `WebFetch` | 未查到 | `FetchURL` | `web_fetch` | `WebFetch` | `webfetch` | `web_fetch` |
-| 网络搜索 | `WebSearch` | 不触发 hook | `web_search` / `WebSearch` | 未查到 | `WebSearch` | `remote_web_search` | `WebSearch` | `websearch` | `web_search` |
-| 子代理 | `Agent` | `spawn_agent` | `task` / `Agent` | `Task` | `Agent` | `invoke_sub_agent` | `Agent` | `task` | `subagent` |
-| 待办 | `TaskCreate` 等 | `update_plan` | `update_todo` / `TodoWrite` | 未查到 | `TodoList` | 未查到 | `TaskCreate` 等 | `todowrite` | `todo_write` |
-| 名称所在字段 | stdin `tool_name`；模块 `e.tool` | `tool_name` | `toolName` / `tool_name` | `tool_name` | `tool_name` | `tool_name` | `tool_name` | `input.tool` | `exec.name` |
+| 能力 | Claude Code | Codex 0.162.1 | Copilot CLI | Cursor | Kimi Code 2.1.1 | Kiro IDE / CLI V3 | CodeBuddy | OpenCode 1.19.0 | DSH | agy 1.3.4 |
+|---|---|---|---|---|---|---|---|---|---| --- |
+| 执行 shell | `Bash`、`PowerShell` | `Bash` | `bash`、`powershell` / `Bash` | `Shell` | `Bash` | `execute_bash`、`execute_pwsh` | `Bash`、`PowerShell` | `bash` | `bash` | `run_command` |
+| 读文件 | `Read` | 未查到 | `view` / `Read` | `Read` | `Read` | `read_file` | `Read` | `read` | `read` | `view_file` |
+| 编辑文件 | `Edit` | `apply_patch` | `edit` / `Edit` | `Write` | `Edit` | `str_replace` | `Edit`、`MultiEdit` | `edit` 或 `apply_patch` | `edit` | `replace_file_content`、`multi_replace_file_content` |
+| 新建文件 | `Write` | `apply_patch` | `create` / `Write` | `Write` | `Write` | `fs_write` | `Write` | `write` 或 `apply_patch` | `write` | `write_to_file` |
+| 按模式找文件 | `Glob` | 未查到 | `glob` / `Glob` | 未查到 | `Glob` | `file_search` | `Glob` | `glob` | `glob` | `find_by_name` |
+| 内容搜索 | `Grep` | 未查到 | `grep` / `Grep` | `Grep` | `Grep` | `grep_search` | `Grep` | `grep` | `grep` | `grep_search` |
+| 抓取网页 | `WebFetch` | 未查到 | `web_fetch` / `WebFetch` | 未查到 | `FetchURL` | `web_fetch` | `WebFetch` | `webfetch` | `web_fetch` | `read_url_content` |
+| 网络搜索 | `WebSearch` | 不触发 hook | `web_search` / `WebSearch` | 未查到 | `WebSearch` | `remote_web_search` | `WebSearch` | `websearch` | `web_search` | `search_web` |
+| 子代理 | `Agent` | `spawn_agent` | `task` / `Agent` | `Task` | `Agent` | `invoke_sub_agent` | `Agent` | `task` | `subagent` | `invoke_subagent` |
+| 待办 | `TaskCreate` 等 | `update_plan` | `update_todo` / `TodoWrite` | 未查到 | `TodoList` | 未查到 | `TaskCreate` 等 | `todowrite` | `todo_write` | 未查到 |
+| 名称所在字段 | stdin `tool_name`；模块 `e.tool` | `tool_name` | `toolName` / `tool_name` | `tool_name` | `tool_name` | `tool_name` | `tool_name` | `input.tool` | `exec.name` | `toolCall.name` |
 
 - Claude Code：`Task` 于 v2.1.63 改名为 `Agent`，设置中的 `Task(...)` 仍作为别名生效；
   `TodoWrite` 默认关闭，由 `TaskCreate`、`TaskGet`、`TaskList`、`TaskUpdate` 取代
@@ -135,6 +140,8 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 - DSH：名称取自 mods 兼容包的对照表
   （`packages/experimental/claude-code-mods/src/tool-names.ts`），该表仍以 `Task` 对应
   `subagent`。
+- agy：工具名取自 hooks 文档的 matcher 列表，入参键为 PascalCase（如 `run_command` 的
+  `CommandLine`），见 [agy](agy-plugins.md#输入)。
 - 按 `Bash` 编写的 matcher 在 Cursor（`Shell`）与 Kiro（`execute_bash`）上不会命中；跨平台
   守卫需要逐平台映射工具名，存在文档内部不一致的项需在目标版本上实测。
 

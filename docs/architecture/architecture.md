@@ -5,7 +5,7 @@
 | 状态 | v0.1.0 尚未实现；§1、§2 描述实现时应有的模块与目录 |
 | 选型依据 | [ARCH-001](ARCH-001-agent-plugin-build-tool.md) |
 | 更新日期 | 2026-10-14 |
-| 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06 |
+| 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06。2026-10-14：v0.1.0 目标改为 Claude Code 两种形态、Codex 与 agy；Copilot CLI 与 Kimi Code 改为预留（SD-25～SD-27） |
 
 本文是 UAPA 的权威架构文档：由哪些模块组成、模块之间的依赖方向、各层的硬约束、目录与发布方式。
 模块之间交换的数据类型见 [模块接口](module-interfaces.md)、
@@ -20,12 +20,12 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 ## 术语
 
 本文与功能清单中的“模块”指 §1 的代码模块；功能清单按 01～10 划分的称“功能模块”，
-与代码模块不一一对应。“宿主模块”指 `src/targets/<宿主>/`；功能清单的 05～08 称“宿主功能
+与代码模块不一一对应。“宿主模块”指 `src/targets/<宿主>/`；功能清单的 05～08 与 11 称“宿主功能
 模块”，另含该宿主的能力数据与入口源码。
 
 | 术语 | 含义 |
 |---|---|
-| 宿主 | 加载插件的编码代理。v0.1.0 的宿主标识为 `claude-code`、`codex`、`copilot-cli`、`kimi` |
+| 宿主 | 加载插件的编码代理。v0.1.0 的宿主标识为 `claude-code`、`codex`、`agy`；`copilot-cli`、`kimi` 为预留，不在 v0.1.0 登记 |
 | 形态 | hooks 在宿主中的运行方式：`subprocess` 为命令 hooks，每个事件启动一个 Node 子进程；`in-process` 为 Claude Code 的 hooks 模块（mod），运行在没有 Node 的独立环境 |
 | 目标 | `<宿主>:<形态>`，如 `codex:subprocess`；能力数据、入口与能力检查按目标区分 |
 | 源项目 | 插件作者维护的目录：`uapa.config.ts`、skills、守卫逻辑与覆盖目录 `overrides/<宿主>/` |
@@ -42,7 +42,7 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 | 停机门禁 | 能力 `stopGate`：停机前检查返回 `continue` 时，宿主不结束本轮；“停机继续”指该决策的输出 |
 | 能力数据 | 每个目标一个 `TargetCapabilities` 数据模块，带宿主版本、核对日期与出处 |
 | 目标数据 | 打包时注入入口的 `TargetRuntimeData`（插件名、工具名映射、能力、去重变量名），由宿主模块从能力数据与配置得出；入口不导入能力数据模块 |
-| 入口 | 宿主调用的产物文件。子进程目标为 `hooks/uapa-<宿主>.mjs`（Copilot CLI 位于 `com.github.copilot/hooks/`）；`claude-code:in-process` 为 `hooks/register.ts`，它只引入守卫文件 `hooks/uapa-guard.mjs`。入口源码指 `src/runtime/entries/<宿主>-<形态>.ts`，由 `bundle` 打包为入口或守卫文件。与包入口 `src/index.ts` 不同 |
+| 入口 | 宿主调用的产物文件。子进程目标为 `hooks/uapa-<宿主>.mjs`；`claude-code:in-process` 为 `hooks/register.ts`，它只引入守卫文件 `hooks/uapa-guard.mjs`。入口源码指 `src/runtime/entries/<宿主>-<形态>.ts`，由 `bundle` 打包为入口或守卫文件。与包入口 `src/index.ts` 不同 |
 | 产物 | 一次构建为各目标生成的文件，即各插件目录的内容；不含构建报告 `<outDir>/uapa-report.json` |
 | 插件目录 | 宿主安装命令接收的一个目录，即插件包。默认每个宿主一个；同一宿主的多个目标写入同一插件目录 |
 | 默认布局 | 每个宿主一个插件目录，写入前清空（模块接口 §8）；与合并布局相对 |
@@ -71,11 +71,11 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 
 | 冻结项 | 结论 |
 |---|---|
-| 首批目标 | v0.1.0 为 `claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、`copilot-cli:subprocess`、`kimi:subprocess` |
+| 首批目标 | v0.1.0 为 `claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、`agy:subprocess`；ARCH-001 的五个试点目标已由 SD-25～SD-27 调整：增加 agy，`copilot-cli:subprocess` 与 `kimi:subprocess` 为预留 |
 | 命令 hooks 入口运行时 | Node.js；入口打包为 ES2022 ESM 单文件，只用 `node:` 内置模块；构建报告写明 Node 要求与解释器缺失时各宿主的默认行为 |
 | 源配置加载 | Node 类型剥离直接导入 `uapa.config.ts`；只能使用可擦除语法，相对导入写明 `.ts` 扩展名 |
 | 目标能力数据 | TypeScript 数据模块，类型为 `TargetCapabilities`，带宿主版本、核对日期与出处 |
-| 产物布局 | 默认每个宿主一个插件目录，同一宿主的多个目标（如 Claude Code 的两种形态）写入同一目录；可选合并布局，多个宿主写入同一插件目录：宿主模块标为可合并的 JSON 按命名空间合并，其余同名文件内容必须逐字一致，否则构建失败。ARCH-001 的“每个目标一个目录”已由 SD-13 改为按宿主 |
+| 产物布局 | 默认每个宿主一个插件目录，同一宿主的多个目标（如 Claude Code 的两种形态）写入同一目录；可选合并布局，多个宿主写入同一插件目录：同名文件内容必须逐字一致，否则构建失败；按命名空间合并 JSON（F-03-07）为预留。ARCH-001 的“每个目标一个目录”已由 SD-13 改为按宿主 |
 | 发布形态 | main 不提交 `dist/`；发布提交含 `dist/` 并打 `vX.Y.Z` tag；0.x 期间次版本号可含不兼容变更 |
 | 公共导出面 | 包入口 `uapa` 导出 `defineConfig` 与公共类型；命令 `uapa build` 与 `uapa build --check` |
 
@@ -93,7 +93,7 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
    入口源码打包为单文件；没有可靠宿主校验命令的宿主对生成的文件做字段白名单检查；返回文件
    列表，同一宿主的目标合成一套文件。
 5. `build` 放置 skills，用 `overrides/<宿主>/` 覆盖同名文件，再按产物布局写出：合并布局下，
-   宿主模块标为可合并的 JSON 按命名空间合并，其余同名文件必须逐字一致。写出后，对提供宿主
+   同名文件必须逐字一致（按命名空间合并 JSON 为预留，F-03-07）。写出后，对提供宿主
    校验命令的宿主调用该命令。`--check` 模式只比对，不写文件，也不调用宿主校验命令。
 6. `build` 按 `src/report/types.ts` 填充构建报告，写出 `<outDir>/uapa-report.json`（`--check`
    不写），并把结果返回 `cli`；`cli` 调用 `report` 的 `formatSummary` 打印摘要，按模块接口 §8
@@ -132,7 +132,7 @@ uapa/
 │   ├── source/              含 guard.ts：读取守卫声明
 │   ├── build/
 │   ├── capabilities/        types.ts、index.ts 与每个目标一个数据模块
-│   ├── targets/             types.ts、index.ts 与 claude-code/、codex/、copilot-cli/、kimi/
+│   ├── targets/             types.ts、index.ts 与 claude-code/、codex/、agy/
 │   ├── runtime/
 │   │   ├── core/
 │   │   └── entries/         subprocess.ts、每个目标一个入口与打包时名称的类型声明

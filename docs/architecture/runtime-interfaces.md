@@ -64,12 +64,16 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 | `claude-code:in-process` | `claude-code-in-process.ts` | `hooks/uapa-guard.mjs`，由 `hooks/register.ts` 引入 | 不适用 |
 | `claude-code:subprocess` | `claude-code-subprocess.ts` | `hooks/uapa-claude-code.mjs` | `node "${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs" <检查名>` |
 | `codex:subprocess` | `codex-subprocess.ts` | `hooks/uapa-codex.mjs` | `node "$PLUGIN_ROOT/hooks/uapa-codex.mjs" <检查名>`；命令是否经 shell 执行待 TA-15 |
-| `copilot-cli:subprocess` | `copilot-cli-subprocess.ts` | `com.github.copilot/hooks/uapa-copilot-cli.mjs` | 见 F-07-03 |
-| `kimi:subprocess` | `kimi-subprocess.ts` | `hooks/uapa-kimi.mjs` | `node hooks/uapa-kimi.mjs <检查名>`（以插件根目录为工作目录） |
+| `agy:subprocess` | `agy-subprocess.ts` | `hooks/uapa-agy.mjs` | `node hooks/uapa-agy.mjs <检查名>`（以插件目录为工作目录） |
+
+预留目标（SD-26、SD-27）的入口：`copilot-cli:subprocess` 为
+`com.github.copilot/hooks/uapa-copilot-cli.mjs`（命令见 F-07-03），`kimi:subprocess` 为
+`hooks/uapa-kimi.mjs`（命令见 F-08-03）。
 
 - `<检查名>` 为 `before-tool`、`before-prompt` 或 `before-stop`。每个目标只有一个入口文件，各检查
   的 hook 命令只在该参数上不同；入口不读取宿主的事件名字段。
-- 不同宿主的生成文件不同名；例外是标为可合并的根 `plugin.json`，以及按 SD-07 处理的 hooks 配置。
+- 不同宿主的生成文件不同名；例外是 Codex 与 agy 的根 `plugin.json`（共用插件目录时冲突，见
+  F-11-02），以及按 SD-07 处理的 hooks 配置。
 
 ## 3. 子进程入口
 
@@ -124,11 +128,14 @@ export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
 - `rewrite` 只在规范名为 `shell` 且 `TargetRuntimeData.capabilities.rewriteInput` 为 `true` 时
   调用 `rewriteShell`，其余情况调用 `deny(fallbackReason)`。能力数据记为支持改写的目标必须
   实现 `rewriteShell`，记为不支持的不实现；各子进程目标的单元测试断言二者一致。
-- 输出格式：`allow` 为退出码 0，stdout 与 stderr 为空；以 stdout JSON 表达的决策（改写、
-  Copilot CLI 的拒绝，Claude Code、Codex 与 Copilot CLI 的停机继续）退出码为 0，stdout 为不缩进
-  的 `JSON.stringify` 结果加一个换行；写入 stderr 的原因以一个换行结尾。
-- `dataDir` 只读取宿主的插件数据目录变量，不用于判断宿主。Kimi Code 没有插件数据目录，
-  `kimi-subprocess.ts` 的 `dataDir` 返回 `<os.tmpdir()>/uapa-<encodeURIComponent(插件名)>`（SD-06）。
+- 输出格式：`allow` 为退出码 0，stdout 与 stderr 为空；agy 例外，其执行前 hook 的 stdout 不是含
+  `decision` 的 JSON 时宿主阻断，`allow` 在执行前检查输出 `{"decision":"allow"}`、在停机前检查
+  输出 `{}`（F-11-04）。以 stdout JSON 表达的决策（改写、agy 的放行与拒绝，Claude Code、Codex 与
+  agy 的停机继续）退出码为 0，stdout 为不缩进的 `JSON.stringify` 结果加一个换行；写入 stderr 的
+  原因以一个换行结尾。
+- `dataDir` 只读取宿主的插件数据目录变量，不用于判断宿主。agy 没有插件数据目录，
+  `agy-subprocess.ts` 的 `dataDir` 返回 `<os.tmpdir()>/uapa-<encodeURIComponent(插件名)>`
+  （SD-06）。
 
 ## 4. 守卫返回值检查
 
