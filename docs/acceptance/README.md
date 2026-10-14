@@ -80,4 +80,5 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
 <!-- acceptance-index:end -->
