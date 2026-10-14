@@ -10,6 +10,7 @@ DSH 各自可安装的插件包，并输出构建报告。
 
 | 文档 | 内容 |
 |---|---|
+| [架构](docs/architecture/architecture.md) | 模块组成与依赖方向、技术选型、目录结构、分发与发布；选型理由见 [ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md) |
 | [设计提案](docs/research/coding-agent-plugin-manifests/unified-agent-plugin-architecture.md) | 定位、与 uni-app 的对照、源项目、构建流程、目标能力数据、产物布局 |
 | [hooks 适配](docs/research/coding-agent-plugin-manifests/uapa-hook-adapters.md) | 守卫逻辑的公共类型、工具名映射、Claude Code 双形态去重、失败处理 |
 | [宿主调研](docs/research/coding-agent-plugin-manifests/README.md) | 九个宿主的插件机制、manifest 与 hooks 语义 |

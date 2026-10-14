@@ -68,8 +68,8 @@ uni-app 用一份 Vue 源码编译出 H5、各家小程序与 App。UAPA 采用�
   Markdown 中未剔除干净的内容会被模型读到。UAPA 按文件与 frontmatter 选择目标。
 - **以某个平台的规范为统一层。** Taro 的 API 与 `app.config` 以微信小程序为准 [W2]。UAPA 的
   源项目格式与公共类型不沿用任何一个宿主的格式，宿主差异全部放在目标中。
-- **共用输出目录。** Taro 默认输出到同一个 `dist`，多端构建互相覆盖 [W2]。UAPA 每个目标
-  一个输出目录。
+- **共用输出目录时互相覆盖。** Taro 默认输出到同一个 `dist`，多端构建互相覆盖 [W2]。UAPA 默认
+  每个目标一个输出目录；选用合并布局时，同名文件内容不一致即构建失败（第 9 节）。
 
 ### 借用的做法
 
@@ -196,16 +196,21 @@ export default defineConfig({
 
 ## 8. 目标能力数据
 
-每个目标一份数据文件，与构建器代码分开维护；宿主升级后只改数据文件。
+每个目标一个 TypeScript 数据模块，类型为 `TargetCapabilities`，与构建器代码分开维护；宿主升级后
+只改数据模块，字段缺失由类型检查发现（[ARCH-001](../../architecture/ARCH-001-agent-plugin-build-tool.md)）。
 
-```yaml
-# capabilities/codex-subprocess.yaml（示意写法）
-target: codex:subprocess
-host: { name: codex, version: 0.162.1, checked: 2026-10-13, source: codex-plugins.md }
-components: { skills: package, mcp: package, hooks: package, rules: none, agents: none, commands: none }
-capabilities: { rewriteInput: true, replaceOutput: false, withholdOutput: true, stopGate: true }
-failureDefault: allow
-toolNames: { shell: Bash, edit_file: apply_patch, write_file: apply_patch, subagent: spawn_agent }
+```ts
+// src/capabilities/codex-subprocess.ts（示意写法）
+import type { TargetCapabilities } from './types.ts'
+
+export const codexSubprocess: TargetCapabilities = {
+  target: 'codex:subprocess',
+  host: { name: 'codex', version: '0.162.1', checked: '2026-10-13', source: 'codex-plugins.md' },
+  components: { skills: 'package', mcp: 'package', hooks: 'package', rules: 'none', agents: 'none', commands: 'none' },
+  capabilities: { rewriteInput: true, replaceOutput: false, withholdOutput: true, stopGate: true },
+  failureDefault: 'allow',
+  toolNames: { shell: 'Bash', edit_file: 'apply_patch', write_file: 'apply_patch', subagent: 'spawn_agent' },
+}
 ```
 
 - `capabilities` 与 `failureDefault` 的取值见 [UAPA hooks 适配](uapa-hook-adapters.md)
@@ -228,6 +233,8 @@ dist/
 └── dsh/           # package.json（dsh.bundle）、cordis.patch.yml、插件模块
 ```
 
+- 合并布局：配置可让多个目标写入同一插件目录（各宿主的 manifest 文件名不同，可以并存）。同名
+  文件（如共用的 `hooks/hooks.json`）内容必须逐字一致，否则构建失败。
 - hooks 模块只能导入相对路径文件与 `'claude-code'`，构建时把守卫逻辑打包为模块旁的相对
   文件，不能依赖 npm 包。
 - CodeBuddy 的文档没有说明 `hooks.json` 缺少 `"hooks"` 键或含未知顶层键时的处理，生成器
@@ -237,12 +244,8 @@ dist/
 
 ## 10. 未决问题
 
-- **子进程入口的运行时。** 命令 hooks 需要解释器。Node 脚本体积小，但 Claude Code、Codex 以
-  原生程序分发，用户机器上不一定有 Node；单文件可执行程序不依赖 Node，但每个操作系统与架构
-  各需一份，体积大，macOS 上还需签名。解释器缺失时 hook 进程无法启动，多数宿主按放行处理，
-  守卫失效。建议：Claude Code 以 hooks 模块为主，命令 hooks 兜底；其他子进程目标默认生成
-  Node 脚本，在构建报告中写明 Node 版本要求与解释器缺失时的宿主行为；确有需要时再增加单文件
-  可执行程序选项。
+- **用户提示的检查。** 部分插件在用户提交提示时也做检查（如 Claude Code 的 `UserPromptSubmit`），
+  第 2 节的公共类型没有对应入口；各宿主提示事件能否阻断尚未逐一核对。
 - **守卫配置的传递。** 允许名单等配置可在构建时写成常量，或经宿主的用户配置传入（如 Claude
   Code 的 `userConfig`）；各宿主的用户配置机制未逐一核对。
 - **CodeBuddy Mods。** 是否增设 `codebuddy:in-process` 目标，取决于其 API 与 Claude Code 的
