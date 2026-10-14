@@ -39,7 +39,8 @@ DeepSeek Harness（DSH）、Kimi Code、腾讯 CodeBuddy / WorkBuddy、GitHub Co
   [跨平台对比](cross-platform-comparison.md#工具名差异)。
 - CodeBuddy 2.163.0 起默认开启 Mods（Beta），同样以 `hooks.json` 的 `modules` 键启用。
 - 从一份插件源项目构建多宿主插件包的方案见 [UAPA 设计提案](unified-agent-plugin-architecture.md)
-  与 [UAPA hooks 适配](uapa-hook-adapters.md)，状态为设计提案，未实现。
+  与 [UAPA hooks 适配](uapa-hook-adapters.md)；实现以 `docs/architecture/` 与 `docs/feature-list/`
+  为准，冲突时的依据见[仓库 README](../../../README.md#文档冲突时的依据)。
 
 ## 文档
 
@@ -57,9 +58,9 @@ DeepSeek Harness（DSH）、Kimi Code、腾讯 CodeBuddy / WorkBuddy、GitHub Co
 | [github-copilot-plugins.md](github-copilot-plugins.md) | GitHub Copilot（VS Code、Copilot CLI） | 已核实 |
 | [cursor-plugins.md](cursor-plugins.md) | Cursor | 已核实 |
 | [kiro-powers.md](kiro-powers.md) | Kiro Powers | 已核实；官方文档存在矛盾处 |
-| [unified-agent-plugin-architecture.md](unified-agent-plugin-architecture.md) | UAPA：定位、源项目、构建流程与产物 | 设计提案，未实现 |
-| [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | 设计提案，未实现 |
-| [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 设计提案，未实现 |
+| [unified-agent-plugin-architecture.md](unified-agent-plugin-architecture.md) | UAPA：定位、源项目、后续目标与产物 | 设计提案；实现以 `docs/architecture/` 与 `docs/feature-list/` 为准 |
+| [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | v0.1.0 目标的部分为实现依据；其余为设计提案 |
+| [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；UAPA v0.1.0 尚未实现 |
 | [claude-code-local-tests.md](claude-code-local-tests.md) | Claude Code 本地实测记录 | 可复现 |
 
 平台文档中未能核实或只有社区来源的内容，在原处标注“未核实”“经搜索摘要核对”或【社区】。
@@ -77,6 +78,6 @@ DeepSeek Harness（DSH）、Kimi Code、腾讯 CodeBuddy / WorkBuddy、GitHub Co
   `copilot.tencent.com/docs` 跳转至 `codebuddy.cn`。CodeBuddy 文档站对不存在的路径也返回
   HTTP 200，更新前以页面内容确认链接有效。
 - 新增或更新平台时，同步修改平台文档与 [cross-platform-comparison.md](cross-platform-comparison.md)；
-  宿主行为变化影响 UAPA 映射时，同步修改
-  [uapa-hook-adapters.md](uapa-hook-adapters.md) 与设计提案第 8 节的目标能力数据。
+  宿主行为变化影响 UAPA 映射时，同步修改 [uapa-hook-adapters.md](uapa-hook-adapters.md)；
+  实现后同时更新 `src/capabilities/` 中对应目标的能力数据。
 - “核实”须附官方文档 URL、公开源码位置或可复现的本地实测；设计评审结论标为“设计提案”。

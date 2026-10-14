@@ -64,6 +64,17 @@ for (const [id, feature] of features) {
     else if (phaseRank(dep) > phaseRank(id)) problems.push(`${id}: 依赖更晚阶段的 ${dep}`)
   }
 }
+// 依赖方向：跨功能模块的依赖不得指向宿主功能模块（05～08）；同一功能模块内的依赖不受限
+const HOST_MODULES = new Set(['05', '06', '07', '08'])
+for (const [id, feature] of features) {
+  for (const dep of feature.deps) {
+    const depModule = dep.slice(2, 4)
+    if (depModule !== id.slice(2, 4) && HOST_MODULES.has(depModule)) {
+      problems.push(`${id}: 不得依赖宿主功能模块的功能 ${dep}`)
+    }
+  }
+}
+
 const visiting = new Set()
 const done = new Set()
 function visit(id, path) {
@@ -83,7 +94,7 @@ for (const id of features.keys()) visit(id, [])
 const covered = new Set()
 const storiesFile = join(ROOT, 'stories.md')
 const personas = new Set(
-  readTable(storiesFile, '| 编号 | 角色 | 目标 |').map(row => row['编号']),
+  readTable(storiesFile, '| 编号 | 角色 | 诉求 |').map(row => row['编号']),
 )
 const stories = readTable(storiesFile, '| 编号 | 角色 | 阶段 |')
 for (const story of stories) {

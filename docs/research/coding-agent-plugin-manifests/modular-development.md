@@ -2,7 +2,9 @@
 
 本文按扩展机制对编码代理插件分层，用一个守卫插件示例说明
 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 的写法与各宿主上的
-结果，并给出现有插件迁移到该提案的步骤。UAPA 为设计提案，未实现；文中代码均为示意写法。
+结果，并给出现有插件迁移到 UAPA 的步骤。UAPA 的技术选型已接受，v0.1.0 尚未实现；公共类型与
+配置以 [模块接口](../../architecture/module-interfaces.md) 与 [功能清单](../../feature-list/README.md)
+为准，文中代码为示意写法。
 各宿主的事实见 [跨平台对比](cross-platform-comparison.md)。
 
 ## 1. 扩展形态分层
@@ -27,13 +29,13 @@
 以下插件拒绝破坏性命令，把 `npm install` 改写为 `pnpm add`，并扣留含疑似密钥的工具输出。
 
 ```ts
-import type { GuardPlugin } from './uapa-types' // 公共类型，见 UAPA hooks 适配第 2 节
+import type { GuardPlugin } from 'uapa' // 公共类型，见 UAPA hooks 适配第 2 节
 
 const DESTRUCTIVE = /\brm\s+-rf\s+(\/|~|\.\.)(\s|$)/
 const NPM_INSTALL = /^\s*npm\s+install\b/
 const SENSITIVE = /\bsk-[A-Za-z0-9_-]{32,}/
 
-export const guard: GuardPlugin = {
+const guard: GuardPlugin = {
   name: 'command-guard',
   requires: ['withholdOutput'],
   beforeTool(call) {
@@ -57,11 +59,14 @@ export const guard: GuardPlugin = {
     return { kind: 'withhold', reason: '输出含疑似密钥，已扣留' }
   },
 }
+export default guard
 ```
 
 - `shell` 是适配器换算后的规范工具名，各宿主的原始名称由适配器映射。
 - `SENSITIVE` 不带 `g` 标志：带 `g` 的正则在 `test()` 之间保留 `lastIndex`，会漏检。
 - 示例没有 `beforeStop`。需要停机门禁时，插件在 `requires` 中加入 `stopGate`。
+- `afterTool` 与 `withholdOutput` 属于 v0.2.0（SD-04、SD-20）。用于 v0.1.0 时，删除 `afterTool`，
+  并把 `requires` 改为 `[]`。
 
 ### 各目标上的结果
 

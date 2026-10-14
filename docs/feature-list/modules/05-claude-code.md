@@ -1,23 +1,28 @@
 # 05 Claude Code 目标
 
 构建 `claude-code:in-process`（hooks 模块）与 `claude-code:subprocess`（命令 hooks）两个目标。
-两个目标输出到同一个插件包，两种形态互为兜底。代码位于 `src/targets/claude-code/`、
-`src/capabilities/` 中的对应数据模块与 `src/runtime/entries/` 中的对应入口。宿主事实见
+两个目标输出到同一个插件目录，两种形态互为兜底。产物文件：`.claude-plugin/plugin.json`、
+`hooks/hooks.json`、`hooks/register.ts`、`hooks/uapa-guard.mjs`（hooks 模块引入的守卫文件）、
+`hooks/uapa-claude-code.mjs`（子进程入口）、`types/index.d.ts`（hooks 模块实现停机前检查时）与
+`skills/`。代码位于 `src/targets/claude-code/`、`src/capabilities/claude-code-*.ts` 与
+`src/runtime/entries/claude-code-*.ts`（含手写的 `'claude-code'` 类型声明 `claude-code-api.d.ts`）。宿主事实见
 [Claude Code](../../research/coding-agent-plugin-manifests/claude-code-plugins.md) 与
 [Mods 指南](../../research/coding-agent-plugin-manifests/claude-code-mods-guide.md)。
 
 | 编号 | 阶段 | 子模块 | 功能名称 | 验收标准 | 依赖 |
 |---|---|---|---|---|---|
-| F-05-01 | v0.1.0 | 能力数据 | 两个目标的能力数据 | 每个目标一个数据模块，写明宿主版本、核对日期与出处；取值与 hooks 适配第 4、6、7、8 节一致 | F-03-01 |
-| F-05-02 | v0.1.0 | manifest | 生成 `.claude-plugin/plugin.json` | 由配置生成名称、版本、描述、作者与关键词；目标选项可写 `displayName`、`userConfig`、`dependencies` 与 `$schema` | F-01-03, F-03-05 |
-| F-05-03 | v0.1.0 | 命令 hooks | 生成命令 hooks 配置 | `hooks/hooks.json` 的 `hooks` 键按守卫已实现的检查生成 `UserPromptSubmit`、`PreToolUse`、`Stop` 条目；命令为 `node "${CLAUDE_PLUGIN_ROOT}/hooks/<入口文件>"`，显式写出超时 | F-05-01, F-03-02 |
-| F-05-04 | v0.1.0 | 命令 hooks | 子进程入口的决策输出 | 拒绝以退出码 2 加原因或 `permissionDecision: "deny"` 输出；改写输出 `hookSpecificOutput.updatedInput`；停机继续输出 `decision: "block"` 与 `reason`；提示阻断按能力数据记录的协议输出 | F-04-04, F-04-06, F-05-01 |
-| F-05-05 | v0.1.0 | hooks 模块 | 生成 hooks 模块入口 | 生成 `hooks/register.ts`，在 `tool.call`、`prompt.submit` 与 `classic.Stop` 上调用守卫；`hooks/hooks.json` 写入 `modules` 键 | F-04-07, F-05-03 |
-| F-05-06 | v0.1.0 | hooks 模块 | 生成 hooks 模块的异常收口 | 执行前检查与提示检查写 `.catch`，出错时拒绝；未调用 `next` 前出错不放行 | F-05-05 |
-| F-05-07 | v0.1.0 | hooks 模块 | 生成状态类型契约 | 停机门禁计数存于 `$.state`；生成 `types/index.d.ts`，在 `plugin.json` 写 `types` 字段；`claude plugin validate` 能核对状态键 | F-05-05, F-05-02 |
-| F-05-08 | v0.1.0 | 双形态去重 | 按会话 id 去重 | 模块在 `session.start` 写入会话 id 环境变量；命令入口比对 stdin 的 `session_id`，相等时以退出码 0 结束；不只判断变量是否存在 | F-05-04, F-05-05, F-05-10 |
-| F-05-09 | v0.1.0 | 产物校验 | 调用宿主校验命令 | 本机有 `claude` 时运行 `claude plugin validate --strict`，失败则该目标失败；没有时跳过并写入构建报告 | F-05-02, F-05-03 |
-| F-05-10 | v0.1.0 | 双形态去重 | 两种形态合为一个插件包 | 同时配置两个目标时写入同一目录：`hooks/hooks.json` 同时含 `hooks` 与 `modules` 键，`plugin.json` 只生成一份；只配置其中一个目标时只含对应的键 | F-05-02, F-05-03, F-05-05, F-03-05 |
+| F-05-01 | v0.1.0 | 能力数据 | `claude-code:subprocess` 的能力数据 | 宿主版本 2.1.296，写明核对日期与出处；取值与 hooks 适配第 4、6、7、8 节一致，工具名见[跨平台对比「工具名差异」](../../research/coding-agent-plugin-manifests/cross-platform-comparison.md#工具名差异)；`hookTimeoutSeconds` 为 `null`、`defaultTimeoutSeconds` 为 600；`promptGate` 在 TA-15 实测前为不支持；在登记处加入本目标（M2） | F-03-01 |
+| F-05-14 | v0.1.0 | 能力数据 | `claude-code:in-process` 的能力数据 | 宿主版本 2.1.296，写明核对日期与出处；取值与 hooks 适配第 4、6、8 节一致，工具名见[跨平台对比「工具名差异」](../../research/coding-agent-plugin-manifests/cross-platform-comparison.md#工具名差异)；`promptGate` 为支持；`hookTimeoutSeconds` 与 `defaultTimeoutSeconds` 为 `null`；`failureDefault` 全部为 `{ error: 'allow', timeout: 'allow' }`，依据 Mods 指南「失败处理与 `.catch`」（钩子抛错或超出预算时被跳过），入口的收口见 F-05-06；在登记处加入本目标（M5） | F-03-01 |
+| F-05-02 | v0.1.0 | manifest | 生成 `.claude-plugin/plugin.json` | 由配置生成名称、版本、描述、作者与关键词；宿主选项 `hosts['claude-code']` 可写 `displayName`、`userConfig`、`dependencies` 与 `$schema`；名称不是 kebab-case、以 `claude-`、`anthropic-`、`anthropics-`、`cc-plugin-` 开头或等于 `claude`、`anthropic`、`claude-code`、`claude-mods` 时生成失败，其余保留名由 F-05-09 的宿主校验发现；配置未写 `author` 时生成失败，原因写明 `claude plugin validate --strict` 把缺少 `author` 判为失败 | F-01-03, F-03-11 |
+| F-05-03 | v0.1.0 | 命令 hooks | 生成命令 hooks 配置 | `hooks/hooks.json` 的 `hooks` 键按 `TargetPlan.checks` 生成条目：`beforeTool` → `PreToolUse`，`beforePrompt` → `UserPromptSubmit`，`beforeStop` → `Stop`；不写 matcher；命令为 `node "${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs" <检查名>`；超时字段未核实，不写出（沿用宿主默认超时的残余风险由构建编排按能力数据写出） | F-05-01, F-03-13 |
+| F-05-04 | v0.1.0 | 命令 hooks | 子进程入口的决策输出 | `generate` 以 `input.bundle`（`entry: 'claude-code-subprocess'`、`external: 'node'`）打包入口并输出为 `hooks/uapa-claude-code.mjs`。`claude-code-subprocess.ts` 实现 `SubprocessProtocol`：会话 id 取 stdin `session_id`，工具名取 `tool_name`；拒绝以退出码 2 结束并在 stderr 写原因；改写输出 `hookSpecificOutput.updatedInput`；停机继续输出 `decision: "block"` 与 `reason`；数据目录取 `CLAUDE_PLUGIN_DATA`；工具入参与提示文本的字段名、改写输出是否另需 `permissionDecision` 等字段、提示阻断的写法取自 TA-15 入口前提的结论，写在协议实现中并注明出处 | F-04-02, F-04-04, F-04-05, F-04-06, F-05-01 |
+| F-05-05 | v0.1.0 | hooks 模块 | 生成 hooks 模块入口 | `generate` 以 `input.bundle`（`entry: 'claude-code-in-process'`、`external: 'claude-code'`）打包并输出为 `hooks/uapa-guard.mjs`。`src/runtime/entries/claude-code-in-process.ts` 导出 `register`，按 `TargetPlan.checks` 在 `tool.call`、`prompt.submit` 与 `classic.Stop` 上调用守卫：`sessionId` 取 `await $.session.id()`；`tool.call` 的工具名取 `e.tool`，入参为 `e` 去掉 `tool`、`tool_use_id` 后的字段；`allow` 调用 `next(e)`，`deny` 返回 `{ deny: reason }`；`rewrite` 只在 `e.tool` 为 `Bash` 时以 `next({ ...e, command })` 写回，其他工具按 `fallbackReason` 返回 `{ deny }`（Mods 指南只记载了 `Bash` 的 `e.command`）；`prompt.submit` 的提示文本取 `e.text`，`block` 返回 `{ drop: reason }`；`classic.Stop` 的 `continue` 返回 `{ block: reason }`，`stop` 调用 `next(e)`（Mods 指南「常用事件与返回值」）。`'claude-code'` 的类型在 `src/runtime/entries/claude-code-api.d.ts` 中手写（入口与打包接口第 1 节）。生成的 `hooks/register.ts` 以 `import` 声明引入 `./uapa-guard.mjs` 并导出 `register`；`hooks/hooks.json` 写入 `"modules": ["./register.ts"]`（路径相对该文件） | F-04-07, F-05-14, F-03-13 |
+| F-05-06 | v0.1.0 | hooks 模块 | hooks 模块的异常收口 | `claude-code-in-process.ts` 以入口与打包接口第 4 节的检查函数校验守卫返回值。守卫抛错或返回值无效时：执行前检查返回 `{ deny: <原因> }`，提示提交前检查返回 `{ drop: <原因> }`，停机前检查调用 `next(e)`，不阻止结束；原因与 F-04-04 相同。执行前与提示提交前检查另写 `.catch`，未调用 `next` 前出错不放行 | F-05-05, F-04-04 |
+| F-05-07 | v0.1.0 | hooks 模块 | 生成状态类型契约 | 只在 `claude-code:in-process` 进入 `plans` 且其 `TargetPlan.checks` 含 `beforeStop` 时生成，否则不生成 `types/index.d.ts`，`plugin.json` 也不写 `types` 字段。停机门禁计数存于 `$.state`，引用为 `{ plugin: __UAPA_PLUGIN_NAME__, key: 'uapaStopContinuations' }`，值为 `number`；生成 `types/index.d.ts`，只在 `declare module 'claude-code'` 的 `interface PluginState` 中声明 `'<配置 name>': { uapaStopContinuations: number }`；在 `plugin.json` 写 `types` 字段；`claude plugin validate` 能核对状态键 | F-05-05, F-05-02 |
+| F-05-08 | v0.1.0 | 双形态去重 | 按会话 id 去重 | 两个 Claude Code 目标都进入 `plans` 时，宿主模块把两个入口的 `TargetRuntimeData.moduleSessionEnv` 设为 `UAPA_MODULE_SESSION_<插件名>`（配置 `name` 转大写，`-` 换为 `_`），否则为 `null`；hooks 模块在 `session.start` 以 `__UAPA_MODULE_SESSION_ENV__` 为变量名写入会话 id；命令入口经 `skip` 比对该变量与 stdin 的 `session_id`，相等时以退出码 0 结束；不只判断变量是否存在；为 `null` 时不读写该变量，打包后的守卫文件中不出现 `$.env.set` 调用（入口与打包接口第 1 节） | F-05-04, F-05-05, F-05-10 |
+| F-05-09 | v0.1.0 | 产物校验 | 调用宿主校验命令 | 宿主模块实现 `verify`：运行 `claude plugin validate --strict <插件目录>`，退出码 0 为 `passed`，非零为 `failed` 并带命令输出；PATH 中没有 `claude` 时为 `skipped`；调用时机与失败处理见 F-03-14 | F-05-02, F-03-14 |
+| F-05-10 | v0.1.0 | 双形态去重 | 两种形态合为一个插件包 | 同时配置两个目标时写入同一目录：`hooks/hooks.json` 同时含 `hooks` 与 `modules` 键，`plugin.json` 只生成一份；只配置其中一个目标，或其中一个目标未通过能力检查时，只含对应的键；插件包中只有 `claude-code:in-process` 的 hooks 时（只配置了该目标，或 `claude-code:subprocess` 未通过能力检查），残余风险写明 Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效 | F-05-02, F-05-03, F-05-05, F-03-05 |
+| F-05-15 | v0.1.0 | 命令 hooks | 写入声明的命令 hooks | 两个目标的能力数据按[命令 hooks 声明](../../architecture/command-hooks.md)第 2 节填写 `commandHookEvents`（`claude-code:in-process` 全部为 `null`，`claude-code:subprocess` 的 `SessionEnd` 为 `null`）；`hooks/hooks.json` 的 `hooks` 键按 `claude-code:subprocess` 的 `TargetPlan.commandHooks` 写入条目，结构与 F-05-03 的守卫条目相同，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}`，同一事件下排在守卫条目之后；未配置守卫时只生成 `hooks/hooks.json`，不生成入口；去重（F-05-08）不作用于这些条目 | F-05-03, F-03-15 |
 | F-05-11 | v0.2.0 | 组件 | 放置 agents | 适用的 agents 写入产物 `agents/*.md` | F-01-07 |
 | F-05-12 | v0.2.0 | 组件 | 生成 `.mcp.json` | 由规范形式生成服务器配置，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}` | F-01-08 |
 | F-05-13 | v0.2.0 | 命令 hooks | 执行后检查的决策输出 | 命令 hooks 以 `updatedToolOutput` 替换输出；hooks 模块在 `next` 之后返回 `{ result }`，扣留返回 `{ deny }` | F-02-04, F-04-08, F-05-04 |

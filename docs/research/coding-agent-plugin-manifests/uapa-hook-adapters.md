@@ -1,11 +1,18 @@
-# UAPA hooks 适配设计提案
+# UAPA hooks 适配
 
-**状态：设计提案，未实现。** 仓库中没有对应代码，文中代码均为示意写法。
+**状态：** 第 1、2、3、5 节，以及第 4、6、7、8 节中 v0.1.0 五个目标的行，是 v0.1.0 的实现
+依据，功能清单逐条引用；其他目标的行是后续版本的设计，尚未排期；第 9 节的测试分层以功能清单的
+技术验收为准。文件
+位置与数据结构以 [模块接口](../../architecture/module-interfaces.md) 为准，验收以
+[功能清单](../../feature-list/README.md) 为准，冲突时的依据见
+[仓库 README](../../../README.md#文档冲突时的依据)。仓库中还没有实现代码，文中代码为示意写法。
 
-本文是 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 的一部分，
-说明守卫逻辑（阻断危险命令、扣留含密钥的工具输出、结束前检查）的公共类型，以及它在各构建
+本文与 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 配套，
+说明守卫逻辑（阻断危险命令、检查用户提交的提示、扣留含密钥的工具输出、停机前检查）的公共类型，以及它在各构建
 目标上如何换算为宿主的 hooks 协议：工具名映射、决策输出、Claude Code 双形态去重、能力缺失
-与失败处理、状态与测试。目标列表与产物布局见设计提案第 5、9 节。核对日期为 2026-10-13。
+与失败处理、状态与测试。v0.1.0 目标见 [架构 §0](../../architecture/architecture.md#0-技术选型总览)，
+写出规则见 [模块接口 §8](../../architecture/module-interfaces.md)；后续目标见设计提案第 5 节。
+核对日期为 2026-10-13。
 
 ## 1. 守卫逻辑的约束
 
@@ -15,11 +22,14 @@
 - 适配器只做协议转换，不含业务判断。
 - Claude Code hooks 模块只能导入相对路径文件与 `'claude-code'`，构建时把守卫逻辑打包为模块
   旁的相对文件。
+- 守卫逻辑以 `export default` 导出 `GuardPlugin`。执行前 hook 不按工具筛选，筛选写在
+  `beforeTool` 中（第 3 节）。
 
 ## 2. 公共类型
 
 ```ts
-export type Capability = 'rewriteInput' | 'replaceOutput' | 'withholdOutput' | 'stopGate'
+export type Capability =
+  'rewriteInput' | 'replaceOutput' | 'withholdOutput' | 'stopGate' | 'promptGate'
 
 export interface ToolCall {
   readonly sessionId: string
@@ -33,6 +43,7 @@ export type BeforeTool =
   // 宿主不能改写入参时，按 fallbackReason 拒绝，不放行原始入参
   | { kind: 'rewrite'; input: Record<string, unknown>; fallbackReason: string }
 
+// v0.2.0（F-02-04）
 export type AfterTool =
   | { kind: 'keep' }
   | { kind: 'replace'; text: string }
@@ -40,15 +51,28 @@ export type AfterTool =
 
 export type BeforeStop = { kind: 'stop' } | { kind: 'continue'; reason: string }
 
+export interface PromptSubmit {
+  readonly sessionId: string
+  readonly prompt: string // 用户提交的提示原文
+}
+
+export type BeforePrompt = { kind: 'allow' } | { kind: 'block'; reason: string }
+
 export interface GuardPlugin {
   readonly name: string
   readonly requires: readonly Capability[]
   beforeTool?(call: ToolCall): BeforeTool | Promise<BeforeTool>
+  beforePrompt?(p: PromptSubmit): BeforePrompt | Promise<BeforePrompt>
+  // v0.2.0（F-02-04）
   afterTool?(call: ToolCall, output: string): AfterTool | Promise<AfterTool>
-  // continuations 为本回合已强制继续的次数，供插件自行设上限
+  // continuations 为连续强制继续的次数：返回 continue 时加 1，返回 stop 时清零；
+  // 供插件自行设上限
   beforeStop?(s: { sessionId: string; continuations: number }): BeforeStop | Promise<BeforeStop>
 }
 ```
+
+v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`Capability` 在 v0.1.0 即含
+全部五个取值，`requires` 含 `replaceOutput`、`withholdOutput` 时构建报输入错误（SD-20）。
 
 `afterTool` 只接收文本形式的输出。需要结构化输出时，按目标单独设计，不放进公共类型。
 
@@ -71,8 +95,10 @@ export interface GuardPlugin {
   `edit_file`。守卫逻辑对文件写入的检查应同时覆盖 `edit_file` 与 `write_file`。
 - `shell` 的入参由适配器换算为 `{ command }`；其余工具的入参原样传入。`rewrite` 目前只对
   `shell` 的 `command` 做反向换算。
-- 生成 hooks 配置时，matcher 按宿主写法生成：Copilot CLI 原生格式按 `^(?:PATTERN)$` 全匹配；
-  CodeBuddy 不自动锚定，`Write` 也会匹配 `NotebookWrite`，需写成 `^Write$`。
+- v0.1.0 的守卫接口不声明关心的工具，生成的 hooks 配置不写 matcher：每次工具调用都进入入口，
+  由守卫按规范名判断。宿主省略 matcher 时是否匹配全部工具，列入功能清单 TA-15 实测。日后按
+  工具筛选时注意：CodeBuddy 的 matcher 不自动锚定，`Write` 也会匹配 `NotebookWrite`，需写成
+  `^Write$`。
 - 宿主不提供工具名时（Kiro IDE 的命令 hook，#7375、#7500），工具以 `host:unknown` 传入，
   构建报告列为残余风险。
 
@@ -80,7 +106,7 @@ export interface GuardPlugin {
 
 | 目标 | `deny` | `rewrite` | `replace` / `withhold` | `continue`（停机门禁） |
 |---|---|---|---|---|
-| `claude-code:in-process` | 返回 `{ deny }` | `next({ ...e, ...input })` | `next` 之后返回 `{ result }`（须符合该工具的输出 schema）；扣留可返回 `{ deny }` | `classic.Stop` 返回 `{ block }` |
+| `claude-code:in-process` | 返回 `{ deny }` | `e.tool` 为 `Bash` 时 `next({ ...e, command })`，其他工具按 `fallbackReason` 返回 `{ deny }`（F-05-05） | `next` 之后返回 `{ result }`（须符合该工具的输出 schema）；扣留可返回 `{ deny }` | `classic.Stop` 返回 `{ block }` |
 | `claude-code:subprocess` | 退出码 2 或 `permissionDecision: "deny"` | `hookSpecificOutput.updatedInput` | `updatedToolOutput`（v2.1.121+）；退出码 2 不能扣留 | `Stop` 返回 `decision: "block"` + `reason`，连续 8 次后强制结束 |
 | `codex:subprocess` | 退出码 2（stderr 须非空）或 `permissionDecision: "deny"` | `updatedInput`（配合 `allow`） | 不能替换；扣留用 `PostToolUse` 的 `decision: "block"` 以反馈替换结果 | `Stop` 返回 `decision: "block"` + `reason` |
 | `copilot-cli:subprocess` | 退出码 2 或 `permissionDecision: "deny"` + `permissionDecisionReason` | `modifiedArgs` | `modifiedResult` | `agentStop` 返回 `decision: "block"`，连续 8 次后结束 |
@@ -92,6 +118,19 @@ export interface GuardPlugin {
 | `dsh:cordis` | `tools/pre-execute` 返回 `deny` | 不支持 | `tools/post-execute` 返回 `accept { content }`；扣留也可返回 `block { feedback }` | `agent/turn-stopping` 中调用 `agent.steer()` |
 
 “扣留”在各目标上都实现为“以说明文字替换原输出”，原始命令已经执行，不能撤销。
+
+### 提示提交前检查
+
+| 目标 | 事件 | `block` 的输出 | 依据 |
+|---|---|---|---|
+| `claude-code:in-process` | `prompt.submit` | 返回 `{ drop: reason }` | [Mods 指南](claude-code-mods-guide.md) |
+| `claude-code:subprocess` | `UserPromptSubmit` | 待 TA-15 | — |
+| `codex:subprocess` | `UserPromptSubmit` | 待 TA-15 | — |
+| `copilot-cli:subprocess` | `userPromptSubmitted` | 待 TA-15 | — |
+| `kimi:subprocess` | `UserPromptSubmit` | 退出码 2，原因写入 stderr | [Kimi Code](kimi-code-plugins.md) |
+
+提示文本在 stdin 中的字段名各宿主文档均未给出（含 Kimi Code），随 TA-15 写入调研文档与能力
+数据；确认前各子进程目标的 `promptGate` 记为不支持。
 
 ## 5. Claude Code 双形态去重
 
@@ -106,8 +145,10 @@ export interface GuardPlugin {
 {
   "hooks": {
     "PreToolUse": [{
-      "matcher": "Bash",
-      "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/command-entry.mjs\"" }]
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs\" before-tool"
+      }]
     }]
   },
   "modules": ["./register.ts"]
@@ -137,14 +178,14 @@ export interface GuardPlugin {
    生效，脚本立即以退出码 0 结束。
 
 ```ts
-// hooks/register.ts（示意写法）
+// src/runtime/entries/claude-code-in-process.ts（示意写法）
+// __UAPA_MODULE_SESSION_ENV__ 在打包时替换为由插件名派生的字面量（F-05-08），
+// 插件名为 command-guard 时为 'UAPA_MODULE_SESSION_COMMAND_GUARD'
 import type { Register } from 'claude-code'
-
-const MODULE_SESSION_ENV = 'COMMAND_GUARD_MODULE_SESSION'
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.env.set(MODULE_SESSION_ENV, await $.session.id())
+    await $.env.set(__UAPA_MODULE_SESSION_ENV__, await $.session.id())
     return next(e)
   })
   // tool.call、classic.Stop 等守卫 hook 见 Mods 指南的示例
@@ -152,12 +193,14 @@ export const register: Register = on => {
 ```
 
 ```js
-// hooks/command-entry.mjs（示意写法）
+// 打包后的 hooks/uapa-claude-code.mjs 的效果（示意写法；源码中由 skip 实现）
 const input = JSON.parse(await readStdin())
-if (process.env.COMMAND_GUARD_MODULE_SESSION === input.session_id) process.exit(0)
+if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.exit(0)
 // 以下运行与模块相同的守卫逻辑，按第 4 节输出命令 hooks 协议
 ```
 
+- 生成的 `hooks/register.ts` 只引入打包后的 `hooks/uapa-guard.mjs`（F-05-05）；去重代码位于
+  入口源码中。
 - 比较会话 id 而不是只判断变量是否存在：在某个会话的 Bash 工具中启动的嵌套 Claude Code
   会话会继承父会话的环境变量，只判断存在会让嵌套会话错误地跳过命令 hook。
 - 实测覆盖的是 `UserPromptSubmit`。`SessionStart` 事件上的命令 hook 能否看到同一会话
@@ -175,23 +218,28 @@ if (process.env.COMMAND_GUARD_MODULE_SESSION === input.session_id) process.exit(
 
 | 缺失能力 | 受影响目标 | 处理 |
 |---|---|---|
-| `rewriteInput` | Kimi、Kiro、DSH | `rewrite` 一律按 `fallbackReason` 拒绝，在原因中写出纠正后的写法 |
+| `rewriteInput` | Kimi、Kiro、DSH | 声明需要时构建失败；否则 `rewrite` 按 `fallbackReason` 拒绝，在原因中写出纠正后的写法，并在构建报告中记为降级 |
 | `replaceOutput` | Codex、Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败 |
 | `withholdOutput` | Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败；否则在构建报告中写明残余风险：模型能读到原始输出 |
-| `stopGate` | Cursor、OpenCode、Kiro IDE | 声明需要时构建失败；否则省略 `beforeStop` 并在构建报告中告警 |
+| `stopGate` | Cursor、OpenCode、Kiro IDE | 声明需要时构建失败；否则不生成停机事件的 hook，并在构建报告中写明残余风险：停机不受检查 |
+| `promptGate` | 能力数据记为不支持的目标（见第 4 节提示提交前检查表） | 声明需要时构建失败；否则不生成提示事件的 hook，并在构建报告中写明残余风险：提示不受检查 |
 
-停机门禁没有统一的次数上限：Claude Code 与 Copilot CLI 为 8 次，DSH 与 CodeBuddy 没有。
-`beforeStop` 收到的 `continuations` 由适配器按会话计数，插件据此自行设上限。
+停机门禁没有统一的次数上限：Claude Code 与 Copilot CLI 为连续 8 次，DSH 与 CodeBuddy 没有，
+Codex 与 Kimi Code 的文档未写明。`continuations` 由适配器按会话保存，`beforeStop` 返回
+`continue` 时加 1、返回 `stop` 时清零；插件据此自行设上限。
 
 ## 7. 失败处理
 
 守卫逻辑出错时由入口收口：
 
-- 子进程入口捕获守卫逻辑的全部异常：执行前检查输出拒绝（退出码 2，并在 stderr 写非空的
-  原因），执行后检查输出扣留。Codex 把 stderr 为空的退出码 2 记为 hook 失败并放行，因此原因
+- 子进程入口的异常收口以[入口与打包接口](../../architecture/runtime-interfaces.md#3-子进程入口)
+  为准：执行前与提示提交前检查按该目标的拒绝写法输出（第 4 节；Copilot CLI 为
+  `permissionDecision: "deny"`，其余为退出码 2 并在 stderr 写原因），停机前检查不阻止结束，
+  执行后检查（v0.2.0）输出扣留。Codex 把 stderr 为空的退出码 2 记为 hook 失败并放行，因此原因
   不能省略。
 - hooks 模块用 `.catch` 收口：执行前检查写作
-  `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`，执行后检查返回 `{ deny }`。
+  `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`，提示提交前检查写作
+  `.catch(($, e, next) => next.called ? next(e) : { drop: '...' })`，执行后检查返回 `{ deny }`。
   未写 `.catch` 时，失败的 hook 被跳过，等同放行。
 
 hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
@@ -207,7 +255,10 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 | `codebuddy:subprocess` | 放行 | 60 秒 |
 | `opencode:in-process`、`dsh:cordis` | 抛错即阻断 | 不适用 |
 
-- 生成器在宿主支持的位置显式写出超时，守卫逻辑的耗时应远低于目标中最小的超时。
+- 超时只在字段名已核实的目标上写出，取 30 秒（Copilot CLI 与 Kimi Code 的默认值，为 v0.1.0
+  目标中最小）：Copilot CLI 为 `timeoutSec`，Kimi Code 为 `timeout`（秒，1～600）。Claude Code
+  与 Codex 的字段名待 TA-15 实测，实测前不写超时，构建报告写明沿用宿主默认值 600 秒。
+  守卫逻辑的耗时应远低于 30 秒。
 - 在默认放行的目标上，守卫在入口无法启动时失效（例如缺少解释器），构建报告列为残余风险。
   子进程入口以 Node 运行，打包为 ES2022 ESM 单文件，见
   [ARCH-001](../../architecture/ARCH-001-agent-plugin-build-tool.md)。
@@ -218,7 +269,8 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 |---|---|---|
 | `claude-code:in-process` | `$.state`，键为 `{ plugin, key }` 字面量，类型在 `types/index.d.ts` 中声明 | `$.store`，每个插件一个 JSON，上限 4 MiB |
 | `claude-code:subprocess`、`codebuddy:subprocess`、`codex:subprocess`、`copilot-cli:subprocess` | 插件数据目录下以 `session_id` 命名的文件，先写临时文件再重命名 | 插件数据目录：`CLAUDE_PLUGIN_DATA`、`CODEBUDDY_PLUGIN_DATA`、`PLUGIN_DATA`、`COPILOT_PLUGIN_DATA` |
-| `cursor:subprocess`、`kimi:subprocess`、`kiro:workspace-hook` | 宿主没有插件数据目录，待定 | 不提供 |
+| `kimi:subprocess` | 宿主没有插件数据目录；系统临时目录下 `uapa-<插件名>/` 中以会话 id 命名的文件，先写临时文件再重命名，临时目录被清理时计数归零（功能清单 SD-06） | 不提供 |
+| `cursor:subprocess`、`kiro:workspace-hook` | 宿主没有插件数据目录，待定 | 不提供 |
 | `opencode:in-process` | 插件闭包内以会话 id 为键的 `Map` | v1 无约定 |
 | `dsh:cordis` | 以 agent 为键的 `Map`，在 `agent/disposed` 时清理 | `ctx.storageDomain`，json 后端位于 `$DSH_HOME/storages` |
 
@@ -228,7 +280,7 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 
 | 层级 | 内容 |
 |---|---|
-| 守卫逻辑 | 对 `beforeTool`、`afterTool`、`beforeStop` 做单元测试，不涉及宿主 |
+| 守卫逻辑 | 对 `beforeTool`、`beforePrompt`、`afterTool`、`beforeStop` 做单元测试，不涉及宿主 |
 | 工具名映射 | 每个目标按能力数据中的 `toolNames` 构造宿主工具名，断言换算结果 |
 | `claude-code:in-process` | `claude plugin validate` 与 `claude plugin test`（`*.test.ts`），见 [Mods 指南](claude-code-mods-guide.md#验证测试与调试) |
 | 子进程目标 | 按各宿主文档的输入字段构造 stdin JSON（如 Claude Code 的 `tool_response`），断言退出码、stdout JSON 与 stderr |
