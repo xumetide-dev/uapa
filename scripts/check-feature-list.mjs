@@ -4,7 +4,7 @@
 //
 //   node scripts/check-feature-list.mjs
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -21,7 +21,11 @@ function readTable(file, headerPrefix) {
   const lines = readFileSync(file, 'utf8').split('\n')
   const start = lines.findIndex(line => line.startsWith(headerPrefix))
   if (start < 0) throw new Error(`${file}: 找不到表头为「${headerPrefix}」的表格`)
-  const cells = line => line.slice(1, -1).split(' | ').map(cell => cell.trim())
+  const cells = line =>
+    line
+      .slice(1, -1)
+      .split(' | ')
+      .map(cell => cell.trim())
   const header = cells(lines[start])
   const rows = []
   for (const line of lines.slice(start + 2)) {
@@ -47,9 +51,11 @@ for (const name of readdirSync(join(ROOT, 'modules')).sort()) {
     const id = row['编号']
     const match = FEATURE_ID.exec(id)
     if (!match) problems.push(`${id}: 编号格式应为 F-XX-NN`)
-    else if (match[1] !== moduleNumber) problems.push(`${id}: 编号与模块文件 ${name} 不符`)
+    else if (match[1] !== moduleNumber)
+      problems.push(`${id}: 编号与模块文件 ${name} 不符`)
     if (features.has(id)) problems.push(`${id}: 编号重复`)
-    if (!PHASES.includes(row['阶段'])) problems.push(`${id}: 未知阶段「${row['阶段']}」`)
+    if (!PHASES.includes(row['阶段']))
+      problems.push(`${id}: 未知阶段「${row['阶段']}」`)
     for (const column of ['子模块', '功能名称', '验收标准']) {
       if (!row[column]) problems.push(`${id}: ${column}为空`)
     }
@@ -63,7 +69,8 @@ const phaseRank = id => PHASES.indexOf(features.get(id)?.['阶段'])
 for (const [id, feature] of features) {
   for (const dep of feature.deps) {
     if (!features.has(dep)) problems.push(`${id}: 依赖 ${dep} 不存在`)
-    else if (phaseRank(dep) > phaseRank(id)) problems.push(`${id}: 依赖更晚阶段的 ${dep}`)
+    else if (phaseRank(dep) > phaseRank(id))
+      problems.push(`${id}: 依赖更晚阶段的 ${dep}`)
   }
 }
 // 依赖方向：跨功能模块的依赖不得指向宿主功能模块（05～08、11）；同一功能模块内的依赖不受限
@@ -102,7 +109,8 @@ const stories = readTable(storiesFile, '| 编号 | 角色 | 阶段 |')
 for (const story of stories) {
   const id = story['编号']
   if (!personas.has(story['角色'])) problems.push(`${id}: 角色 ${story['角色']} 不存在`)
-  if (!PHASES.includes(story['阶段'])) problems.push(`${id}: 未知阶段「${story['阶段']}」`)
+  if (!PHASES.includes(story['阶段']))
+    problems.push(`${id}: 未知阶段「${story['阶段']}」`)
   for (const ref of splitIds(story['功能'])) {
     if (!features.has(ref)) problems.push(`${id}: 引用的 ${ref} 不存在`)
     else if (phaseRank(ref) > PHASES.indexOf(story['阶段'])) {
@@ -111,10 +119,14 @@ for (const story of stories) {
     covered.add(ref)
   }
 }
-const checks = readTable(join(ROOT, 'technical-acceptance.md'), '| 编号 | 名称 | 阶段 |')
+const checks = readTable(
+  join(ROOT, 'technical-acceptance.md'),
+  '| 编号 | 名称 | 阶段 |',
+)
 for (const check of checks) {
   const id = check['编号']
-  if (!PHASES.includes(check['阶段'])) problems.push(`${id}: 未知阶段「${check['阶段']}」`)
+  if (!PHASES.includes(check['阶段']))
+    problems.push(`${id}: 未知阶段「${check['阶段']}」`)
   for (const ref of splitIds(check['功能'])) {
     if (!features.has(ref)) problems.push(`${id}: 引用的 ${ref} 不存在`)
     else if (phaseRank(ref) > PHASES.indexOf(check['阶段'])) {

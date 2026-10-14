@@ -3,8 +3,8 @@
 UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构建工具（TypeScript 命令行）：
 从一份插件源项目，构建出各宿主可安装的插件目录，并输出构建报告。
 
-**状态：** 技术选型已接受（[ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)），
-功能清单已拆分；v0.1.0 尚未实现，仓库中还没有代码。
+**状态：** 实现中。技术选型已接受（[ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)），
+v0.1.0 按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md) 的施工单实现，尚未发布。
 
 ## v0.1.0 范围
 
@@ -47,6 +47,24 @@ UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构�
 复议条件；其结论已回填到架构文档，后续变更只记在架构文档与
 [范围决策](docs/feature-list/scope-decisions.md) 中。关系检查脚本为
 `scripts/check-feature-list.mjs`。
+
+## 本地检查
+
+需要 Node ≥ 22.18 与 pnpm 12（版本由 `package.json` 的 `packageManager` 字段指定）。安装依赖：
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+运行检查（两套 `tsc` 配置、Biome、`node --test` 与功能清单关系检查，任一失败即以非零退出码
+结束）：
+
+```bash
+pnpm check
+```
+
+仓库不配置 CI，提交前在本地运行。施工顺序见[施工单](docs/workorders/README.md)，验收证据见
+[验收记录](docs/acceptance/README.md)。
 
 ## 约定
 

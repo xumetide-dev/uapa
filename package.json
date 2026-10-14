@@ -1,0 +1,39 @@
+{
+  "name": "uapa",
+  "version": "0.1.0",
+  "description": "编码代理插件的多目标构建工具：从一份源项目构建各宿主可安装的插件目录",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xumetide-dev/uapa.git"
+  },
+  "bin": {
+    "uapa": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist/"],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "scripts": {
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.runtime-core.json && biome check && node --test \"test/**/*.test.ts\" && node scripts/check-feature-list.mjs"
+  },
+  "dependencies": {
+    "rolldown": "~1.2.13",
+    "yaml": "~2.9.1",
+    "zod": "~4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "~2.5.15",
+    "@types/node": "~22.20.5",
+    "typescript": "~7.0.2"
+  }
+}
