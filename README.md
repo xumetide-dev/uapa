@@ -63,6 +63,13 @@ pnpm install --frozen-lockfile
 pnpm check
 ```
 
+同样的检查也可以在一次性容器中运行，本机只需要 bash、git 与 Docker；宿主实测（真实代理会话）
+也在容器中进行，见[容器测试](test/container/README.md)：
+
+```bash
+test/container/run.sh check
+```
+
 仓库不配置 CI，提交前在本地运行。施工顺序见[施工单](docs/workorders/README.md)，验收证据见
 [验收记录](docs/acceptance/README.md)。
 

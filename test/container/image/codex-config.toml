@@ -1,0 +1,7 @@
+# 测试容器内的 codex 用户级配置（~/.codex/config.toml）。容器即隔离边界：
+# 不弹审批、不再套 codex 自己的沙盒。
+# 只写顶层键与点号键、不写表头：run.sh 会在文件末尾追加本机的 model provider 配置，
+# 若此处以表头结尾，追加的顶层键会落进该表。
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+projects."/work".trust_level = "trusted"
