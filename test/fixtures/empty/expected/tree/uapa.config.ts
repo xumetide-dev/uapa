@@ -1,0 +1,9 @@
+import type { UapaConfig } from 'uapa'
+
+export default {
+  name: 'empty',
+  version: '0.1.0',
+  description: '没有 skills 目录、不配守卫的夹具',
+  author: { name: 'UAPA Fixtures' },
+  targets: ['claude-code:subprocess'],
+} satisfies UapaConfig

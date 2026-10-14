@@ -1,0 +1,26 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-13",
+        "source": "claude-code-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "none",
+      "residualRisks": []
+    }
+  ]
+}

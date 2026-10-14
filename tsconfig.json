@@ -10,7 +10,8 @@
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": { "uapa": ["./src/index.ts"] }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "scripts/*.ts"]
 }

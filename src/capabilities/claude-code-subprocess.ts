@@ -1,0 +1,50 @@
+// claude-code:subprocess 的能力数据（F-05-01）。取值依据 hooks 适配第 4、6、7、8 节与
+// 跨平台对比「工具名差异」；宿主升级后只改本文件。
+import type { TargetCapabilities } from './types.ts'
+
+const allow = { error: 'allow', timeout: 'allow' } as const
+
+export const claudeCodeSubprocess: TargetCapabilities = {
+  target: 'claude-code:subprocess',
+  host: {
+    name: 'claude-code',
+    version: '2.1.296',
+    checked: '2026-10-13',
+    source: 'claude-code-plugins.md',
+  },
+  // skills/、agents/、.mcp.json 与 hooks/hooks.json 都是插件包内的文件
+  components: {
+    skills: 'package',
+    agents: 'package',
+    mcp: 'package',
+    hooks: 'package',
+  },
+  capabilities: {
+    rewriteInput: true, // hookSpecificOutput.updatedInput
+    replaceOutput: true, // updatedToolOutput（v2.1.121+）
+    withholdOutput: true, // 以 updatedToolOutput 的说明文字替换原输出
+    stopGate: true, // Stop 返回 decision: "block" 与 reason
+    promptGate: false, // UserPromptSubmit 的阻断写法待 TA-15 实测
+  },
+  // hook 进程出错或超时时放行（hooks 适配第 7 节）
+  failureDefault: { beforeTool: allow, beforePrompt: allow, beforeStop: allow },
+  hookTimeoutSeconds: null, // 超时字段名待 TA-15 实测，实测前不写
+  defaultTimeoutSeconds: 600,
+  toolNames: {
+    Bash: 'shell',
+    PowerShell: 'shell',
+    Read: 'read_file',
+    Edit: 'edit_file',
+    Write: 'write_file',
+    Glob: 'glob',
+    Grep: 'grep',
+    WebFetch: 'web_fetch',
+    WebSearch: 'web_search',
+    Agent: 'subagent', // v2.1.63 起由 Task 改名
+    TaskCreate: 'todo',
+    TaskGet: 'todo',
+    TaskList: 'todo',
+    TaskUpdate: 'todo',
+    TodoWrite: 'todo', // 默认关闭，由 TaskCreate 等取代
+  },
+}
