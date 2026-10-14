@@ -81,4 +81,5 @@ docs/acceptance/
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
 | [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
+| [M1-02](M1-02-skills-end-to-end.md) | skills 端到端 | 有条件通过（§7 四项由 M1-03～M1-07 接手） | 2026-10-14 | `8b9fdd0` |
 <!-- acceptance-index:end -->

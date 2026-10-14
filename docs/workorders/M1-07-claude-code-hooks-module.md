@@ -77,6 +77,9 @@
   处理函数。
 - TA-02：`tsc -p tsconfig.runtime-core.json` 覆盖 `claude-code-in-process.ts`。
 - 夹具：`in-process-only` 断言守卫文件不含 `$.env.set`；`claude-both` 的去重入口用例。
+- 承接 [M1-02 验收 §7](../acceptance/M1-02-skills-end-to-end.md#7-已知限制与技术债) 第 3 行（同一宿主有两个目标后）：
+  skill 只限定 `claude-code:subprocess` 时，`claude-code:in-process` 的报告记一条残余风险；
+  同一宿主中一个目标失败时，该目标不进入插件目录，另一目标照常写出。
 
 ## 验收
 

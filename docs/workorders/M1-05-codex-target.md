@@ -74,6 +74,8 @@
 - 单元：协议各方法；`plugin.json` 的顶层键序与 `extensions.com.openai`；`hooksFile` 改变路径时
   `extensions.com.openai.hooks` 同步；白名单检查对额外字段失败。
 - 构建：临时源项目只配置 `codex:subprocess`，运行入口的放行、拒绝、改写、停机继续用例。
+- 承接 [M1-02 验收 §7](../acceptance/M1-02-skills-end-to-end.md#7-已知限制与技术债) 第 2 行：
+  `hosts.codex.hooksFile` 为绝对路径或含 `..` 时配置校验失败，字段为 `hosts.codex.hooksFile`。
 
 ## 验收
 

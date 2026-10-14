@@ -77,6 +77,9 @@
 - 构建：以临时源项目只配置 `agy:subprocess`，断言产物文件集合为 `plugin.json`、`hooks.json`、
   `hooks/uapa-agy.mjs` 与 `skills/`，并以 `process.execPath` 运行入口的放行、拒绝、改写、停机继续
   四个用例。
+- 承接 [M1-02 验收 §7](../acceptance/M1-02-skills-end-to-end.md#7-已知限制与技术债) 第 1 行（第二个宿主登记后）：
+  `hosts` 中出现未配置目标的宿主时校验失败，字段为 `hosts.<宿主>`；某宿主的插件目录等于或包含
+  另一宿主的插件目录时校验失败；一个宿主的宿主模块失败时，另一宿主的目标仍成功并写出。
 
 ## 验收
 
