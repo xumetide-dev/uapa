@@ -142,7 +142,7 @@ Codex 没有替换为任意文本的输出字段；`decision: "block"` 替换后
 | 写法 | 读取的服务器 | 依据 |
 |---|---|---|
 | 以 `./` 开头的路径（不含 `..`，位于插件目录内） | 只读该文件，不读 `.mcp.json` | 测试 `load_plugins_uses_manifest_configured_component_paths`、`legacy_manifest_can_point_at_root_mcp_json` |
-| 对象 | 只用内联的服务器；`{}` 时没有服务器（按代码推断，无专门测试） | `core-plugins/src/loader.rs`；测试 `load_plugins_loads_manifest_mcp_server_objects` |
+| 对象 | 只用内联的服务器；`{}` 时没有服务器（无专门测试；容器实测见 [Codex](codex-plugins.md#容器实测01621)） | `core-plugins/src/loader.rs`；测试 `load_plugins_loads_manifest_mcp_server_objects` |
 | 未写 | 读插件根的 `.mcp.json`（带点）；不自动读取 `mcp.json` | `core-plugins/src/loader.rs` 的 `DEFAULT_MCP_CONFIG_FILE` |
 
 MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_config`）：

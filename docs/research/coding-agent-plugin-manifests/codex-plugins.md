@@ -147,6 +147,38 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   拼到插件目录下。
 - 插件不承载 agents。
 
+## 容器实测（0.162.1）
+
+2026-10-15，Linux 测试容器中的 codex-cli 0.162.1，模型服务为本机配置的 provider。产物为夹具
+期望树中插件目录的副本，写入本地 marketplace 后安装；提示只要求运行标记命令。
+
+```bash
+codex plugin marketplace add <marketplace 根目录>
+```
+
+```bash
+codex plugin add <插件名>@<marketplace 名>
+```
+
+- 安装后插件位于 `~/.codex/plugins/cache/<marketplace>/<插件>/<版本>/`。
+- 信任：安装后首次启动 TUI 时出现 “Hooks need review” 对话框，列出新增或改动的 hooks 数量；
+  选 “Trust all and continue” 后用户层 `config.toml` 中每个 hook 记一条 `trusted_hash`，之后的
+  `codex exec` 运行这些 hooks。信任之前 `codex exec` 静默跳过插件的 hooks，拒绝的标记命令照常
+  执行。
+- 容器中运行 TUI：镜像没有 `ps`，需加 `--no-daemon`；provider 配置写了 `requires_openai_auth`
+  时 TUI 先显示登录界面，写入信任时以 `-c model_providers.<provider>.requires_openai_auth=false`
+  跳过。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 拒绝 | `full` 产物，要求运行 `echo uapa-deny-probe > deny.txt` | 命令不执行，`deny.txt` 不存在；日志为 `Command blocked by PreToolUse hook: 拒绝标记命令 uapa-deny-probe`，模型报告该命令被 hook 拦下 |
+| 改写 | 要求运行 `echo uapa-rewrite-probe x > rewrite.txt` | 执行的是 `echo uapa-rewritten x > rewrite.txt` |
+| 停机继续 | 同一会话 | 模型按停机原因继续两轮后结束，计数文件归零 |
+| 扣留 | `after-tool` 产物，运行 `echo uapa-withhold-probe` | 工具结果为扣留原因（日志 `error=扣留标记输出 uapa-withhold-probe`）；模型回复 `uapa-withhold-probe`，与原因中的标记相同，单看回复不能区分 |
+| 替换降级为扣留 | 运行 `echo uapa-replace-probe` | 工具结果为替换文本，模型回复 `uapa-replaced`，读不到原输出 |
+| MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | `codex mcp list` 列出 `docs`、`plain`、`remote`（`launcher` 已由 UAPA 跳过）；`docs` 的工作目录为插件目录（`"cwd": "."`），`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data`；远程服务器连接失败只记错误日志 |
+| `"mcpServers": {}` | 两个只含 `.mcp.json` 的插件，manifest 分别写 `{}` 与不写 `mcpServers` | 写 `{}` 的插件不加载 `.mcp.json` 中的服务器；不写的插件加载 |
+
 ## marketplace.json
 
 位置 [X2]：

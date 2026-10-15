@@ -175,6 +175,18 @@ matcher，`timeout` 为 3）、`PostToolUse`、`UserPromptSubmit`、`Stop`、`Se
 | 服务器与工具名 | 会话初始化信息；让模型调用该工具 | 服务器为 `plugin:<插件名>:<服务器名>`，工具为 `mcp__plugin_<插件名>_<服务器名>__<工具名>`；模型读到标记文本 |
 | agent 的 frontmatter | 一个 agent 含 `targets` 键，另一个的 `name` 与文件名不同；`validate --strict` | 通过；会话初始化信息按 frontmatter 的 `name` 列出 `<插件名>:<name>` |
 
+## UAPA 夹具产物
+
+2026-10-15，Linux 测试容器，Claude Code 2.1.296；TA-12 另在维护者机器（macOS，同版本）上对
+临时目录中的产物副本运行。产物均为夹具期望树中插件目录的副本；会话的提示只要求运行标记命令。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| TA-12 | 对 `claude-both` 的产物运行 `validate --strict` 与 `claude plugin test`；产物含覆盖文件 `hooks/guard.test.ts` | 两处都通过；5 个用例（拒绝、放行、改写、停机连续继续两次后结束、提示阻断）通过 |
+| 执行后检查：模块 | `after-tool` 产物（两种形态并存，由模块处理）；Bash 运行 `echo uapa-replace-probe` 与 `echo uapa-withhold-probe`，Read 读取内容为 `uapa-replace-probe` 的文件 | 替换：模型读到 `uapa-replaced`（Read 带行号前缀）；扣留：模型读到 `Bash ran, and a plugin withheld its result: 扣留标记输出 uapa-withhold-probe`，标为错误 |
+| 执行后检查：命令 hooks | 同上，副本去掉 `modules` | 替换同上；扣留：`stdout` 换为扣留原因，模型只读到原因 |
+| agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器（与覆盖文件的放置方式相同） | 初始化信息列出 `components:reviewer`，不含只限 agy 的 `agy-helper`；`docs` 与 `launcher` 为 `connected`，`plain`（命令不存在）与 `remote`（地址不可达）为 `failed`；桩服务器日志中参数与 `UAPA_DATA` 已展开为插件目录，工作目录为会话的工作目录 |
+
 ## 使用的命令
 
 ```bash

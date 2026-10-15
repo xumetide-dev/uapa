@@ -47,7 +47,9 @@
   解析 [A3]；1.3.5 的服务器以安装后的插件目录为工作目录，`args` 中的相对路径可用，`env` 的值
   原样传入（容器实测）。
 - 1.3.5 的会话中子代理的名称取 frontmatter 的 `name`，与文件名无关；frontmatter 含 `targets`
-  等文档未列的键时照常加载（容器实测）。`agents.json` 与 `agents/*.md` 同时存在时的处理未核实。
+  等文档未列的键时照常加载（容器实测）。根 `agents.json` 与 `agents/*.md` 同时存在时，
+  `agents/*.md` 照常加载；以目录条目写的 `agents.json` 未使其声明的子代理出现，格式未能确定
+  （容器实测，见下文）。
 - 1.3.2 的更新日志称每个插件有数据目录，以 `PLUGIN_DATA` 提供 [A3]；1.3.4 的 hook 进程环境中
   没有该变量（本地实测）。1.3.5 的 MCP 服务器进程环境中有 `PLUGIN_ROOT`（插件目录）与
   `PLUGIN_DATA`（`~/.gemini/antigravity-cli/plugin_data/<插件名>`）（容器实测）。
@@ -207,6 +209,20 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | 相对路径的服务器 | 以 `<插件名>_relative` 连接，模型调用工具后读到标记文本；服务器的工作目录为安装后的插件目录，`env` 的相对路径未展开 |
 | `${extensionPath}` | 日志中只有 `relative` 一次启动记录，该服务器未能启动；据此推断变量未展开（未核实） |
 | 子代理 | 会话列出两个子代理，名称为 frontmatter 的 `name` |
+
+### UAPA 夹具产物（1.3.5，容器）
+
+2026-10-15，测试容器中的 agy 1.3.5；模型 `gemini-3.8-flash-high`。产物为夹具期望树中插件目录的
+副本，以 `agy plugin install` 安装，打印模式运行会话（`--dangerously-skip-permissions`），结束后
+卸载；提示只要求运行标记命令。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 拒绝 | `full` 产物，要求运行 `echo uapa-deny-probe > deny.txt` | 命令不执行，`deny.txt` 不存在；模型读到 `tool call denied by pre-tool hook: 拒绝标记命令 uapa-deny-probe` |
+| 改写 | 要求运行 `echo uapa-rewrite-probe x > rewrite.txt` | `rewrite.txt` 的内容为 `uapa-rewritten x` |
+| 停机继续 | 同一会话；副本在 UAPA 的 `Stop` hook 之后另挂记录用的 hook | 模型作答三次（继续两次）后结束，计数文件归零；记录用的 hook 只在最后一次停机时运行，stdin 含 `conversationId`、`terminationReason`、`transcriptPath` 等字段，工作目录为安装后的插件目录 |
+| agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | 安装报告 2 个 agents 与 3 个 mcpServers（`launcher` 已由 UAPA 跳过）；会话列出子代理 `agy-helper`、`reviewer` 与服务器 `components_docs`；桩服务器的工作目录为安装后的插件目录，`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data` |
+| `agents.json` 并存 | 插件含 `agents/a.md` 与 `extra/b.md`，`agents.json` 分别写 `[{"path": "extra"}]`、`{"agents": [{"path": "extra"}]}` 与 `["extra"]` | 三种写法下会话都只列出 `agents/a.md` 的子代理；`agy plugin list --json` 同样只列出 `a.md` |
 
 ## 来源
 
