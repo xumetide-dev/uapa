@@ -199,7 +199,7 @@ uapa/
 | # | 事项 | 状态 | 影响章节 |
 |---|---|---|---|
 | 1 | 试点插件在 `UserPromptSubmit` 上检查提示内容，公共类型没有对应入口 | 待确认 | 公共导出面 |
-| 2 | 合并布局下 `hooks/hooks.json` 被多个宿主共读；加入 `claude-code:in-process` 后该文件含 `modules` 键，Codex 与 Copilot CLI 对未知顶层键的处理未实测 | 待确认 | 产物布局 |
+| 2 | 合并布局下 `hooks/hooks.json` 被多个宿主共读；加入 `claude-code:in-process` 后该文件含 `modules` 键，Codex 与 Copilot CLI 对未知顶层键的处理未实测；Codex 的部分不成立：合并布局中 Codex 不读取 Claude Code 生成的该文件（[M1-07 验收 §6](../acceptance/M1-07-claude-code-hooks-module.md#6-技术决策)） | 待确认 | 产物布局 |
 | 3 | Claude Code 双形态去重依赖 2.1.296 的本地实测，宿主升级可能改变行为 | 待确认 | 端拆分 |
 | 4 | 不配 CI，回归只在本地运行；发布脚本须先运行全部检查 | 已接受 | 分发方式 |
 | 5 | 单一维护者 | 已接受 | 输入与约束 |
