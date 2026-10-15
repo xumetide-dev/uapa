@@ -10,7 +10,7 @@
 | 验收日期 | 2026-10-15 |
 | 验收结论 | 有条件通过（产物在 agy 与 Claude Code 会话中的效果由 M4-05 实测） |
 | 判断范围 | 夹具与单元测试 |
-| commit | `ee66f81` |
+| commit | `ee66f81`、`04328f0` |
 
 ## 0. 一票否决核对
 
@@ -47,7 +47,7 @@
 | `F-03-16` | 检查 rules 与 commands 的承载 | `TargetCapabilities.components` 增加 `rules` 与 `commands`，缺少时 `tsc` 报错；`TargetPlan` 增加 `rules` 与 `commands`，按 F-03-02 筛选：目标不承载时，未在 frontmatter 写明该目标的条目写入其报告的 `skipped`（`component` 为 `rules/<name>.md`、`commands/<name>.md`），写明时该目标失败；commands 由构建编排按插件目录原样复制为 `commands/<name>.md`，并集与残余风险同 agents（模块接口 §5，SD-33）；rules 由宿主模块按 `TargetPlan.rules` 生成（SD-32） | ✅ | `tsc` 通过（`Component` 含 `rules`、`commands`，四个数据模块缺项时报错）；`test/build/components.test.ts` 7 个测试：commands 原样复制、`commands: 'none'` 与 `rules: 'none'` 时跳过或失败、rules 交给宿主模块且不复制、跳过项顺序、共用目录中 command 的残余风险、读取失败不写文件 |
 | `F-05-16` | 放置 commands | 两个目标的能力数据 `components.commands` 为 `package`、`components.rules` 为 `none`（插件根的 `CLAUDE.md` 不作为上下文加载，插件没有规则组件）；适用的 commands 由构建编排原样写入产物 `commands/<name>.md`，frontmatter 中的 `targets` 不影响加载（[本地实测「commands 与 userConfig」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)，SD-33） | ✅ | `rules-commands` 夹具：`dist/claude-code/commands/` 含 `claude-only.md` 与 `review.md`，与源文件逐字节一致；两个目标的 `skipped` 为两条 `rules/…`；`claude-code:in-process` 的残余风险为 `command claude-only 不适用于本目标…`。宿主加载由 M4-05 实测 |
 | `F-06-09` | commands 与 rules 的承载 | 能力数据的 `components.commands` 为 `package`（兼容格式的插件在安装时把 `commands/*.md` 转换为技能），`components.rules` 为 `none`，依据 [Codex hooks 源码核对记录「commands、rules 与用户配置」](../research/coding-agent-plugin-manifests/codex-source-review.md#commandsrules-与用户配置)（rust-v0.162.1）；适用的 commands 由构建编排原样写入产物 `commands/<name>.md`；`TargetPlan.commands` 非空时残余风险写明“Codex 安装时把 commands 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果超过 4000 字节的命令被跳过，UAPA 不检查”（SD-33） | ✅ | `rules-commands` 夹具：`dist/codex/commands/review.md` 与源文件一致，`skipped` 为两条 `rules/…`，残余风险为该条原文；`test/targets/codex-commands.test.ts` 2 个测试（有与没有 commands） |
-| `F-11-09` | 生成 rules | 能力数据的 `components.rules` 为 `package`，`components.commands` 为 `none`（文档写明插件没有斜杠命令组件）；按 `TargetPlan.rules` 生成 `rules/<name>.md`：frontmatter 依次写 `trigger`（`always` → `always_on`，`model` → `model_decision`，`glob` → `glob`）、`description`（有值时）与 `globs`（`glob` 时为以 `,` 连接的一个字符串），正文为 `Rule.body` 原文；生成的文件超过 24,000 字节时残余风险写明超出部分被宿主截断；依据 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#rules135容器)（SD-32） | ✅ | `rules-commands` 夹具：`dist/agy/rules/` 三个文件的 frontmatter 为 `always_on`、`model_decision`（带 `description`）、`glob`（`globs: "*.ts,src/**/*.tsx"`），正文与源文件一致；`skipped` 为 `commands/review.md`；`test/targets/agy-rules.test.ts` 4 个测试（换算、YAML 不折行、超过 24,000 字节的风险、没有 rules） |
+| `F-11-09` | 生成 rules | 能力数据的 `components.rules` 为 `package`，`components.commands` 为 `none`（文档写明插件没有斜杠命令组件）；按 `TargetPlan.rules` 生成 `rules/<name>.md`：frontmatter 依次写 `trigger`（`always` → `always_on`，`model` → `model_decision`，`glob` → `glob`）、`description`（有值时）与 `globs`（`glob` 时为以 `,` 连接的一个字符串），正文为 `Rule.body` 原文；生成的文件超过 24,000 字节时残余风险写明超出部分被宿主截断；依据 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#rules135容器)（SD-32） | ✅ | `rules-commands` 夹具：`dist/agy/rules/` 三个文件的 frontmatter 为 `always_on`、`model_decision`（带 `description`）、`glob`（`globs: "*.ts,src/**/*.tsx"`；`04328f0` 之后为 `"*.ts,**/src/**/*.tsx"`，报告含前缀风险），正文与源文件一致；`skipped` 为 `commands/review.md`；`test/targets/agy-rules.test.ts` 4 个测试（换算、YAML 不折行、超过 24,000 字节的风险、没有 rules），`04328f0` 之后 6 个（增加模式换算与不需换算时不写风险） |
 
 ## 3. 自动化验证汇总（可复跑）
 
@@ -89,12 +89,18 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
   夹具的期望产物变化；新增取值的核对日期写在注释中。
 - 夹具期望输出以 `test/container/run.sh exec` 在容器中运行 `update.ts` 生成，再以 tar 流取回
   核对；手写的三个 manifest 与生成结果一致。
+- M4-05 实测（2026-10-15，agy 1.3.5）发现 agy 按被读文件的绝对路径匹配 `globs`，按工作区相对
+  路径写的 `src/**/*.tsx` 不生效。按“已有同一件事的单就补那张单”，修正记在本单：`04328f0` 为
+  含 `/` 的模式加 `**/` 前缀并写残余风险，F-11-09 的验收标准、使用指南与 `rules-commands` 夹具
+  随之更新；`test/container/run.sh check` 296 pass / 0 fail。修正后的产物在 agy 会话中复测生效，
+  见 [M4-05](M4-05-v0-3-0-live-tests.md)。
 
 ## 6. 技术决策
 
 | 决策 | 依据 | 回填状态 |
 |---|---|---|
-| agy 规则的 frontmatter 以 `yaml` 的 `stringify(…, { lineWidth: 0 })` 序列化 | 含 `: ` 或以 `*` 开头的取值自动加引号；不折行使每个键保持一行，与实测的写法等价 | 实现注释；宿主效果由 M4-05 复测 |
+| agy 规则的 frontmatter 以 `yaml` 的 `stringify(…, { lineWidth: 0 })` 序列化 | 含 `: ` 或以 `*` 开头的取值自动加引号；不折行使每个键保持一行，与实测的写法等价 | 实现注释；M4-05 复测三种 trigger 生效 |
+| 含 `/` 的 `globs` 模式在 agy 中加 `**/` 前缀，不改写成绝对路径 | 插件安装位置与工作区路径在构建时未知；`**/` 前缀在实测中生效，代价是也匹配其他位置的同名目录，写为残余风险 | F-11-09；使用指南 |
 | 超长规则的残余风险按生成后的 UTF-8 字节数判断 | 文档记载的上限针对规则文件，frontmatter 换写后长度改变 | 已写入 F-11-09 的实现 |
 | Codex 的命令转换限制只写一条风险，不逐条判断模板写法 | 跳过条件随 Codex 版本变化，SD-33 决定不复刻 | 已写入 F-06-09 的实现 |
 
@@ -102,7 +108,7 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | 产物在宿主会话中的效果未实测（agy 的三种 trigger、Claude Code 的命令调用） | 夹具只证明产物内容与调研结论一致 | M4-05 |
+| 1 | 产物在宿主会话中的效果未实测（agy 的三种 trigger、Claude Code 的命令调用） | 夹具只证明产物内容与调研结论一致 | M4-05；已关闭：实测发现的 globs 问题由 `04328f0` 修正，修正后三种 trigger 与两个命令都生效 |
 | 2 | Codex 转换命令后的调用方式未核对 | Codex 用户能否在会话中使用转换后的技能未知 | M4-00 收口时向维护者申请以 Codex CLI 实测（使用 Codex CLI 须逐次确认） |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
@@ -111,3 +117,5 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 
 - `rules-commands` 的 agy 产物在 M4-05 中安装实测，结论与调研不一致时先更新调研文档。
 - 下一步：M4-03（按命名空间合并共用的 JSON）。
+- 2026-10-15 补记：§7 第 1 项已关闭；第 2 项（Codex 转换命令的调用）仍待维护者确认使用
+  Codex CLI，本单结论维持有条件通过。
