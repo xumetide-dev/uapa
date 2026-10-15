@@ -8,6 +8,7 @@ import { test } from 'node:test'
 import type { BuildOutcome } from '../../src/build/index.ts'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import type { TargetCapabilities } from '../../src/capabilities/types.ts'
+import type { UapaConfig } from '../../src/config/types.ts'
 import type { HostModule, HostResult } from '../../src/targets/types.ts'
 import {
   buildIn,
@@ -104,6 +105,55 @@ test('宿主模块失败时该宿主的目标失败，插件目录保持原状',
       )
     })
   }
+})
+
+// 登记第二个宿主后才能构造（M1-02 验收 §7 第 1 行）
+test('一个宿主的宿主模块失败时，另一宿主的目标仍成功并写出', async () => {
+  const failingAgy: HostModule = {
+    host: 'agy',
+    generate: async () => ({
+      ok: false,
+      errors: [{ target: 'agy:subprocess', message: '名称不合规' }],
+    }),
+  }
+  const failingClaude = fakeHost(async () => {
+    throw new Error('boom')
+  })
+  const config = { targets: [TARGET, 'agy:subprocess'] } as Partial<UapaConfig>
+  const files = { 'skills/review/SKILL.md': SKILL(), 'dist/agy/keep.txt': 'keep' }
+  await buildIn(
+    files,
+    deps(writesManifest, claudeCodeSubprocess, failingAgy),
+    async (root, outcome) => {
+      const [claude, agy] = done(outcome).report.targets
+      assert.equal(claude?.status, 'ok')
+      assert.equal(
+        await readFile(join(root, 'dist/claude-code/manifest.json'), 'utf8'),
+        '{}\n',
+      )
+      assert.ok(existsSync(join(root, 'dist/claude-code/skills/review/SKILL.md')))
+      assert.equal(agy?.status, 'failed')
+      assert.deepEqual(agy?.errors, ['名称不合规'])
+      assert.equal(await readFile(join(root, 'dist/agy/keep.txt'), 'utf8'), 'keep')
+    },
+    config,
+  )
+  // 反向：Claude Code 的宿主模块抛错，agy 以真实宿主模块写出
+  await buildIn(
+    { 'skills/review/SKILL.md': SKILL() },
+    deps(failingClaude),
+    async (root, outcome) => {
+      const [claude, agy] = done(outcome).report.targets
+      assert.equal(claude?.status, 'failed')
+      assert.deepEqual(claude?.errors, ['同一宿主的生成失败: boom'])
+      assert.ok(!existsSync(join(root, 'dist/claude-code')))
+      assert.equal(agy?.status, 'ok')
+      assert.deepEqual(agy?.units, [{ kind: 'plugin', path: 'dist/agy' }])
+      assert.ok(existsSync(join(root, 'dist/agy/plugin.json')))
+      assert.ok(existsSync(join(root, 'dist/agy/skills/review/SKILL.md')))
+    },
+    config,
+  )
 })
 
 test('源项目读取失败时返回 input-error，不写任何文件', async () => {

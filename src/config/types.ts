@@ -13,6 +13,7 @@ export interface HostOptions {
     dependencies?: unknown
     $schema?: string
   }
+  agy: HostDir // agy 的根 plugin.json 只允许 name 与 description，没有其他宿主选项（F-11-02）
 }
 
 export interface UapaConfig {

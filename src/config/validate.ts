@@ -21,6 +21,7 @@ const hostOptionSchemas: { [H in HostName]: z.ZodType<HostOptions[H]> } = {
     dependencies: z.unknown().optional(),
     $schema: text.optional(),
   }),
+  agy: z.strictObject({ dir: relativeDir.optional() }),
 }
 
 const targetName = z.enum(TARGETS, {

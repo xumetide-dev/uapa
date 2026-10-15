@@ -77,3 +77,48 @@ test('默认布局的插件目录不得等于或包含源项目根目录、outDi
   assert.ok(!nested.ok)
   assert.equal(nested.issues[0]?.field, 'outDir')
 })
+
+// 以下三个分支在登记第二个宿主后才能构造（M1-02 验收 §7 第 1 行）
+const twoHosts = ['claude-code:subprocess', 'agy:subprocess']
+
+test('hosts 中出现 targets 未配置目标的宿主时，字段为 hosts.<宿主>', () => {
+  assert.deepEqual(issues({ ...baseConfig, hosts: { agy: {} } }), [
+    {
+      file: 'uapa.config.ts',
+      field: 'hosts.agy',
+      message: 'targets 中没有该宿主的目标',
+    },
+  ])
+  const agyOnly = { ...baseConfig, targets: ['agy:subprocess'] }
+  assert.deepEqual(fields({ ...agyOnly, hosts: { 'claude-code': {} } }), [
+    'hosts.claude-code',
+  ])
+  assert.deepEqual(fields({ ...baseConfig, targets: twoHosts, hosts: { agy: {} } }), [])
+  assert.deepEqual(fields({ ...agyOnly, hosts: { agy: { extra: 1 } } }), [
+    'hosts.agy.extra',
+  ])
+})
+
+test('默认布局的插件目录包含另一宿主的插件目录时校验失败', () => {
+  const dirs = (claude: string, agy: string) =>
+    issues({
+      ...baseConfig,
+      targets: twoHosts,
+      hosts: { 'claude-code': { dir: claude }, agy: { dir: agy } },
+    })
+  const outer = dirs('plugins', 'plugins/agy')
+  assert.deepEqual(
+    outer.map(issue => issue.field),
+    ['hosts.claude-code.dir'],
+  )
+  assert.match(outer[0]?.message ?? '', /不能等于或包含agy 的插件目录（plugins\/agy）/)
+  const inner = dirs('out/claude', 'out')
+  assert.deepEqual(
+    inner.map(issue => issue.field),
+    ['hosts.agy.dir'],
+  )
+  assert.match(inner[0]?.message ?? '', /claude-code 的插件目录（out\/claude）/)
+  assert.deepEqual(dirs('plugins/claude', 'plugins/agy'), [])
+  // 两个宿主解析为同一目录时为合并布局（F-03-06），不按默认布局检查
+  assert.deepEqual(dirs('plugins', 'plugins'), [])
+})
