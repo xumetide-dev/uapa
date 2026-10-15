@@ -17,7 +17,7 @@
 | `uapa: uapa.config.ts: 默认导出缺失或不是对象` | 配置没有 `export default` | 以 `export default defineConfig({ … })` 导出 |
 | `uapa: uapa.config.ts: <字段>: 缺少必填字段` | 缺 `name`、`version`、`description` 或 `targets` | 补上字段，见[构建配置](configuration.md#字段) |
 | `uapa: uapa.config.ts: version: 不是 semver 版本号` | 如 `1.0` | 写成 `1.0.0` |
-| `uapa: uapa.config.ts: targets[<n>]: 未知目标名 "<名称>"` | 目标名拼写错误，或该宿主不在 v0.2.0 中 | 取值见[目标与宿主差异](targets.md#目标一览) |
+| `uapa: uapa.config.ts: targets[<n>]: 未知目标名 "<名称>"` | 目标名拼写错误，或该宿主不在 v0.3.0 中 | 取值见[目标与宿主差异](targets.md#目标一览) |
 | `uapa: uapa.config.ts: <字段>: 未知字段` | 字段名拼写错误，或命令 hooks 写了 `matcher`、`timeout` | 删除或改正该字段 |
 | `uapa: uapa.config.ts: hosts.<宿主>: targets 中没有该宿主的目标` | `hosts` 中的宿主没有配置任何目标 | 删除该宿主的选项，或在 `targets` 中加入它的目标 |
 | `uapa: uapa.config.ts: <字段>: <宿主> 的插件目录 <目录> 写入前会被清空，不能等于或包含<…>` | 默认布局的插件目录覆盖了源项目根目录、`outDir` 或另一个插件目录 | 改用其他目录；要写入源项目根目录时让两个以上宿主共用它（合并布局） |

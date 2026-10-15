@@ -3,18 +3,23 @@
 UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构建工具（TypeScript 命令行）：
 从一份插件源项目，构建出各宿主可安装的插件目录，并输出构建报告。
 
-**状态：** v0.2.0 以 tag `v0.2.0` 发布，按
-[Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md) 与
-[Sprint M2](docs/workorders/M2-00-v0-2-0-three-host-completion.md) 的施工单实现；三个宿主的
-安装与会话实测见 [M2-05 验收](docs/acceptance/M2-05-three-host-live-tests.md)。技术选型见
+**状态：** v0.3.0 以 tag `v0.3.0` 发布，按
+[Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md)、
+[Sprint M2](docs/workorders/M2-00-v0-2-0-three-host-completion.md) 与
+[Sprint M4](docs/workorders/M4-00-v0-3-0-rules-commands-guard-options.md) 的施工单实现；三个宿主的
+安装与会话实测见 [M2-05 验收](docs/acceptance/M2-05-three-host-live-tests.md)，v0.3.0 新增部分的
+实测见 [M4-05 验收](docs/acceptance/M4-05-v0-3-0-live-tests.md)。技术选型见
 [ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)。
 
-## v0.2.0 范围
+## v0.3.0 范围
 
 - 目标：`claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、
   `agy:subprocess`，覆盖 Claude Code、Codex、Antigravity CLI（agy）三个宿主。GitHub Copilot CLI
   与 Kimi Code 的设计保留为预留，见[范围决策 SD-26、SD-27](docs/feature-list/scope-decisions.md)。
-- 组件：skills、agents 与 MCP 服务器；守卫 hooks：执行前、提示提交前、停机前与执行后检查。
+- 组件：skills、agents、MCP 服务器、rules 与 commands。宿主不承载的组件写入构建报告的跳过项，
+  各宿主承载哪些见[目标与宿主差异](docs/guide/targets.md#组件与能力)。
+- 守卫 hooks：执行前、提示提交前、停机前与执行后检查。守卫可以声明选项：Claude Code 中由使用者
+  设置，Codex 与 agy 取声明的默认值，见[编写守卫](docs/guide/guards.md)。
 - 命令 hooks：配置中原样声明、不经守卫逻辑的命令，由子进程目标按宿主事件名写入 hooks 配置，见
   [命令 hooks 声明](docs/architecture/command-hooks.md)。
 - 对外接口：命令 `uapa build` 与 `uapa build --check`；包入口导出 `defineConfig` 与公共类型。
@@ -25,12 +30,12 @@ UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构�
 
 UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装：`package.json` 中写作
 `"uapa": "github:xumetide-dev/uapa#vX.Y.Z"`，不引用分支。tag 对应的提交含编译后的 `dist/`，
-包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.2.0` 为例。
+包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.3.0` 为例。
 
 pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
 
 ```bash
-pnpm add -D github:xumetide-dev/uapa#v0.2.0
+pnpm add -D github:xumetide-dev/uapa#v0.3.0
 ```
 
 npm 12 默认禁止 git 依赖（`allow-git` 的默认值为 `none`，取值 `none`、`root`、`all`）。在项目的
@@ -42,7 +47,7 @@ npm config set allow-git=root --location=project
 ```
 
 ```bash
-npm install -D github:xumetide-dev/uapa#v0.2.0
+npm install -D github:xumetide-dev/uapa#v0.3.0
 ```
 
 升级时改 tag 后重新安装，锁文件记录 tag 对应的提交。
@@ -54,6 +59,9 @@ npm install -D github:xumetide-dev/uapa#v0.2.0
   （如 `overrides/codex/mcp/server.mjs`），每个用到它的宿主各放一份。
 - 在 Codex 中安装插件后，须在 TUI 启动时出现的 hooks 审核对话框中信任插件的 hooks；信任之前
   Codex 静默跳过这些 hooks，守卫不生效。
+- Codex 安装插件时把 commands 转换为技能，以 `$<插件名>:source-command-<命令名>` 调用；正文含
+  `$ARGUMENTS` 等模板写法的命令被跳过。agy 按文件的绝对路径匹配规则的 `globs`，含目录的模式
+  生成时加 `**/` 前缀。
 - 每次构建的跳过项、降级与残余风险写在构建报告（默认 `dist/uapa-report.json`）中，见
   [构建报告](docs/architecture/build-report.md)。
 

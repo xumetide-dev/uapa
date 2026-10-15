@@ -1,6 +1,6 @@
 {
   "name": "uapa",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "编码代理插件的多目标构建工具：从一份源项目构建各宿主可安装的插件目录",
   "license": "Apache-2.0",
   "private": true,

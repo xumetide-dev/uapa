@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | v0.1.0、v0.2.0 以 tag 发布；§1、§2 描述模块与目录 |
+| 状态 | v0.1.0、v0.2.0、v0.3.0 以 tag 发布；§1、§2 描述模块与目录 |
 | 选型依据 | [ARCH-001](ARCH-001-agent-plugin-build-tool.md) |
 | 更新日期 | 2026-10-15 |
 | 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06。2026-10-14：v0.1.0 目标改为 Claude Code 两种形态、Codex 与 agy；Copilot CLI 与 Kimi Code 改为预留（SD-25～SD-27） |
@@ -29,7 +29,7 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 | 形态 | hooks 在宿主中的运行方式：`subprocess` 为命令 hooks，每个事件启动一个 Node 子进程；`in-process` 为 Claude Code 的 hooks 模块（mod），运行在没有 Node 的独立环境 |
 | 目标 | `<宿主>:<形态>`，如 `codex:subprocess`；能力数据、入口与能力检查按目标区分 |
 | 源项目 | 插件作者维护的目录：`uapa.config.ts`、skills、守卫逻辑与覆盖目录 `overrides/<宿主>/` |
-| 组件 | 源项目中按目录读取、放进插件目录的内容：v0.1.0 为 skills，v0.2.0 增加 agents 与 MCP 服务器；能力数据的 `components` 另含 `hooks`，表示目标承载 hooks 配置的位置 |
+| 组件 | 源项目中按目录读取、放进插件目录的内容：v0.1.0 为 skills，v0.2.0 增加 agents 与 MCP 服务器，v0.3.0 增加 rules 与 commands；能力数据的 `components` 另含 `hooks`，表示目标承载 hooks 配置的位置 |
 | 宿主选项 | 配置中 `hosts.<宿主>` 下的字段（模块接口 §2），同一宿主的目标共用 |
 | 守卫 | 插件在宿主事件上做出的放行、拒绝、改写、阻断或继续的判断；由守卫逻辑实现，经各目标的 hooks 配置与入口生效。“守卫 hooks”指为守卫生成的 hooks 配置与入口 |
 | 守卫逻辑 | 插件作者编写的 TypeScript 文件，默认导出 `GuardPlugin`，由配置的 `guard` 字段指定 |

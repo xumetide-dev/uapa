@@ -1,7 +1,7 @@
 # UAPA 帮助文档
 
 本目录说明怎样用 UAPA 从一份源项目构建 Claude Code、Codex 与 Antigravity CLI（agy）的插件：
-写源项目、配置目标、编写守卫、构建与检查、在宿主中安装。内容对应 v0.2.0。
+写源项目、配置目标、编写守卫、构建与检查、在宿主中安装。内容对应 v0.3.0。
 
 字段、文件位置与退出码的权威定义在[架构文档](../architecture/architecture.md)与
 [模块接口](../architecture/module-interfaces.md)，宿主行为的出处在

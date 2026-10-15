@@ -121,7 +121,7 @@ export default guard
 | `{ kind: 'deny', reason }` | 拒绝，代理读到 `reason` |
 | `{ kind: 'rewrite', input, fallbackReason }` | 以新入参执行；目前只对 `shell` 的 `command` 做反向换算 |
 
-宿主不能改写入参时，`rewrite` 按 `fallbackReason` 拒绝，构建报告记为降级。v0.2.0 的三个宿主
+宿主不能改写入参时，`rewrite` 按 `fallbackReason` 拒绝，构建报告记为降级。v0.3.0 的三个宿主
 都能改写入参。
 
 ## 提示提交前检查 `beforePrompt`
@@ -199,7 +199,7 @@ export default {
 
 ## 能力缺失时的处理
 
-| 能力 | 含义 | 缺少的目标（v0.2.0） | 未列入 `requires` 时 |
+| 能力 | 含义 | 缺少的目标（v0.3.0） | 未列入 `requires` 时 |
 |---|---|---|---|
 | `rewriteInput` | 改写工具入参 | 无 | `rewrite` 按 `fallbackReason` 拒绝，记为降级 |
 | `replaceOutput` | 替换工具输出 | `codex:subprocess`、`agy:subprocess` | `replace` 按扣留写出，记为降级 |
