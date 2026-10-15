@@ -148,12 +148,14 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
 - 插件不承载 agents。
 - 兼容格式的插件在安装时把 `commands/*.md` 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果
   超过 4000 字节的命令被跳过；插件不承载 rules 与指令文件，也没有传给 hook 的用户配置（2026-10-15
-  核对，见源码核对记录「commands、rules 与用户配置」）。
+  核对，见源码核对记录「commands、rules 与用户配置」）。转换后的技能在会话中名为
+  `<插件名>:source-command-<命令名>`（容器实测见下节）。
 
 ## 容器实测（0.162.1）
 
 2026-10-15，Linux 测试容器中的 codex-cli 0.162.1，模型服务为本机配置的 provider。产物为夹具
-期望树中插件目录的副本，写入本地 marketplace 后安装；提示只要求运行标记命令。
+期望树中插件目录的副本，写入本地 marketplace 后安装；守卫的提示只要求运行标记命令，命令转换的
+实测在临时 git 仓库中审查一行改动。
 
 ```bash
 codex plugin marketplace add <marketplace 根目录>
@@ -173,6 +175,8 @@ codex plugin add <插件名>@<marketplace 名>
 - 容器中运行 TUI：镜像没有 `ps`，需加 `--no-daemon`；provider 配置写了 `requires_openai_auth`
   时 TUI 先显示登录界面，写入信任时以 `-c model_providers.<provider>.requires_openai_auth=false`
   跳过。
+- 容器中 `codex exec -s read-only` 的命令都不执行：沙箱的 bwrap 不能创建 namespace。实测沿用
+  容器配置的 `danger-full-access`。
 
 | 项目 | 做法 | 结果 |
 |---|---|---|
@@ -188,6 +192,12 @@ codex plugin add <插件名>@<marketplace 名>
 | 替换降级为扣留 | 运行 `echo uapa-replace-probe` | 工具结果为替换文本，模型回复 `uapa-replaced`，读不到原输出 |
 | MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | `codex mcp list` 列出 `docs`、`plain`、`remote`（`launcher` 已由 UAPA 跳过）；`docs` 的工作目录为插件目录（`"cwd": "."`），`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data`；远程服务器连接失败只记错误日志 |
 | `"mcpServers": {}` | 两个只含 `.mcp.json` 的插件，manifest 分别写 `{}` 与不写 `mcpServers` | 写 `{}` 的插件不加载 `.mcp.json` 中的服务器；不写的插件加载 |
+| 命令转换 | `rules-commands` 产物，含 `commands/review.md`（`description` 为“审查当前改动并列出问题”）；安装后查看插件目录 | 新增 `.codex-plugin/migrated-command-skills/source-command-review/SKILL.md`，`commands/review.md` 保留。frontmatter 为 `name: "source-command-review"` 与命令的 `description`；正文为一句英文说明，其后 `## Command Template` 下为命令正文 |
+| 技能列表 | `codex exec` 要求列出可用技能 | 列出 `rules-commands:source-command-review` 与其描述 |
+| 显式调用 | `codex exec '$rules-commands:source-command-review'` | SKILL.md 全文以 `<skill>` 包裹作为用户消息加入会话；模型按命令正文审查工作区改动并回复结论 |
+| 不带插件名 | `codex exec '$source-command-review'` | 不加入 SKILL.md；模型从技能列表认出该技能，改用命令读取 SKILL.md |
+| 隐式调用 | 提示“请审查当前工作区的改动并列出问题。” | 模型按描述选用该技能，读取 SKILL.md 后审查，指出新增的一行 |
+| TUI 中调用 | 输入框中键入 `$source-command` | 补全列表显示 `[Skill] 审查当前改动并列出问题`；Tab 补全为 `$rules-commands:source-command-review`，提交后与显式调用相同 |
 
 ## marketplace.json
 

@@ -182,7 +182,8 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
 | rules 与指令文件 | 插件不承载：`PluginManifestPaths` 只有 `skills`、`onboarding_skill`、`mcp_servers`、`apps`、`hooks`，`LoadedPlugin` 没有指令或规则字段，插件代码中没有加载 `AGENTS.md` 或规则文件的路径 | `plugin/src/manifest.rs`；`plugin/src/load_outcome.rs` |
 | 用户配置 | 没有传给 hook 或 MCP 服务器的插件用户配置。`[plugins."<插件>@<marketplace>"]` 只有 `enabled` 与按服务器设置工具策略的 `mcp_servers.<服务器>`；插件 hook 进程只额外收到 `PLUGIN_ROOT`、`CLAUDE_PLUGIN_ROOT`、`PLUGIN_DATA`、`CLAUDE_PLUGIN_DATA` | `config/src/types.rs` 的 `PluginConfig`、`PluginMcpServerConfig`；`hooks/src/engine/discovery.rs` 的 `append_plugin_hook_sources` |
 
-转换后的技能在 TUI 中的调用方式未核对。
+转换后的技能在会话中的名称与调用方式见
+[Codex「容器实测（0.162.1）」](codex-plugins.md#容器实测01621)。
 
 ## 信任与加载条件
 

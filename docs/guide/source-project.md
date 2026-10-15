@@ -113,7 +113,8 @@ argument-hint: <文件>
 - `description` 必填，为非空字符串；除 `targets` 外的其他键不校验，留给宿主解释。
 - Claude Code 以 `/<插件名>:<name>` 调用命令。
 - Codex 在安装插件时把命令转换为技能；正文含 `$ARGUMENTS`、`$1` 等模板写法或转换结果超过
-  4000 字节的命令被 Codex 跳过，UAPA 不检查这些条件，在构建报告的残余风险中提示。
+  4000 字节的命令被 Codex 跳过，UAPA 不检查这些条件，在构建报告的残余风险中提示。转换后的
+  技能以 `$<插件名>:source-command-<name>` 调用，模型也会按 `description` 选用。
 - agy 的插件没有斜杠命令组件，未写 `targets` 的命令在其构建报告 `skipped` 中写为
   `commands/<name>.md`。
 

@@ -21,7 +21,8 @@ export const codexSubprocess: TargetCapabilities = {
     hooks: 'package',
     // 兼容格式的插件在安装时把 commands/*.md 转换为技能，部分命令被跳过，由宿主模块写残余风险；
     // 插件不承载规则或指令文件（codex-source-review.md「commands、rules 与用户配置」，
-    // rust-v0.162.1，2026-10-15 核对）
+    // rust-v0.162.1，2026-10-15 核对）；转换后的技能以 $<插件名>:source-command-<命令名>
+    // 调用（codex-plugins.md「容器实测（0.162.1）」）
     commands: 'package',
     rules: 'none',
   },
