@@ -52,7 +52,7 @@ node --test test/fixtures/fixtures.test.ts
 |---|---|---|
 | `pnpm check` | ⏳ | 无 |
 | `node --test test/fixtures/fixtures.test.ts` | ⏳ | 无 |
-| 宿主实测（容器 `shell`） | ⏳ | Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.4；Codex CLI 每次使用前须维护者确认 |
+| 宿主实测（容器 `shell`） | ⏳ | Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.5；Codex CLI 每次使用前须维护者确认 |
 | 维护者机器 | ⏳ | 对 `claude-both` 的 Claude Code 产物运行 `claude plugin validate --strict` 与 `claude plugin test` |
 
 ## 4. 交付物

@@ -16,7 +16,7 @@
 
 - 已有且够用：
   - 容器 `shell` 中 Claude Code 2.1.296 以 `claude setup-token` 的令牌完成 `claude -p`，
-    codex-cli 0.162.1 以 API key 的 provider 完成 `codex exec`，agy 1.3.4 使用认证卷中的登录，
+    codex-cli 0.162.1 以 API key 的 provider 完成 `codex exec`，agy 1.3.5 使用认证卷中的登录，
     见[容器测试「认证」](../../test/container/README.md#认证)。
   - TA-11 已在容器中覆盖同一会话的去重，见
     [双形态去重的会话实测](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#双形态去重的会话实测)。
@@ -77,11 +77,15 @@
 - 承接 Sprint M1 收口 §4 第 3 行：安装 `full` 的 Codex 产物，在 `/hooks` 中信任后运行最小会话，
   确认拒绝的标记命令不执行且原因可见。
 - v0.2.0：`after-tool` 的扣留生效；`components` 的 MCP 服务器被加载。
+- 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 2 行：
+  manifest 写 `"mcpServers": {}` 且插件目录中另有 `.mcp.json` 时，Codex 不加载其中的服务器。
 
 ### 3. agy（`agy-plugins.md`）
 
 - 安装 `full` 的 agy 产物，确认拒绝、改写与停机继续的标记命令按 F-11-04 生效。
 - v0.2.0：`components` 的 agents 与 MCP 服务器被加载；被列为跳过的服务器不出现。
+- 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 1 行：
+  根 `agents.json` 与 `agents/*.md` 同时存在时加载哪些子代理。
 
 ### 4. 能力数据与文档
 
@@ -107,7 +111,7 @@ pnpm check
 node --test test/fixtures/fixtures.test.ts
 ```
 
-宿主实测（容器 `shell`，Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.4）：按任务第 1～3 项
+宿主实测（容器 `shell`，Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.5）：按任务第 1～3 项
 运行，记录写入调研文档。维护者机器：对 `claude-both` 的 Claude Code 产物运行
 `claude plugin validate --strict` 与 `claude plugin test`。
 

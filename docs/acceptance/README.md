@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M2-01](M2-01-v0-2-0-host-facts.md) | v0.2.0 宿主事实与接口定稿 | 有条件通过（agy 根 `agents.json` 与 `agents/*.md` 并存时的处理未实测） | 2026-10-14 | `22a7b07` |
 | [M1-00](M1-00-v0-1-0-three-host-build.md) | Sprint 收口：v0.1.0 三个宿主的插件构建 | 有条件通过（发布前宿主实测、公共仓库的 tag 与发布后安装核验未完成） | 2026-10-14 | `2b441de` |
 | [M1-08](M1-08-release-v0-1-0.md) | 发布 v0.1.0 | 有条件通过（公共仓库的 tag 与发布前宿主实测待维护者完成） | 2026-10-14 | `e2f51c2`、`7a908f8` |
 | [M1-07](M1-07-claude-code-hooks-module.md) | Claude Code hooks 模块与四目标夹具 | 有条件通过（§7 两项宿主实测由 M1-08 接手） | 2026-10-14 | `41c4375` |
