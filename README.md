@@ -18,6 +18,33 @@ v0.1.0 按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md) 的施�
 - Cursor、Kiro、CodeBuddy、OpenCode、DSH 在后续版本逐个增加，见
   [范围决策 SD-01](docs/feature-list/scope-decisions.md)。
 
+## 安装
+
+UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装：`package.json` 中写作
+`"uapa": "github:xumetide-dev/uapa#vX.Y.Z"`，不引用分支。tag 对应的提交含编译后的 `dist/`，
+包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.1.0` 为例
+（发布后可用）。
+
+pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
+
+```bash
+pnpm add -D github:xumetide-dev/uapa#v0.1.0
+```
+
+npm 12 默认禁止 git 依赖（`allow-git` 的默认值为 `none`，取值 `none`、`root`、`all`）。在项目的
+`.npmrc` 中写入 `allow-git=root`，只放行项目直接声明的 git 依赖，之后的 `npm install`、`npm ci`
+也按此放行：
+
+```bash
+npm config set allow-git=root --location=project
+```
+
+```bash
+npm install -D github:xumetide-dev/uapa#v0.1.0
+```
+
+升级时改 tag 后重新安装，锁文件记录 tag 对应的提交。
+
 ## 阅读顺序
 
 1. [架构](docs/architecture/architecture.md)：术语、v0.1.0 目标、模块与依赖方向、构建调用顺序、

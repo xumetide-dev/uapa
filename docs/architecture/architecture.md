@@ -169,4 +169,17 @@ uapa/
   `dist/` 含 `runtime/` 的编译结果（构建插件时由 `bundle` 打包）与公共导出的类型声明。
 - 发布：运行全部检查（类型检查、Biome、测试）后，发布脚本在 main 之上创建含 `dist/` 的发布提交
   并打 `vX.Y.Z` tag。main 不提交 `dist/`。
+- 发布脚本 `scripts/release.ts` 在 main 上以 Node 24 运行：
+  `node scripts/release.ts --node22 <Node 22.0.0 的可执行文件>`。依次执行：
+  1. 前置检查：工作区干净、tag 未存在、两个 Node 的版本；
+  2. `pnpm check`；
+  3. TA-14；
+  4. 编译 `dist/`：沿用 `tsconfig.json` 的编译选项，另开 `rewriteRelativeImportExtensions` 与
+     `declaration`，输入为 `src/`；
+  5. 经临时索引创建发布提交（父提交为 main，树为 main 的树加 `dist/`）并打 annotated tag；
+  6. 安装冒烟（F-10-05）。
+
+  脚本不推送，main 与暂存区不变。安装冒烟的安装命令为
+  `pnpm install --config.strict-dep-builds=true --config.dangerously-allow-all-builds=false`：任何
+  依赖的构建脚本未获放行即安装失败，与使用方的 pnpm 配置无关。冒烟失败时脚本删除本次创建的 tag。
 - 不部署服务，不使用 K8s；暂不配置 CI，复议条件见 ARCH-001。

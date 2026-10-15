@@ -213,7 +213,7 @@ mode?”，选择 “No, keep bypass permissions”；抑制它的配置项待�
 | `check` 内存峰值（cgroup `memory.peak`） | 159 MiB |
 | `check` 进程数峰值 | 43 |
 | `check` 耗时（镜像已存在） | 约 5 秒 |
-| base 镜像 | 454 MB，首次构建约 1.5 分钟 |
+| base 镜像 | 556 MB（含发布脚本测试所需的 git），首次构建约 1.5 分钟 |
 | agent 镜像 | 1.43 GB，在 base 之上增加约 1 GB（codex 390 MB、claude 245 MB、agy 196 MB）；只在首次 `shell` 或 `login` 时构建，耗时取决于下载速度 |
 
 镜像层在容器之间共享，每个容器只增加自己的可写层。依赖变更后旧镜像不会自动删除，用 `clean`

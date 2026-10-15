@@ -1,8 +1,12 @@
 # 容器测试镜像。只含工具链与依赖，源码在运行时由 run.sh 以快照形式送入。
-# base：运行本地检查（pnpm check）；agent：另装 claude、codex、agy 与 git、sudo，供交互实测。
+# base：运行本地检查（pnpm check，发布脚本的测试需要 git）；agent：另装 claude、codex、agy 与
+# sudo，供交互实测。
 # 镜像只在本机构建与使用，不推送到任何镜像仓库（claude 与 agy 是专有软件，不再分发）。
 FROM node:22-bookworm-slim AS base
 ENV npm_config_update_notifier=false
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
 COPY package.json pnpm-lock.yaml ./
 # pnpm 版本取自 packageManager，去掉可能附带的 +sha 后缀
@@ -20,7 +24,7 @@ ARG CODEX_VERSION=0.162.1
 ENV DISABLE_AUTOUPDATER=1
 USER root
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl git sudo \
+  && apt-get install -y --no-install-recommends ca-certificates curl sudo \
   && rm -rf /var/lib/apt/lists/* \
   && echo 'node ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/node \
   && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \

@@ -43,7 +43,7 @@ for (const FIXTURE of FIXTURES) {
             extraEnv[variable] = await mkdtemp(join(dirs, `${variable}-`))
           }
           const first = await runEntryCase(run, entryCase)
-          const second = await runEntryCase(run, entryCase, extraEnv)
+          const second = await runEntryCase(run, entryCase, { extraEnv })
           assert.deepEqual(second.result, first.result, label)
           assert.deepEqual(first.result, first.expected, label)
           for (const variable of otherVariables(entryCase.target)) {

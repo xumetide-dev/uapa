@@ -153,12 +153,18 @@ async function pluginDir(run: FixtureRun, target: TargetName): Promise<string> {
   return join(run.project, ...unit.split('/'))
 }
 
-// 以插件目录为工作目录运行入口；{dataDir} 换为本用例新建的临时目录。extraEnv 另加入子进程
-// 环境（TA-05 的第二次运行），不做替换
+export interface EntryRunOptions {
+  // 另加入子进程环境的变量（TA-05 的第二次运行），不做替换
+  readonly extraEnv?: Readonly<Record<string, string>>
+  // 运行入口的 Node 可执行文件，默认 process.execPath（TA-14 另以 Node 22.0.0 运行）
+  readonly node?: string
+}
+
+// 以插件目录为工作目录运行入口；{dataDir} 换为本用例新建的临时目录
 export async function runEntryCase(
   run: FixtureRun,
   entryCase: EntryCase,
-  extraEnv: Readonly<Record<string, string>> = {},
+  { extraEnv = {}, node = process.execPath }: EntryRunOptions = {},
 ): Promise<{ result: EntryResult; expected: EntryResult }> {
   const entryFile = ENTRY_FILES[entryCase.target]
   if (entryFile === undefined) throw new Error(`${entryCase.target} 没有子进程入口`)
@@ -177,7 +183,7 @@ export async function runEntryCase(
       ...extraEnv,
     }
     const spawned = spawnSync(
-      process.execPath,
+      node,
       [join(dir, ...entryFile.split('/')), ...entryCase.args.map(fill)],
       { cwd: dir, env, input: fill(stdin), encoding: 'utf8', timeout: 30_000 },
     )
