@@ -53,7 +53,7 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
 
 | 命令 | 结果 | 前置条件 |
 |---|---|---|
-| `pnpm check` | 通过：两次 `tsc` 无错误，Biome 检查 181 个文件无问题，`node --test` 247 pass / 0 fail，功能清单检查“93 个功能，18 条用户故事，20 项技术验收，关系检查通过” | 以 `test/container/run.sh check` 在容器中运行；发布脚本在 Node 24 上再运行一次，结果相同 |
+| `pnpm check` | 通过：两次 `tsc` 无错误，Biome 检查 182 个文件无问题，`node --test` 247 pass / 0 fail，功能清单检查“93 个功能，18 条用户故事，20 项技术验收，关系检查通过” | 以 `test/container/run.sh check` 在容器中运行；发布脚本在 Node 24 上再运行一次，结果相同 |
 | `node --test test/release/release.test.ts` | 5 pass / 0 fail | 以 `test/container/run.sh exec` 在容器中运行 |
 | `node scripts/release.ts --node22 <Node 22.0.0 的路径>` | 预演：在私有仓库的临时克隆中运行，退出码 0。正式运行：在公共仓库检出中运行，`pnpm check` 通过，输出 TA-14 三行结论、“安装冒烟：以 git 依赖安装 v0.2.0，对 full 夹具的构建结果与期望一致”与“已创建发布提交 … 与 tag v0.2.0，未推送”；维护者确认后单独推送 tag，远端 `refs/tags/v0.2.0^{}` 指向该发布提交 | 维护者确认；Node 22.0.0 的可执行文件（v0.1.0 发布时下载，`--version` 为 `v22.0.0`）、Node v24.20.0、pnpm 12.11.2、git 2.55.0；本 Sprint 的提交已同步并推送公共 `main` |
 | 发布后核验（容器 `shell`） | 通过：pnpm 12.11.2 以 `pnpm add -D github:xumetide-dev/uapa#v0.2.0` 安装 0.2.0；npm 12.2.0 不写 `allow-git` 时以 `EALLOWGIT` 拒绝（退出码 1），`npm config set allow-git=root --location=project` 后以 `npm install -D` 安装成功，`package-lock.json` 记录 tag 对应的提交；两次对 `full` 夹具运行 `uapa build`（`PATH` 为空目录），退出码 0，stdout、stderr 与 `dist/` 下 16 个文件与期望一致 | 已推送 `v0.2.0`；容器中 Node v22.23.3、git 2.39.5，容器内以 `npm install -g npm@12` 安装 npm 12；安装命令取自 README |
