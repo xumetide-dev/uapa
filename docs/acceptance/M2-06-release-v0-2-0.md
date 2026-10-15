@@ -8,7 +8,7 @@
 | 对应工单 | [M2-06](../workorders/M2-06-release-v0-2-0.md) |
 | 覆盖功能点 | 无（沿用 F-10-04、F-10-05）（取自总览「工单构成」表） |
 | 验收日期 | 2026-10-15 |
-| 验收结论 | 有条件通过（公共仓库的 `v0.2.0` 待维护者确认后创建与推送，从 GitHub 以 pnpm 与 npm 12 安装在推送后进行，见 §7） |
+| 验收结论 | 通过 |
 | 判断范围 | 夹具与单元测试 |
 | commit | `632242c` |
 
@@ -33,8 +33,8 @@
 |---|---|---|---|---|---|
 | 1 | 硬约束：产物零依赖 | 安装冒烟中从 `dist/` 打包的入口只含 `node:` 导入 | 从安装后的 `dist/` 构建 `full` 夹具，3 个子进程入口与 `uapa-guard.mjs` 等产物与期望逐字节一致 | 发布脚本的安装冒烟；期望产物的导入检查见 `fixtures.test.ts` | ✅ |
 | 2 | 硬约束：确定性输出 | TA-14：Node 22.0.0 与 Node 24 运行 `throwing-guard`、`full`、`after-tool` 的入口用例，输出逐字一致 | `throwing-guard` 11 个、`full` 15 个、`after-tool` 14 个入口用例，在 v22.0.0 与 v24.20.0 上的退出码、stdout、stderr 都与用例期望逐字一致 | 发布脚本输出的三行 TA-14 结论 | ✅ |
-| 3 | 硬约束：不越权写入 | 发布脚本只在仓库中写 `dist/` 与提交、tag；安装冒烟与 GitHub 安装只写临时目录 | 发布提交的父提交为 main 的 HEAD，相对父提交只新增 136 个文件，全部在 `dist/` 下；新增的引用只有 annotated tag `v0.2.0`；安装冒烟在 `mkdtemp` 目录中进行。GitHub 安装未进行 | 在私有仓库的临时克隆中运行发布脚本后以 `git diff --name-status`、`git cat-file -t` 检查 | ⚠️ GitHub 安装待推送后进行 |
-| 4 | 硬约束：安装不运行脚本 | TA-10：未放行构建脚本即安装成功；pnpm 与 npm 12 从 GitHub 安装时同样不放行脚本 | `package.json` 没有生命周期脚本；冒烟以 `--config.strict-dep-builds=true --config.dangerously-allow-all-builds=false` 安装，pnpm 12.11.2 安装成功（`Packages: +7`）。从 GitHub 的两次安装未进行 | `test/package.test.ts`；发布脚本的安装冒烟 | ⚠️ GitHub 安装待推送后进行 |
+| 3 | 硬约束：不越权写入 | 发布脚本只在仓库中写 `dist/` 与提交、tag；安装冒烟与 GitHub 安装只写临时目录 | 公共仓库检出中：发布提交的父提交为公共 `main` 的 HEAD，相对父提交只新增 136 个文件，全部在 `dist/` 下（`dist/runtime/` 18 个）；运行后 `git status --porcelain` 为空，tag 只新增 annotated tag `v0.2.0`；安装冒烟在 `mkdtemp` 目录中进行；GitHub 安装在一次性容器的 `mktemp -d` 目录中进行 | 运行发布脚本后以 `git diff --name-status`、`git cat-file -t`、`git tag --list` 检查；推送时 pre-push 钩子按契约 `release_tag` 检查通过 | ✅ |
+| 4 | 硬约束：安装不运行脚本 | TA-10：未放行构建脚本即安装成功；pnpm 与 npm 12 从 GitHub 安装时同样不放行脚本 | `package.json` 没有生命周期脚本；冒烟以 `--config.strict-dep-builds=true --config.dangerously-allow-all-builds=false` 安装，pnpm 12.11.2 安装成功（`Packages: +7`）。从 GitHub 安装：pnpm 12.11.2 以同样的设置、npm 12.2.0 以 `allow-git=root` 各安装成功，安装的包中没有 `preinstall`、`install`、`postinstall`、`prepare` 脚本 | `test/package.test.ts`；发布脚本的安装冒烟；容器中的 GitHub 安装 | ✅ |
 
 ## 2. 功能点逐条验收
 
@@ -55,8 +55,8 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
 |---|---|---|
 | `pnpm check` | 通过：两次 `tsc` 无错误，Biome 检查 181 个文件无问题，`node --test` 247 pass / 0 fail，功能清单检查“93 个功能，18 条用户故事，20 项技术验收，关系检查通过” | 以 `test/container/run.sh check` 在容器中运行；发布脚本在 Node 24 上再运行一次，结果相同 |
 | `node --test test/release/release.test.ts` | 5 pass / 0 fail | 以 `test/container/run.sh exec` 在容器中运行 |
-| `node scripts/release.ts --node22 <Node 22.0.0 的路径>` | 退出码 0，输出 TA-14 三行结论、“安装冒烟：以 git 依赖安装 v0.2.0，对 full 夹具的构建结果与期望一致”与“已创建发布提交 … 与 tag v0.2.0，未推送” | Node 22.0.0 的可执行文件（v0.1.0 发布时下载，`--version` 为 `v22.0.0`）、Node v24.20.0、pnpm 12.11.2、git 2.55.0；在 `mkdtemp` 中的私有仓库克隆里运行，tag 不进入仓库本身 |
-| 发布后核验（容器 `shell`） | ⏳ | 维护者确认后在公共仓库检出中运行发布脚本并推送 `v0.2.0`；之后 pnpm 与 npm 12 各从 `github:xumetide-dev/uapa#v0.2.0` 安装一次并构建 `full` 夹具 |
+| `node scripts/release.ts --node22 <Node 22.0.0 的路径>` | 预演：在私有仓库的临时克隆中运行，退出码 0。正式运行：在公共仓库检出中运行，`pnpm check` 通过，输出 TA-14 三行结论、“安装冒烟：以 git 依赖安装 v0.2.0，对 full 夹具的构建结果与期望一致”与“已创建发布提交 … 与 tag v0.2.0，未推送”；维护者确认后单独推送 tag，远端 `refs/tags/v0.2.0^{}` 指向该发布提交 | 维护者确认；Node 22.0.0 的可执行文件（v0.1.0 发布时下载，`--version` 为 `v22.0.0`）、Node v24.20.0、pnpm 12.11.2、git 2.55.0；本 Sprint 的提交已同步并推送公共 `main` |
+| 发布后核验（容器 `shell`） | 通过：pnpm 12.11.2 以 `pnpm add -D github:xumetide-dev/uapa#v0.2.0` 安装 0.2.0；npm 12.2.0 不写 `allow-git` 时以 `EALLOWGIT` 拒绝（退出码 1），`npm config set allow-git=root --location=project` 后以 `npm install -D` 安装成功，`package-lock.json` 记录 tag 对应的提交；两次对 `full` 夹具运行 `uapa build`（`PATH` 为空目录），退出码 0，stdout、stderr 与 `dist/` 下 16 个文件与期望一致 | 已推送 `v0.2.0`；容器中 Node v22.23.3、git 2.39.5，容器内以 `npm install -g npm@12` 安装 npm 12；安装命令取自 README |
 
 ## 4. 交付物
 
@@ -81,14 +81,16 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
 - TA-14 的夹具为 `throwing-guard`（守卫出错与缺少会话 id）、`full`（三个宿主的执行前检查、提示与
   停机）与 `after-tool`（执行后检查的替换与扣留），三者覆盖全部子进程入口的分支；安装冒烟仍只用
   `full`（F-10-05 不变）。
-- npm 12 的安装实测放在容器 `shell` 中，在容器内安装 npm 12，不改宿主机的全局 npm。
+- npm 12 的安装实测放在容器 `shell` 中，在容器内安装 npm 12，不改宿主机的全局 npm。实测确认
+  README 的写法：npm 12.2.0 默认拒绝 git 依赖（`EALLOWGIT`），项目 `.npmrc` 写 `allow-git=root` 后
+  放行项目直接声明的 git 依赖。
 
 ## 7. 已知限制与技术债
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | `v0.2.0` 只建在临时克隆中；公共仓库检出中的发布与 tag 推送未进行 | 使用方暂不能安装 v0.2.0 | 维护者确认后在公共仓库检出中运行发布脚本并推送 tag，结果回填本行 |
-| 2 | 从 GitHub 以 pnpm 与 npm 12 安装 `v0.2.0` 未进行（承接 [M1-08 验收 §7](M1-08-release-v0-1-0.md#7-已知限制与技术债) 第 4 行） | 远端安装路径与 npm 12 的 `allow-git` 用法未覆盖 | 推送 tag 后在容器中各安装一次，结果回填本行 |
+| 1 | `v0.2.0` 只建在临时克隆中；公共仓库检出中的发布与 tag 推送未进行 | 使用方暂不能安装 v0.2.0 | 已关闭：2026-10-15 维护者确认后在公共仓库检出中运行发布脚本，推送 `main` 与 tag `v0.2.0` |
+| 2 | 从 GitHub 以 pnpm 与 npm 12 安装 `v0.2.0` 未进行（承接 [M1-08 验收 §7](M1-08-release-v0-1-0.md#7-已知限制与技术债) 第 4 行） | 远端安装路径与 npm 12 的 `allow-git` 用法未覆盖 | 已关闭：2026-10-15 在容器中以 pnpm 12.11.2 与 npm 12.2.0 各安装一次，构建 `full` 夹具的产物与期望一致 |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
 
@@ -96,4 +98,5 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
 
 - 风险：发布脚本依赖维护者机器上的 Node 22.0.0、Node 24 与 pnpm；缺任一项时脚本在前置检查或运行
   对应步骤时失败，不会创建 tag。
-- 下一步：同步本 Sprint 的提交并推送公共 `main`，维护者确认后发布 `v0.2.0`；之后做 Sprint M2 收口。
+- 下一步：M2-06 是 Sprint M2 的最后一张工单，接着做 Sprint 收口，把各工单尚未关闭的欠账汇总到
+  收口文件。
