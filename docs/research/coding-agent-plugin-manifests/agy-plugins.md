@@ -47,8 +47,10 @@
   解析 [A3]；1.3.5 的服务器以安装后的插件目录为工作目录，`args` 中的相对路径可用，`env` 的值
   原样传入（容器实测）。
 - 1.3.5 的会话中子代理的名称取 frontmatter 的 `name`，与文件名无关；frontmatter 含 `targets`
-  等文档未列的键时照常加载（容器实测）。根 `agents.json` 与 `agents/*.md` 同时存在时，
-  `agents/*.md` 照常加载；以目录条目写的 `agents.json` 未使其声明的子代理出现，格式未能确定
+  等文档未列的键时照常加载（容器实测）。根 `agents.json` 与 `skills.json`、`rules.json` 格式相同
+  （agy 内嵌文档）：顶层 `entries` 为目录条目数组，条目写 `path` 与可选的 `include_only`、
+  `exclude`，目录只扫描一层。1.3.5 中以该格式声明的子代理与 `agents/*.md` 一起加载，
+  `include_only` 写子代理名或文件名都只加载命中的项；`agy plugin list --json` 不列出这些子代理
   （容器实测，见下文）。
 - 1.3.2 的更新日志称每个插件有数据目录，以 `PLUGIN_DATA` 提供 [A3]；1.3.4 的 hook 进程环境中
   没有该变量（本地实测）。1.3.5 的 MCP 服务器进程环境中有 `PLUGIN_ROOT`（插件目录）与
@@ -141,8 +143,8 @@ stdin 为 camelCase 字段的 JSON [A2]：
 |---|---|---|
 | `decision: "deny"` | 阻断，模型看到 `tool call denied by pre-tool hook: <reason>` | 不适用 |
 | 退出码 1 或 2 | 阻断，模型看到退出码与 stderr | 退出码 1：记录错误，本轮照常结束 |
-| 超时 | 进程被终止，阻断 | 未测 |
-| stdout 不是 JSON | 阻断 | 未测 |
+| 超时 | 进程被终止，阻断 | 本轮照常结束，不采用超时后的输出；hook 进程不被终止 |
+| stdout 不是 JSON | 阻断 | 本轮照常结束 |
 | `{"decision":"continue","reason":...}` | 不适用 | 不结束，`executionNum` 由 0 变为 1 |
 | `{}` | 未测 | 结束 |
 
@@ -151,7 +153,7 @@ stdin 为 camelCase 字段的 JSON [A2]：
 | 能力 | 支持情况 | 依据 |
 |---|---|---|
 | 阻断 | `PreToolUse` 返回 `decision: "deny"` | [A2]；本地实测 |
-| 失败时的默认行为 | `PreToolUse` 出错、超时或输出无法解析时阻断；`Stop` 出错时照常结束 | 本地实测 |
+| 失败时的默认行为 | `PreToolUse` 出错、超时或输出无法解析时阻断；`Stop` 出错、超时或输出无法解析时照常结束 | 本地实测 |
 | 执行前改写工具入参 | `overwrite` | [A2]；本地实测 |
 | 执行后替换工具输出 | 不支持 | [A2] |
 | 停机门禁 | `Stop` 返回 `decision: "continue"`；文档未写明次数上限 | [A2]；本地实测 |
@@ -191,8 +193,8 @@ agy --model gemini-3.8-flash-low --dangerously-skip-permissions -p "Use only the
   在 `--dangerously-skip-permissions` 下，插件返回 `allow` 的调用照常执行。
 - 卸载后 `~/.gemini/config/` 中留下安装时创建的 `import_manifest.json` 与空的 `plugins/` 目录。
 - 未测：Windows、`.antigravity-plugin/` 与 `.gemini-plugin/` 中的 manifest、`PreToolUse` 输出为空、
-  `Stop` 超时与输出无法解析、`Stop` 继续的次数上限，以及插件目录同时含 `.claude-plugin/` 时安装
-  命令的处理。
+  `Stop` 继续的次数上限，以及插件目录同时含 `.claude-plugin/` 时安装命令的处理。`Stop` 的超时与
+  输出无法解析见下文「`Stop` 的超时与无效输出（1.3.5，容器）」。
 
 ### agents 与 MCP 服务器（1.3.5，容器）
 
@@ -222,7 +224,20 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | 改写 | 要求运行 `echo uapa-rewrite-probe x > rewrite.txt` | `rewrite.txt` 的内容为 `uapa-rewritten x` |
 | 停机继续 | 同一会话；副本在 UAPA 的 `Stop` hook 之后另挂记录用的 hook | 模型作答三次（继续两次）后结束，计数文件归零；记录用的 hook 只在最后一次停机时运行，stdin 含 `conversationId`、`terminationReason`、`transcriptPath` 等字段，工作目录为安装后的插件目录 |
 | agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | 安装报告 2 个 agents 与 3 个 mcpServers（`launcher` 已由 UAPA 跳过）；会话列出子代理 `agy-helper`、`reviewer` 与服务器 `components_docs`；桩服务器的工作目录为安装后的插件目录，`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data` |
-| `agents.json` 并存 | 插件含 `agents/a.md` 与 `extra/b.md`，`agents.json` 分别写 `[{"path": "extra"}]`、`{"agents": [{"path": "extra"}]}` 与 `["extra"]` | 三种写法下会话都只列出 `agents/a.md` 的子代理；`agy plugin list --json` 同样只列出 `a.md` |
+| `agents.json` 并存 | 插件含 `agents/a.md` 与 `extra/b.md`，`agents.json` 分别写 `[{"path": "extra"}]`、`{"agents": [{"path": "extra"}]}` 与 `["extra"]` | 三种写法下会话都只列出 `agents/a.md` 的子代理；`agy plugin list --json` 同样只列出 `a.md`（这三种写法都不是 agy 的格式） |
+| `agents.json` 的 `entries` | 三个插件各含 `agents/uapa-probe-a<n>.md` 与 `extra/` 下的 `uapa-probe-b<n>.md`、`uapa-probe-c<n>.md`；`agents.json` 分别写 `{"entries": [{"path": "extra"}]}`、加 `"include_only": ["uapa-probe-b2"]`（子代理名）与 `"include_only": ["uapa-probe-b3.md"]`（文件名） | 会话列出 `a1`～`a3`、`b1`～`b3` 与 `c1`（省略前缀 `uapa-probe-`），不列 `c2`、`c3`：`entries` 中的目录被加载，`include_only` 按两种写法都只保留命中的项；`agy plugin list --json` 只列出 `a1`～`a3` |
+
+### `Stop` 的超时与无效输出（1.3.5，容器）
+
+2026-10-15，测试容器中的 agy 1.3.5；模型 `gemini-3.8-flash-high`。探测插件只在 `Stop` 上挂一个
+`timeout` 为 3 的 hook，脚本记录每次调用的 stdin 与时刻，按模式文件等待 10 秒后返回
+`{"decision":"continue","reason":"uapa-stop-probe"}`，或立即输出非 JSON 文本 `uapa-not-json`。
+提示只要求回复 `ok`、不调用工具。
+
+| 情况 | 结果 |
+|---|---|
+| 超时 | hook 开始后约 4.7 秒 agy 退出，回复 `ok`，`Stop` 只被调用一次：本轮照常结束，10 秒后的 `continue` 未被采用。agy 退出后 hook 进程仍在运行，按时写出结束记录 |
+| stdout 不是 JSON | `Stop` 只被调用一次，本轮照常结束，stderr 无输出 |
 
 ## 来源
 

@@ -29,7 +29,7 @@ export const agySubprocess: TargetCapabilities = {
     // PreToolUse 出错、超时或 stdout 不是 JSON 时阻断（本地实测）
     beforeTool: { error: 'deny', timeout: 'deny' },
     beforePrompt: { error: 'allow', timeout: 'allow' }, // 宿主没有该事件
-    // Stop 出错时本轮照常结束（本地实测）；超时未实测
+    // Stop 出错、超时与输出无法解析时本轮照常结束（本地实测；超时与无效输出于 1.3.5 实测）
     beforeStop: { error: 'allow', timeout: 'allow' },
     // 宿主不能阻断或替换输出，不生成执行后 hook（SD-29）
     afterTool: { error: 'allow', timeout: 'allow' },
