@@ -3,8 +3,9 @@
 UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构建工具（TypeScript 命令行）：
 从一份插件源项目，构建出各宿主可安装的插件目录，并输出构建报告。
 
-**状态：** 实现中。技术选型已接受（[ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)），
-v0.1.0 按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md) 的施工单实现，尚未发布。
+**状态：** v0.1.0 以 tag `v0.1.0` 发布，按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md)
+的施工单实现；技术选型见 [ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)。发布时
+尚未完成的宿主实测见 [Sprint M1 收口](docs/acceptance/M1-00-v0-1-0-three-host-build.md) §4。
 
 ## v0.1.0 范围
 
@@ -22,8 +23,7 @@ v0.1.0 按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md) 的施�
 
 UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装：`package.json` 中写作
 `"uapa": "github:xumetide-dev/uapa#vX.Y.Z"`，不引用分支。tag 对应的提交含编译后的 `dist/`，
-包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.1.0` 为例
-（发布后可用）。
+包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.1.0` 为例。
 
 pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
 
