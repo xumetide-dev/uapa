@@ -1,10 +1,11 @@
-// Claude Code 的 .claude-plugin/plugin.json（F-05-02）
+// Claude Code 的 .claude-plugin/plugin.json（F-05-02）与 .mcp.json（F-05-12）
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import { claudeCode } from '../../src/targets/claude-code/index.ts'
 import type { HostResult, TargetPlan } from '../../src/targets/types.ts'
+import { SERVERS } from '../helpers/mcp.ts'
 import { baseConfig } from '../helpers/project.ts'
 
 const plan: TargetPlan = {
@@ -12,6 +13,7 @@ const plan: TargetPlan = {
   capabilities: claudeCodeSubprocess,
   skills: [],
   agents: [],
+  mcpServers: [],
   checks: [],
   commandHooks: [],
 }
@@ -92,4 +94,49 @@ test('名称不合规或缺少 author 时为每个目标返回错误', async () 
       JSON.stringify(result.errors),
     )
   }
+})
+
+test(`.mcp.json：{pluginRoot} 换为 \${CLAUDE_PLUGIN_ROOT}，远程服务器写 type: "http"，不跳过服务器`, async () => {
+  const inProcess: TargetPlan = {
+    ...plan,
+    target: 'claude-code:in-process',
+    mcpServers: SERVERS,
+  }
+  const result = await claudeCode.generate({
+    config: baseConfig as UapaConfig,
+    plans: [{ ...plan, mcpServers: SERVERS }, inProcess],
+    guard: null,
+    sharedWith: [],
+    bundle: async () => '',
+  })
+  assert.ok(result.ok)
+  assert.deepEqual(result.skipped, [])
+  const mcp = result.files.filter(f => f.path === '.mcp.json')
+  assert.equal(mcp.length, 1)
+  const root = `\${CLAUDE_PLUGIN_ROOT}`
+  assert.equal(
+    mcp[0]?.content,
+    `${JSON.stringify(
+      {
+        mcpServers: {
+          docs: {
+            command: 'node',
+            args: [`${root}/mcp/server.mjs`],
+            env: { UAPA_DATA: `${root}/data` },
+          },
+          launcher: { command: `${root}/mcp/run.sh` },
+          plain: { command: 'uapa-mcp-probe', args: ['--stdio'] },
+          remote: {
+            type: 'http',
+            url: 'http://127.0.0.1:9/mcp',
+            headers: { 'X-Uapa-Probe': 'uapa-header-probe' },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  // 没有服务器时不生成，manifest 不写指向它的字段
+  manifestOf(await generate({}))
 })

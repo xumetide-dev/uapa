@@ -1,12 +1,12 @@
-// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills 与 agents（F-03-02），按守卫的 requires
-// 与目标能力得出要生成 hook 的检查（F-03-13），按事件承载得出命令 hooks 声明（F-03-15），
-// 合为 TargetPlan。
+// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills、agents 与 MCP 服务器（F-03-02），
+// 按守卫的 requires 与目标能力得出要生成 hook 的检查（F-03-13），按事件承载得出命令 hooks
+// 声明（F-03-15），合为 TargetPlan。
 import type { TargetCapabilities } from '../capabilities/types.ts'
 import { hostOf, type TargetName } from '../config/targets.ts'
 import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
 import type { Capability, GuardCheck } from '../runtime/core/types.ts'
 import type { GuardDeclaration } from '../source/guard.ts'
-import type { SourceProject } from '../source/types.ts'
+import type { McpServer, SourceProject } from '../source/types.ts'
 import { type GatedCheck, newState, type TargetState } from './state.ts'
 
 export function planTargets(
@@ -19,6 +19,7 @@ export function planTargets(
     const state = newState(target, capabilities[target])
     const skills = planComponents(state, 'skills', source.skills)
     const agents = planComponents(state, 'agents', source.agents)
+    const mcpServers = planMcpServers(state, source.mcpServers)
     const checks = guard === null ? [] : planChecks(state, guard)
     const commandHooks = planCommandHooks(state, config, capabilities)
     if (state.errors.length === 0) {
@@ -27,6 +28,7 @@ export function planTargets(
         capabilities: state.capabilities,
         skills,
         agents,
+        mcpServers,
         checks,
         commandHooks,
       }
@@ -67,6 +69,21 @@ function planComponents<T extends Component>(
     }
   }
   return planned
+}
+
+// MCP 服务器没有 targets：本目标不承载 MCP 时全部列为跳过
+function planMcpServers(
+  state: TargetState,
+  servers: readonly McpServer[],
+): McpServer[] {
+  if (state.capabilities.components.mcp !== 'none') return [...servers]
+  for (const server of servers) {
+    state.skipped.push({
+      component: `mcpServers.${server.name}`,
+      reason: '本目标不能承载 MCP 服务器',
+    })
+  }
+  return []
 }
 
 // 缺失时省略对应 hook 的能力（hooks 适配第 6 节）；rewriteInput 与 replaceOutput 缺失按降级处理

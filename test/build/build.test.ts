@@ -157,6 +157,64 @@ test('共用插件目录中不适用于某目标的 agent 记为该目标的残�
   )
 })
 
+const MCP = JSON.stringify({
+  mcpServers: { zeta: { url: 'http://127.0.0.1:9/mcp' }, alpha: { command: 'x' } },
+})
+
+test('MCP 服务器按名称排序交给宿主模块；宿主模块的跳过项排在能力检查的跳过项之后', async () => {
+  const seen: string[][] = []
+  const host = fakeHost(async input => {
+    seen.push(input.plans.flatMap(plan => plan.mcpServers.map(s => s.name)))
+    return {
+      ok: true,
+      files: [{ path: 'manifest.json', content: '{}\n' }],
+      skipped: [
+        { target: TARGET, component: 'mcpServers.zeta', reason: '宿主模块跳过' },
+        { target: 'claude-code:in-process', component: 'other', reason: '其他目标' },
+      ],
+      residualRisks: [],
+    }
+  })
+  const noSkills: TargetCapabilities = {
+    ...claudeCodeSubprocess,
+    components: { ...claudeCodeSubprocess.components, skills: 'none' },
+  }
+  const files = { 'skills/review/SKILL.md': SKILL(), 'mcp/servers.json': MCP }
+  await buildIn(files, deps(host, noSkills), async (_root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.deepEqual(seen, [['alpha', 'zeta']])
+    assert.deepEqual(entry?.skipped, [
+      { component: 'skills/review', reason: '本目标不能承载 skills' },
+      { component: 'mcpServers.zeta', reason: '宿主模块跳过' },
+    ])
+  })
+})
+
+test('不能承载 MCP 时全部服务器列为跳过，宿主模块收到空列表', async () => {
+  const seen: number[] = []
+  const host = fakeHost(async input => {
+    seen.push(...input.plans.map(plan => plan.mcpServers.length))
+    return writesManifest.generate(input)
+  })
+  const noMcp: TargetCapabilities = {
+    ...claudeCodeSubprocess,
+    components: { ...claudeCodeSubprocess.components, mcp: 'none' },
+  }
+  await buildIn(
+    { 'mcp/servers.json': MCP },
+    deps(host, noMcp),
+    async (_root, outcome) => {
+      const [entry] = done(outcome).report.targets
+      assert.equal(entry?.status, 'ok')
+      assert.deepEqual(seen, [0])
+      assert.deepEqual(entry?.skipped, [
+        { component: 'mcpServers.alpha', reason: '本目标不能承载 MCP 服务器' },
+        { component: 'mcpServers.zeta', reason: '本目标不能承载 MCP 服务器' },
+      ])
+    },
+  )
+})
+
 test('宿主模块失败时该宿主的目标失败，插件目录保持原状', async () => {
   const cases: [HostModule['generate'], string][] = [
     [
@@ -248,7 +306,7 @@ test('未配置守卫时 TargetPlan.checks 为空', async () => {
   let checks: readonly string[] | undefined
   const host = fakeHost(async input => {
     checks = input.plans[0]?.checks
-    return { ok: true, files: [], residualRisks: [] }
+    return { ok: true, files: [], skipped: [], residualRisks: [] }
   })
   await buildIn({}, deps(host), async () => {
     assert.deepEqual(checks, [])

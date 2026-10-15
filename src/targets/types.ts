@@ -5,13 +5,14 @@ import type { HostName, TargetName } from '../config/targets.ts'
 import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
 import type { GuardCheck } from '../runtime/core/types.ts'
 import type { GuardDeclaration } from '../source/guard.ts'
-import type { Agent, Skill } from '../source/types.ts'
+import type { Agent, McpServer, Skill } from '../source/types.ts'
 
 export interface TargetPlan {
   readonly target: TargetName
   readonly capabilities: TargetCapabilities
   readonly skills: readonly Skill[] // 已按 frontmatter 与承载能力筛选
   readonly agents: readonly Agent[] // 规则同 skills（SD-30）
+  readonly mcpServers: readonly McpServer[] // 按 name 排序；目标不承载 MCP 时为空（SD-30）
   readonly checks: readonly GuardCheck[] // 本目标要生成 hook 的检查
   readonly commandHooks: readonly CommandHookDecl[] // 本目标承载的命令 hooks 声明（F-03-15）
 }
@@ -37,10 +38,18 @@ export interface TargetNote {
   readonly message: string
 }
 
+// 宿主模块按宿主格式判定的跳过项，如不能换算插件根的 MCP 服务器（SD-30）
+export interface TargetSkip {
+  readonly target: TargetName
+  readonly component: string
+  readonly reason: string
+}
+
 export type HostResult =
   | {
       readonly ok: true
       readonly files: readonly OutputFile[]
+      readonly skipped: readonly TargetSkip[]
       readonly residualRisks: readonly TargetNote[]
     }
   | { readonly ok: false; readonly errors: readonly TargetNote[] }

@@ -28,6 +28,7 @@ export function fakeHost(
 export const writesManifest = fakeHost(async () => ({
   ok: true,
   files: [{ path: 'manifest.json', content: '{}\n' }],
+  skipped: [],
   residualRisks: [{ target: TARGET, message: '宿主模块给出的风险' }],
 }))
 
@@ -74,7 +75,10 @@ export async function buildIn(
 
 // 只返回给定文件的宿主模块，不读取输入
 export function returning(host: HostName, files: readonly OutputFile[]): HostModule {
-  return { host, generate: async () => ({ ok: true, files, residualRisks: [] }) }
+  return {
+    host,
+    generate: async () => ({ ok: true, files, skipped: [], residualRisks: [] }),
+  }
 }
 
 // 三个宿主都换成测试用的宿主模块，能力数据取真实数据

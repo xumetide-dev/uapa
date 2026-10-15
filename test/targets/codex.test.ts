@@ -16,6 +16,7 @@ import { codex } from '../../src/targets/codex/index.ts'
 import type { HostResult } from '../../src/targets/types.ts'
 import { runEntry } from '../helpers/entry.ts'
 import { importsOf } from '../helpers/imports.ts'
+import { REMOTE, SERVERS } from '../helpers/mcp.ts'
 import { baseConfig, tempProject } from '../helpers/project.ts'
 
 const TARGET = 'codex:subprocess'
@@ -43,6 +44,7 @@ async function generate(
         capabilities: codexSubprocess,
         skills: [],
         agents: [],
+        mcpServers: [],
         checks,
         commandHooks: [],
       },
@@ -394,4 +396,105 @@ test('只配置 codex:subprocess 时写出 manifest、hooks 配置、入口与 s
     await rm(data, { recursive: true, force: true })
     await project.cleanup()
   }
+})
+
+async function generateMcp(
+  mcpServers: typeof SERVERS,
+  sharedWith: readonly ('claude-code' | 'agy')[] = [],
+): Promise<HostResult> {
+  return codex.generate({
+    config: codexConfig,
+    plans: [
+      {
+        target: TARGET,
+        capabilities: codexSubprocess,
+        skills: [],
+        agents: [],
+        mcpServers,
+        checks: [],
+        commandHooks: [],
+      },
+    ],
+    guard: null,
+    sharedWith,
+    bundle: async () => '',
+  })
+}
+
+test('mcp.json：写明 type、http_headers；args 与 env 的 {pluginRoot} 换为 . 并写 cwd；command 含它时跳过', async () => {
+  const result = await generateMcp(SERVERS)
+  assert.ok(result.ok)
+  assert.deepEqual(JSON.parse(file(result, 'mcp.json') ?? ''), {
+    mcpServers: {
+      docs: {
+        type: 'stdio',
+        command: 'node',
+        args: ['./mcp/server.mjs'],
+        env: { UAPA_DATA: './data' },
+        cwd: '.',
+      },
+      plain: { type: 'stdio', command: 'uapa-mcp-probe', args: ['--stdio'] },
+      remote: { type: 'http', url: REMOTE.url, http_headers: REMOTE.headers },
+    },
+  })
+  assert.deepEqual(result.skipped, [
+    {
+      target: TARGET,
+      component: 'mcpServers.launcher',
+      reason: 'Codex 不展开 MCP 配置中的插件根，command 中的 {pluginRoot} 不能换算',
+    },
+  ])
+  const manifest = JSON.parse(file(result, MANIFEST) ?? '')
+  assert.deepEqual(Object.keys(manifest), [
+    'name',
+    'version',
+    'description',
+    'mcpServers',
+  ])
+  assert.equal(manifest.mcpServers, './mcp.json')
+  assert.deepEqual(result.residualRisks, [
+    {
+      target: TARGET,
+      message:
+        'Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，' +
+        '插件的服务器可能不生效',
+    },
+  ])
+})
+
+test('没有可写的服务器时不生成 mcp.json；源项目有服务器而全部跳过且共用插件目录时 manifest 写 "mcpServers": {}', async () => {
+  const launcher = SERVERS.filter(s => s.name === 'launcher')
+  const cases: [typeof SERVERS, readonly 'claude-code'[], unknown][] = [
+    [[], [], undefined],
+    [[], ['claude-code'], undefined],
+    [launcher, [], undefined],
+    [launcher, ['claude-code'], {}],
+  ]
+  for (const [servers, sharedWith, expected] of cases) {
+    const result = await generateMcp(servers, sharedWith)
+    assert.ok(result.ok)
+    assert.equal(file(result, 'mcp.json'), undefined)
+    assert.deepEqual(JSON.parse(file(result, MANIFEST) ?? '').mcpServers, expected)
+    assert.deepEqual(result.residualRisks, [])
+  }
+})
+
+test('字段白名单覆盖 mcp.json', () => {
+  const manifest = { name: 'n', version: '1', description: 'd' }
+  const mcp = (value: unknown) => ({
+    file: 'mcp.json',
+    value: value as Record<string, unknown>,
+  })
+  const ok = { mcpServers: { a: { type: 'stdio', command: 'x', cwd: '.' } } }
+  assert.deepEqual(fieldErrors(manifest, null, mcp(ok)), [])
+  assert.deepEqual(fieldErrors(manifest, null, mcp({ mcpServers: {}, extra: 1 })), [
+    'mcp.json 含 Codex 不允许的字段 extra',
+  ])
+  assert.deepEqual(
+    fieldErrors(manifest, null, mcp({ mcpServers: { a: { headers: {} } } })),
+    ['mcp.json 的 mcpServers.a 含 Codex 不允许的字段 headers'],
+  )
+  assert.deepEqual(fieldErrors(manifest, null, mcp({ mcpServers: [] })), [
+    'mcp.json 的 mcpServers 不是对象',
+  ])
 })

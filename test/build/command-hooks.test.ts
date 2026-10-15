@@ -7,7 +7,7 @@ import { targetCapabilities } from '../../src/capabilities/index.ts'
 import type { CommandHookDecl, UapaConfig } from '../../src/config/types.ts'
 import { baseConfig } from '../helpers/project.ts'
 
-const SOURCE = { root: '/work', skills: [], agents: [], overrides: {} }
+const SOURCE = { root: '/work', skills: [], agents: [], mcpServers: [], overrides: {} }
 
 function plan(commandHooks: readonly CommandHookDecl[]) {
   const config = {

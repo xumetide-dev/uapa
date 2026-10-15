@@ -34,6 +34,7 @@ async function generate(
         capabilities: claudeCodeSubprocess,
         skills: [],
         agents: [],
+        mcpServers: [],
         checks,
         commandHooks: [],
       },

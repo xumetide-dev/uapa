@@ -1,13 +1,16 @@
 // 字段白名单检查（F-11-05）：agy plugin validate 对结构错误也报通过，不作为宿主校验，改为在
-// 生成时检查。允许的字段取自 agy-plugins.md「插件 manifest」与「Hooks」。
+// 生成时检查。允许的字段取自 agy-plugins.md「插件 manifest」「Hooks」与「组件」（MCP 服务器）。
 import { HOOKS_FILE } from './hooks.ts'
 import { MANIFEST } from './manifest.ts'
+import { MCP_FILE } from './mcp.ts'
 
 const MANIFEST_FIELDS = ['name', 'description']
 const EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'Stop']
 const MATCHED_EVENTS = ['PreToolUse', 'PostToolUse'] // 元素为 { matcher, hooks }
 const ELEMENT_FIELDS = ['matcher', 'hooks']
 const HANDLER_FIELDS = ['type', 'command', 'timeout']
+const MCP_FILE_FIELDS = ['mcpServers']
+const MCP_SERVER_FIELDS = ['command', 'args', 'env', 'serverUrl', 'headers']
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -74,13 +77,27 @@ function hooksErrors(hooks: Readonly<Record<string, unknown>>, errors: string[])
   }
 }
 
-// hooks 为 null 时不生成 hooks.json，只检查 plugin.json
+function mcpErrors(config: Readonly<Record<string, unknown>>, errors: string[]): void {
+  if (!checkKeys(config, MCP_FILE_FIELDS, MCP_FILE, errors)) return
+  const servers = config.mcpServers
+  if (!isRecord(servers)) {
+    errors.push(`${MCP_FILE} 的 mcpServers 不是对象`)
+    return
+  }
+  for (const [name, server] of Object.entries(servers)) {
+    checkKeys(server, MCP_SERVER_FIELDS, `${MCP_FILE} 的 mcpServers.${name}`, errors)
+  }
+}
+
+// hooks 或 mcp 为 null 时不生成 hooks.json 或 mcp_config.json，只检查生成的文件与 plugin.json
 export function fieldErrors(
   manifest: Readonly<Record<string, unknown>>,
   hooks: Readonly<Record<string, unknown>> | null,
+  mcp: Readonly<Record<string, unknown>> | null = null,
 ): string[] {
   const errors: string[] = []
   checkKeys(manifest, MANIFEST_FIELDS, MANIFEST, errors)
   if (hooks !== null) hooksErrors(hooks, errors)
+  if (mcp !== null) mcpErrors(mcp, errors)
   return errors
 }

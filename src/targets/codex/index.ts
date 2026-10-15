@@ -1,5 +1,5 @@
 // Codex 宿主模块（codex:subprocess）。不实现 verify：Codex 没有校验插件的命令，由字段白名单
-// 检查（F-06-05）在生成时代替。
+// 检查（F-06-05）在生成时代替。MCP 服务器写入 mcp.json（F-06-06）。
 import type { GuardDeclaration } from '../../source/guard.ts'
 import type {
   HostInput,
@@ -17,7 +17,14 @@ import {
   hooksFileOf,
   SUBPROCESS_ENTRY,
 } from './hooks.ts'
-import { MANIFEST, manifest, manifestErrors, NO_HOOKS } from './manifest.ts'
+import {
+  MANIFEST,
+  manifest,
+  manifestErrors,
+  NO_HOOKS,
+  NO_MCP_SERVERS,
+} from './manifest.ts'
+import { MCP_FILE, mcpConfig } from './mcp.ts'
 
 const TARGET = 'codex:subprocess'
 
@@ -33,6 +40,11 @@ const SESSION_END_RISK =
 const AFTER_TOOL_RISK =
   'Codex 只对执行成功的调用触发 PostToolUse：处理器报错与 MCP 结果 isError 为真的调用' +
   '不受执行后检查'
+// 服务器名不加命名空间，重名时按配置名排序后先出现的生效，用户配置中的同名项覆盖插件的服务器
+// （codex-source-review.md「插件中的 MCP 服务器」）
+const MCP_NAME_RISK =
+  'Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器' +
+  '可能不生效'
 // Claude Code 按目录加载 hooks/hooks.json，不经 manifest 指定
 const SHARED_HOOKS_RISK =
   '与 Claude Code 共用插件目录时，Claude Code 也加载 hooks/hooks.json 并运行其中为 Codex ' +
@@ -68,6 +80,19 @@ function manifestHooks(
 ): string | typeof NO_HOOKS | null {
   if (hooks !== null) return `./${hooksFile}`
   return input.sharedWith.length > 0 ? NO_HOOKS : null
+}
+
+// manifest 的 mcpServers：生成了 mcp.json 时指向它；源项目有服务器而全部跳过、且与其他宿主
+// 共用目录时写 NO_MCP_SERVERS，使 Codex 不读取 Claude Code 为这些服务器写出的 .mcp.json。
+// 源项目没有服务器时其他宿主也不生成 MCP 配置，不写，v0.1.0 的产物保持不变
+function manifestMcp(
+  input: HostInput,
+  plan: TargetPlan,
+  config: Readonly<Record<string, unknown>> | null,
+): string | typeof NO_MCP_SERVERS | null {
+  if (config !== null) return `./${MCP_FILE}`
+  const shadowed = plan.mcpServers.length > 0 && input.sharedWith.length > 0
+  return shadowed ? NO_MCP_SERVERS : null
 }
 
 function hooksRisks(
@@ -107,6 +132,35 @@ async function entryFile(
   return { path: SUBPROCESS_ENTRY, content: entry }
 }
 
+function mcpRisks(): TargetNote[] {
+  return [{ target: TARGET, message: MCP_NAME_RISK }]
+}
+
+// hooks 配置与入口；hooks 为 null 时不写文件
+async function hooksFiles(
+  input: HostInput,
+  plan: TargetPlan,
+  hooksFile: string,
+  hooks: Readonly<Record<string, unknown>> | null,
+): Promise<OutputFile[]> {
+  if (hooks === null) return []
+  const files: OutputFile[] = [
+    {
+      path: hooksFile,
+      content: json(hooks),
+      ...(hooksFile === DEFAULT_HOOKS_FILE
+        ? { conflictHint: HOOKS_CONFLICT_HINT }
+        : {}),
+    },
+  ]
+  // 有守卫且 checks 非空时才生成入口
+  const guard = input.guard
+  if (plan.checks.length > 0 && guard !== null) {
+    files.push(await entryFile(input, plan, guard))
+  }
+  return files
+}
+
 export const codex: HostModule = {
   host: 'codex',
   async generate(input) {
@@ -114,31 +168,30 @@ export const codex: HostModule = {
     const inputErrors = [...manifestErrors(input.config), ...hooksFileErrors(hooksFile)]
     if (inputErrors.length > 0) return failAll(input.plans, inputErrors)
     const plan = input.plans.find(p => p.target === TARGET)
-    const guard = input.guard
-    // 有守卫且 checks 非空时才生成入口；checks 与 commandHooks 都为空时不生成 hooks 配置
-    const withEntry = plan !== undefined && plan.checks.length > 0 && guard !== null
-    const hooks =
-      plan === undefined ? null : hooksConfig(withEntry ? plan.checks : [], plan)
-    const pluginManifest = manifest(
-      input.config,
-      manifestHooks(input, hooksFile, hooks),
-    )
+    if (plan === undefined) throw new Error(`plans 中没有 ${TARGET}`)
+    const withEntry = plan.checks.length > 0 && input.guard !== null
+    // checks 与 commandHooks 都为空时不生成 hooks 配置
+    const hooks = hooksConfig(withEntry ? plan.checks : [], plan)
+    const mcp = mcpConfig(plan.mcpServers)
+    const pluginManifest = manifest(input.config, {
+      hooks: manifestHooks(input, hooksFile, hooks),
+      mcpServers: manifestMcp(input, plan, mcp.config),
+    })
     const errors = fieldErrors(
       pluginManifest,
       hooks === null ? null : { file: hooksFile, value: hooks },
+      mcp.config === null ? null : { file: MCP_FILE, value: mcp.config },
     )
     if (errors.length > 0) return failAll(input.plans, errors)
-    const files: OutputFile[] = [{ path: MANIFEST, content: json(pluginManifest) }]
-    if (plan === undefined || hooks === null)
-      return { ok: true, files, residualRisks: [] }
-    files.push({
-      path: hooksFile,
-      content: json(hooks),
-      ...(hooksFile === DEFAULT_HOOKS_FILE
-        ? { conflictHint: HOOKS_CONFLICT_HINT }
-        : {}),
-    })
-    if (withEntry) files.push(await entryFile(input, plan, guard))
-    return { ok: true, files, residualRisks: hooksRisks(input, plan, hooksFile) }
+    const files: OutputFile[] = [
+      { path: MANIFEST, content: json(pluginManifest) },
+      ...(await hooksFiles(input, plan, hooksFile, hooks)),
+      ...(mcp.config === null ? [] : [{ path: MCP_FILE, content: json(mcp.config) }]),
+    ]
+    const residualRisks = [
+      ...(hooks === null ? [] : hooksRisks(input, plan, hooksFile)),
+      ...(mcp.config === null ? [] : mcpRisks()),
+    ]
+    return { ok: true, files, skipped: mcp.skipped, residualRisks }
   },
 }

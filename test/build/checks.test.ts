@@ -41,6 +41,7 @@ function recordingHost(plans: TargetPlan[]): HostModule {
     return {
       ok: true,
       files: [{ path: 'manifest.json', content: '{}\n' }],
+      skipped: [],
       residualRisks: [],
     }
   })

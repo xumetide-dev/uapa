@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "docs": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./mcp/server.mjs"
+      ],
+      "env": {
+        "UAPA_DATA": "./data"
+      },
+      "cwd": "."
+    },
+    "plain": {
+      "type": "stdio",
+      "command": "uapa-mcp-probe",
+      "args": [
+        "--stdio"
+      ]
+    },
+    "remote": {
+      "type": "http",
+      "url": "http://127.0.0.1:9/mcp",
+      "http_headers": {
+        "X-Uapa-Probe": "uapa-header-probe"
+      }
+    }
+  }
+}

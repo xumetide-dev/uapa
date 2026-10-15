@@ -1,6 +1,7 @@
 // Claude Code 宿主模块。claude-code:subprocess 与 claude-code:in-process 写入同一插件目录，
-// 合为一个插件包（F-05-10）：plugin.json 只生成一份，hooks/hooks.json 按进入 plans 的目标
-// 写 hooks 键（命令 hooks）与 modules 键（hooks 模块）。
+// 合为一个插件包（F-05-10）：plugin.json 与 .mcp.json 只生成一份，hooks/hooks.json 按进入 plans
+// 的目标写 hooks 键（命令 hooks）与 modules 键（hooks 模块）。
+import { compare } from '../../source/files.ts'
 import type { GuardDeclaration } from '../../source/guard.ts'
 import type {
   HostInput,
@@ -12,6 +13,7 @@ import type {
 } from '../types.ts'
 import { HOOKS_FILE, hooksKey, SUBPROCESS_ENTRY } from './hooks.ts'
 import { manifest, manifestErrors } from './manifest.ts'
+import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { MODULES, type ModuleFiles, moduleFiles, moduleSessionEnv } from './module.ts'
 import { validatePlugin } from './verify.ts'
 
@@ -116,6 +118,14 @@ function residualRisksOf(
   return risks
 }
 
+// 两个目标的服务器相同（MCP 服务器没有 targets）；取并集，按名称排序
+function mcpFile(plans: readonly TargetPlan[]): OutputFile[] {
+  const servers = new Map(plans.flatMap(plan => plan.mcpServers.map(s => [s.name, s])))
+  const sorted = [...servers.values()].sort((a, b) => compare(a.name, b.name))
+  const config = mcpConfig(sorted)
+  return config === null ? [] : [{ path: MCP_FILE, content: json(config) }]
+}
+
 export const claudeCode: HostModule = {
   host: 'claude-code',
   async generate(input) {
@@ -140,9 +150,10 @@ export const claudeCode: HostModule = {
       ...hooksConfigFile(command, hooksModule),
       ...(command?.files ?? []),
       ...(hooksModule?.files ?? []),
+      ...mcpFile(input.plans),
     ]
     const residualRisks = residualRisksOf(subprocess, inProcess, hooksModule)
-    return { ok: true, files, residualRisks }
+    return { ok: true, files, skipped: [], residualRisks }
   },
   async verify(dir) {
     return validatePlugin(dir)

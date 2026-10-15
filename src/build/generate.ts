@@ -30,8 +30,13 @@ export async function generateHosts(
     for (const state of hostStates.filter(s => s.plan !== null)) {
       const own = (notes: readonly { target: string; message: string }[]) =>
         notes.filter(note => note.target === state.target).map(note => note.message)
-      if (result.ok) state.hostRisks.push(...own(result.residualRisks))
-      else if ('thrown' in result)
+      if (result.ok) {
+        // 宿主模块的跳过项排在能力检查的跳过项之后（构建报告「skipped」）
+        for (const skip of result.skipped.filter(s => s.target === state.target)) {
+          state.skipped.push({ component: skip.component, reason: skip.reason })
+        }
+        state.hostRisks.push(...own(result.residualRisks))
+      } else if ('thrown' in result)
         state.errors.push(`同一宿主的生成失败: ${result.thrown}`)
       else {
         const messages = own(result.errors)

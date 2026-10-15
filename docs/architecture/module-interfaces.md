@@ -257,8 +257,9 @@ export interface HostModule {
 - Codex 的 `.codex-plugin/plugin.json` 依次写 `name`、`version`、`description`，配置有值时写
   `keywords`，再按需写 `hooks`、`mcpServers`、`interface`（F-06-02、F-06-06）。没有 hooks 配置而
   `sharedWith` 非空时，`hooks` 写 `{"hooks": {}}`，使 Codex 不读取其他宿主写出的
-  `hooks/hooks.json`；同理，生成了 `mcp.json` 时 `mcpServers` 写 `"./mcp.json"`，没有而
-  `sharedWith` 非空时写 `{}`，使 Codex 不读取 Claude Code 写出的 `.mcp.json`。
+  `hooks/hooks.json`；同理，生成了 `mcp.json` 时 `mcpServers` 写 `"./mcp.json"`，源项目有服务器
+  而全部跳过、`sharedWith` 非空时写 `{}`，使 Codex 不读取 Claude Code 为这些服务器写出的
+  `.mcp.json`；源项目没有服务器时其他宿主也不生成 MCP 配置，不写。
 - `sharedWith` 由构建编排按 `resolvePluginDirs` 得出，与目标是否成功无关；宿主模块只用它决定
   manifest 的写法与残余风险（F-06-02、F-06-03、F-11-03），不据此读取其他宿主的文件。
 - `$schema` 格式的根 `plugin.json`（预留的 Copilot CLI）顶层依次写 `$schema`

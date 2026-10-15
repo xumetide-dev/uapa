@@ -199,6 +199,7 @@ function counting(): { module: HostModule; calls: () => number } {
         { path: 'manifest.json', content: '{}\n' },
         { path: 'hooks/hooks.json', content: 'H\n' },
       ],
+      skipped: [],
       residualRisks: [],
     }),
     verify: async () => {

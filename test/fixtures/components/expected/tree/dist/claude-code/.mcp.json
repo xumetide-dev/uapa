@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"
+      ],
+      "env": {
+        "UAPA_DATA": "${CLAUDE_PLUGIN_ROOT}/data"
+      }
+    },
+    "launcher": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/mcp/run.sh"
+    },
+    "plain": {
+      "command": "uapa-mcp-probe",
+      "args": [
+        "--stdio"
+      ]
+    },
+    "remote": {
+      "type": "http",
+      "url": "http://127.0.0.1:9/mcp",
+      "headers": {
+        "X-Uapa-Probe": "uapa-header-probe"
+      }
+    }
+  }
+}

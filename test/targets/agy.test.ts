@@ -16,6 +16,7 @@ import { agy } from '../../src/targets/agy/index.ts'
 import type { HostResult } from '../../src/targets/types.ts'
 import { runEntry } from '../helpers/entry.ts'
 import { importsOf } from '../helpers/imports.ts'
+import { REMOTE, SERVERS } from '../helpers/mcp.ts'
 import { baseConfig, tempProject } from '../helpers/project.ts'
 
 const TARGET = 'agy:subprocess'
@@ -42,6 +43,7 @@ async function generate(
         capabilities: agySubprocess,
         skills: [],
         agents: [],
+        mcpServers: [],
         checks,
         commandHooks: [],
       },
@@ -328,4 +330,61 @@ test('只配置 agy:subprocess 时写出 plugin.json、hooks.json、入口与 sk
     await rm(temp, { recursive: true, force: true })
     await project.cleanup()
   }
+})
+
+test('mcp_config.json：args 与 env 的 {pluginRoot} 换为 .，url 写为 serverUrl，command 含它时跳过', async () => {
+  const result = await agy.generate({
+    config: agyConfig,
+    plans: [
+      {
+        target: TARGET,
+        capabilities: agySubprocess,
+        skills: [],
+        agents: [],
+        mcpServers: SERVERS,
+        checks: [],
+        commandHooks: [],
+      },
+    ],
+    guard: null,
+    sharedWith: [],
+    bundle: async () => '',
+  })
+  assert.ok(result.ok)
+  assert.deepEqual(JSON.parse(file(result, 'mcp_config.json') ?? ''), {
+    mcpServers: {
+      docs: {
+        command: 'node',
+        args: ['./mcp/server.mjs'],
+        env: { UAPA_DATA: './data' },
+      },
+      plain: { command: 'uapa-mcp-probe', args: ['--stdio'] },
+      remote: { serverUrl: REMOTE.url, headers: REMOTE.headers },
+    },
+  })
+  assert.deepEqual(result.skipped, [
+    {
+      target: TARGET,
+      component: 'mcpServers.launcher',
+      reason:
+        'agy 不展开 MCP 配置中的插件根，command 的相对路径按哪个目录解析依赖平台，' +
+        'command 中的 {pluginRoot} 不能换算',
+    },
+  ])
+  // plugin.json 不变；没有服务器时不生成 mcp_config.json
+  assert.deepEqual(JSON.parse(file(result, 'plugin.json') ?? '').mcpServers, undefined)
+  const { result: none } = await generate([])
+  assert.equal(file(none, 'mcp_config.json'), undefined)
+})
+
+test('字段白名单覆盖 mcp_config.json', () => {
+  const manifest = { name: 'n', description: 'd' }
+  const ok = { mcpServers: { a: { serverUrl: 'u', headers: {} } } }
+  assert.deepEqual(fieldErrors(manifest, null, ok), [])
+  assert.deepEqual(fieldErrors(manifest, null, { mcpServers: { a: { url: 'u' } } }), [
+    'mcp_config.json 的 mcpServers.a 含 agy 不允许的字段 url',
+  ])
+  assert.deepEqual(fieldErrors(manifest, null, { mcpServers: {}, servers: {} }), [
+    'mcp_config.json 含 agy 不允许的字段 servers',
+  ])
 })

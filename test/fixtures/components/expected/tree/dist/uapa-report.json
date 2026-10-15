@@ -64,12 +64,18 @@
         {
           "component": "agents/reviewer.md",
           "reason": "本目标不能承载 agents"
+        },
+        {
+          "component": "mcpServers.launcher",
+          "reason": "Codex 不展开 MCP 配置中的插件根，command 中的 {pluginRoot} 不能换算"
         }
       ],
       "degraded": [],
       "overridden": [],
       "hostValidation": "none",
-      "residualRisks": []
+      "residualRisks": [
+        "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效"
+      ]
     },
     {
       "target": "agy:subprocess",
@@ -87,7 +93,12 @@
           "path": "dist/agy"
         }
       ],
-      "skipped": [],
+      "skipped": [
+        {
+          "component": "mcpServers.launcher",
+          "reason": "agy 不展开 MCP 配置中的插件根，command 的相对路径按哪个目录解析依赖平台，command 中的 {pluginRoot} 不能换算"
+        }
+      ],
       "degraded": [],
       "overridden": [],
       "hostValidation": "none",

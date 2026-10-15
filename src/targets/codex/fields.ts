@@ -1,6 +1,7 @@
-// 字段白名单检查（F-06-05）：Codex 对 manifest、事件表与处理器中的未知字段静默忽略，
-// 对 hooks 文件根对象的未知键整份拒绝，因此在生成时检查。允许的字段取自 codex-plugins.md
-// 「源码核对（rust-v0.162.1）」中的兼容 manifest 与 hooks 文件结构。
+// 字段白名单检查（F-06-05）：Codex 对 manifest、事件表、处理器与 MCP 服务器中的未知字段静默
+// 忽略，对 hooks 文件根对象的未知键整份拒绝，因此在生成时检查。允许的字段取自 codex-plugins.md
+// 「源码核对（rust-v0.162.1）」中的兼容 manifest 与 hooks 文件结构，以及 codex-source-review.md
+// 「插件中的 MCP 服务器」。
 import { MANIFEST } from './manifest.ts'
 
 const MANIFEST_FIELDS = [
@@ -53,6 +54,17 @@ const EVENTS = [
 const GROUP_FIELDS = ['matcher', 'hooks']
 // 宿主另接受 async、statusMessage 等字段；UAPA 只写这三个，async 为 true 时不能阻断
 const HANDLER_FIELDS = ['type', 'command', 'timeout']
+const MCP_FILE_FIELDS = ['mcpServers']
+// 宿主另接受 env_vars、bearer_token_env_var、env_http_headers；UAPA 只写这些
+const MCP_SERVER_FIELDS = [
+  'type',
+  'command',
+  'args',
+  'env',
+  'cwd',
+  'url',
+  'http_headers',
+]
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -114,16 +126,37 @@ function hooksErrors(
   }
 }
 
-// hooks 为 null 时不生成 hooks 配置，只检查 manifest；hooks.file 为 hooks 配置相对插件目录的路径
+function mcpErrors(
+  file: string,
+  config: Readonly<Record<string, unknown>>,
+  errors: string[],
+): void {
+  if (!checkKeys(config, MCP_FILE_FIELDS, file, errors)) return
+  const servers = config.mcpServers
+  if (!isRecord(servers)) {
+    errors.push(`${file} 的 mcpServers 不是对象`)
+    return
+  }
+  for (const [name, server] of Object.entries(servers)) {
+    checkKeys(server, MCP_SERVER_FIELDS, `${file} 的 mcpServers.${name}`, errors)
+  }
+}
+
+// 生成的文件，file 为相对插件目录的路径
+interface Generated {
+  readonly file: string
+  readonly value: Readonly<Record<string, unknown>>
+}
+
+// hooks 或 mcp 为 null 时不生成该文件，只检查生成的文件；manifest 总是检查
 export function fieldErrors(
   manifest: Readonly<Record<string, unknown>>,
-  hooks: {
-    readonly file: string
-    readonly value: Readonly<Record<string, unknown>>
-  } | null,
+  hooks: Generated | null,
+  mcp: Generated | null = null,
 ): string[] {
   const errors: string[] = []
   manifestErrors(manifest, errors)
   if (hooks !== null) hooksErrors(hooks.file, hooks.value, errors)
+  if (mcp !== null) mcpErrors(mcp.file, mcp.value, errors)
   return errors
 }
