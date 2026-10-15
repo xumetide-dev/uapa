@@ -71,7 +71,8 @@
   `claude plugin test`，容器与维护者机器各一次。
 - v0.2.0：加载 `after-tool` 产物，确认两种形态的扣留与替换生效（承接
   [M2-02 验收 §7](../acceptance/M2-02-after-tool-end-to-end.md#7-已知限制与技术债) 第 1 行）；加载
-  `components` 产物，会话的初始化信息列出 agents 与 MCP 服务器。
+  `components` 产物，会话的初始化信息列出 agents 与 MCP 服务器（agents 承接
+  [M2-03 验收 §7](../acceptance/M2-03-agents-component.md#7-已知限制与技术债) 第 1 行）。
 
 ### 2. Codex（`codex-plugins.md`）
 
@@ -86,7 +87,9 @@
 ### 3. agy（`agy-plugins.md`）
 
 - 安装 `full` 的 agy 产物，确认拒绝、改写与停机继续的标记命令按 F-11-04 生效。
-- v0.2.0：`components` 的 agents 与 MCP 服务器被加载；被列为跳过的服务器不出现。
+- v0.2.0：`components` 的 agents 与 MCP 服务器被加载（agents 承接
+  [M2-03 验收 §7](../acceptance/M2-03-agents-component.md#7-已知限制与技术债) 第 1 行）；被列为
+  跳过的服务器不出现。
 - 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 1 行：
   根 `agents.json` 与 `agents/*.md` 同时存在时加载哪些子代理。
 

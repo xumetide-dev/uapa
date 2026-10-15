@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M2-03](M2-03-agents-component.md) | agents | 有条件通过（`components` 产物中 agents 的宿主加载由 M2-05 实测） | 2026-10-14 | `a73da25` |
 | [M2-02](M2-02-after-tool-end-to-end.md) | 执行后检查端到端 | 有条件通过（`after-tool` 产物的宿主实测由 M2-05 承接） | 2026-10-14 | `6c8d5c4`、`01e162f` |
 | [M2-01](M2-01-v0-2-0-host-facts.md) | v0.2.0 宿主事实与接口定稿 | 有条件通过（agy 根 `agents.json` 与 `agents/*.md` 并存时的处理未实测） | 2026-10-14 | `22a7b07` |
 | [M1-00](M1-00-v0-1-0-three-host-build.md) | Sprint 收口：v0.1.0 三个宿主的插件构建 | 有条件通过（发布前宿主实测、公共仓库的 tag 与发布后安装核验未完成） | 2026-10-14 | `2b441de` |
