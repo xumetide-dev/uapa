@@ -94,6 +94,14 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
   含 `/` 的模式加 `**/` 前缀并写残余风险，F-11-09 的验收标准、使用指南与 `rules-commands` 夹具
   随之更新；`test/container/run.sh check` 296 pass / 0 fail。修正后的产物在 agy 会话中复测生效，
   见 [M4-05](M4-05-v0-3-0-live-tests.md)。
+- 2026-10-15 补测 §7 第 2 项（维护者确认使用 Codex CLI）：在测试容器中以 codex-cli 0.162.1 安装
+  `rules-commands` 的 Codex 产物，`commands/review.md` 被转换为
+  `.codex-plugin/migrated-command-skills/source-command-review/SKILL.md`，会话中名为
+  `rules-commands:source-command-review`。`$rules-commands:source-command-review` 把 SKILL.md 加入
+  会话，模型按命令正文审查临时仓库中的一行改动；按描述的隐式选用与 TUI 中的 `$` 补全也生效；
+  不带插件名的 `$source-command-review` 不加入 SKILL.md。记录见
+  [Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)
+  （`26d2972`），使用指南的 Codex 小节随之写明调用方式。
 
 ## 6. 技术决策
 
@@ -109,7 +117,7 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
 | 1 | 产物在宿主会话中的效果未实测（agy 的三种 trigger、Claude Code 的命令调用） | 夹具只证明产物内容与调研结论一致 | M4-05；已关闭：实测发现的 globs 问题由 `04328f0` 修正，修正后三种 trigger 与两个命令都生效 |
-| 2 | Codex 转换命令后的调用方式未核对 | Codex 用户能否在会话中使用转换后的技能未知 | M4-00 收口时向维护者申请以 Codex CLI 实测（使用 Codex CLI 须逐次确认） |
+| 2 | Codex 转换命令后的调用方式未核对 | Codex 用户能否在会话中使用转换后的技能未知 | M4-00 收口时向维护者申请以 Codex CLI 实测（使用 Codex CLI 须逐次确认）；已关闭：2026-10-15 容器实测，转换后的技能可显式调用，也按描述被选用，见 §5 |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
 
@@ -117,5 +125,5 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 
 - `rules-commands` 的 agy 产物在 M4-05 中安装实测，结论与调研不一致时先更新调研文档。
 - 下一步：M4-03（按命名空间合并共用的 JSON）。
-- 2026-10-15 补记：§7 第 1 项已关闭；第 2 项（Codex 转换命令的调用）仍待维护者确认使用
-  Codex CLI，本单结论维持有条件通过。
+- 2026-10-15 补记：§7 两项均已关闭（第 1 项由 M4-05，第 2 项由 Codex 容器实测，见 §5）；结论按
+  验收时的判断保留为有条件通过。

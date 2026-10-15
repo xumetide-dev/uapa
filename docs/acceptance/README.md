@@ -80,11 +80,11 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
-| [M4-00](M4-00-v0-3-0-rules-commands-guard-options.md) | Sprint 收口：v0.3.0 的 rules、commands、守卫选项与 JSON 合并 | 有条件通过（M4-02 的 Codex 转换命令调用未实测，待维护者确认使用 Codex CLI） | 2026-10-15 | `7274152` |
+| [M4-00](M4-00-v0-3-0-rules-commands-guard-options.md) | Sprint 收口：v0.3.0 的 rules、commands、守卫选项与 JSON 合并 | 有条件通过（M4-02 的 Codex 转换命令调用未实测，待维护者确认使用 Codex CLI）；条件已关闭：2026-10-15 在测试容器中以 codex-cli 0.162.1 实测 | 2026-10-15 | `7274152` |
 | [M4-05](M4-05-v0-3-0-live-tests.md) | v0.3.0 产物的宿主实测 | 通过 | 2026-10-15 | `0a8438e`、`fca03ad` |
 | [M4-04](M4-04-guard-options.md) | 守卫选项 | 通过 | 2026-10-15 | `2491715` |
 | [M4-03](M4-03-json-namespace-merge.md) | 按命名空间合并共用的 JSON | 通过 | 2026-10-15 | `61dd481` |
-| [M4-02](M4-02-rules-and-commands.md) | rules 与 commands | 有条件通过（产物在 agy 与 Claude Code 会话中的效果由 M4-05 实测；Codex 转换命令的调用未核对）；会话效果已由 M4-05 关闭，agy `globs` 的修正为 `04328f0` | 2026-10-15 | `ee66f81`、`04328f0` |
+| [M4-02](M4-02-rules-and-commands.md) | rules 与 commands | 有条件通过（产物在 agy 与 Claude Code 会话中的效果由 M4-05 实测；Codex 转换命令的调用未核对）；会话效果已由 M4-05 关闭，agy `globs` 的修正为 `04328f0`；Codex 转换命令的调用已于 2026-10-15 容器实测关闭（`26d2972`） | 2026-10-15 | `ee66f81`、`04328f0` |
 | [M4-01](M4-01-v0-3-0-interfaces.md) | v0.3.0 接口定稿 | 通过 | 2026-10-15 | `25bf526` |
 | [M3-00](M3-00-three-host-live-test-gaps.md) | Sprint 收口：三个宿主的遗留实测 | 通过 | 2026-10-15 | `034019e` |
 | [M3-03](M3-03-codex-prompt-gate-hook-failures.md) | Codex 提示阻断与 hook 出错、超时 | 通过 | 2026-10-15 | `671d4f6` |
