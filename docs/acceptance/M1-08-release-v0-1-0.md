@@ -96,6 +96,9 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
   只拦截传递依赖中的 git 依赖；npm 12.0.0 起 `allow-git` 默认为 `none`，取值 `none`、`root`、
   `all`。依据 pnpm 与 npm 的官方文档及源码（npm v12.2.0、pnpm v12.13.0），README 据此写明。
 - SD-22、SD-23 已定，TA-15 的入口前提与发布前两项有结论。
+- 承接 [M1-03 验收 §7](M1-03-claude-code-command-hooks-guard.md#7-已知限制与技术债) 第 2 行（已关闭）：
+  安装后的包只含 `dist/`，`bundle` 按 `import.meta.url` 定位到 `dist/runtime/entries/` 中编译后的入口，
+  安装冒烟的打包结果与期望一致（F-04-06）。
 
 ## 7. 已知限制与技术债
 
