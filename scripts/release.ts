@@ -212,10 +212,15 @@ export async function installSmoke(root: string, tag: string): Promise<void> {
     const config = join(project, 'uapa.config.ts')
     await writeFile(config, wrapWithDefineConfig(await readFile(config, 'utf8')))
     const dependency = `git+${pathToFileURL(root).href}#${tag}`
+    // packageManager 取自本仓库，安装使用与本仓库相同的 pnpm，不随全局安装的 pnpm 变化
+    const { packageManager } = JSON.parse(
+      await readFile(join(root, 'package.json'), 'utf8'),
+    )
     const manifest = {
       name: 'uapa-install-smoke',
       private: true,
       type: 'module',
+      packageManager,
       devDependencies: { uapa: dependency },
     }
     await writeFile(
