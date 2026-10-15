@@ -95,8 +95,8 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
    列表，同一宿主的目标合成一套文件。
 5. `build` 放置 skills、agents 与 commands，用 `overrides/<宿主>/` 覆盖同名文件，再按产物布局
    写出：合并布局下，同名文件必须逐字一致，宿主模块标为可合并的 JSON 文件按命名空间合并
-   （F-03-07）。写出后，对提供宿主
-   校验命令的宿主调用该命令。`--check` 模式只比对，不写文件，也不调用宿主校验命令。
+   （F-03-07，`src/build/merge.ts`）。写出后，对提供宿主校验命令的宿主调用该命令。`--check`
+   模式只比对，不写文件，也不调用宿主校验命令。
 6. `build` 按 `src/report/types.ts` 填充构建报告，写出 `<outDir>/uapa-report.json`（`--check`
    不写），并把结果返回 `cli`；`cli` 调用 `report` 的 `formatSummary` 打印摘要，按模块接口 §8
    设置退出码。

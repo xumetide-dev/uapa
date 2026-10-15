@@ -1,6 +1,7 @@
 // 计划写出的文件集合（模块接口 §8）：写出（F-03-05、F-03-06）与比对（F-03-08）都从它得出。
 // 每个插件目录汇总各宿主模块生成的文件、构建编排放置的 skills、agents 与 commands
-// （components.ts）与覆盖文件（F-03-12）；合并布局中同名文件内容不同时，写入该目录的全部目标失败，该目录不进入集合。
+// （components.ts）与覆盖文件（F-03-12）。合并布局中同名文件内容不同时，标为可合并的 JSON 文件
+// 按命名空间合并（F-03-07，merge.ts），其余为冲突：写入该目录的全部目标失败，该目录不进入集合。
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type PluginDir, resolvePluginDirs } from '../config/layout.ts'
@@ -10,12 +11,14 @@ import { compare } from '../source/files.ts'
 import { OVERRIDES_DIR } from '../source/overrides.ts'
 import type { OutputFile } from '../targets/types.ts'
 import { componentFiles, componentUnion, recordComponentRisks } from './components.ts'
+import { mergeJsonExtensions } from './merge.ts'
 import { type BuildInput, succeeded, type TargetState } from './state.ts'
 
 export interface PlannedFile {
   readonly path: string // 相对插件目录，POSIX 分隔
   readonly content: Buffer
-  // 复制的源文件（skills、agents、commands、覆盖文件）的绝对路径，写出时复制以保留文件权限；生成的文件为 null
+  // 复制的源文件（skills、agents、commands、覆盖文件）的绝对路径，写出时复制以保留文件权限；
+  // 生成与合并的文件为 null
   readonly copyFrom: string | null
 }
 
@@ -26,9 +29,10 @@ export interface DirOutput {
   readonly targets: readonly TargetState[] // 写入该目录的成功目标
 }
 
-// 一个宿主在该目录中的文件；覆盖生成文件时继承其 conflictHint
+// 一个宿主在该目录中的文件；覆盖生成文件时继承其 conflictHint 与 merge
 interface HostFile extends PlannedFile {
   readonly conflictHint?: string
+  readonly merge?: 'json-extensions'
 }
 
 type HostView = readonly [HostName, ReadonlyMap<string, HostFile>]
@@ -98,13 +102,16 @@ async function hostView(
   for (const file of copied) view.set(file.path, file)
   for (const path of build.source.overrides[host] ?? []) {
     const from = join(build.root, OVERRIDES_DIR, host, ...path.split('/'))
-    const hint = view.get(path)?.conflictHint
+    const replaced = view.get(path)
+    const hint = replaced?.conflictHint
+    const merge = replaced?.merge
     const content = await readFile(from)
     view.set(path, {
       path,
       content,
       copyFrom: from,
       ...(hint === undefined ? {} : { conflictHint: hint }),
+      ...(merge === undefined ? {} : { merge }),
     })
     for (const state of own) state.overridden.push(path)
   }
@@ -129,31 +136,52 @@ function generatedFile(file: OutputFile): HostFile {
     content,
     copyFrom: null,
     ...(hint === undefined ? {} : { conflictHint: hint }),
+    ...(file.merge === undefined ? {} : { merge: file.merge }),
   }
 }
 
-// 各宿主的同名文件内容一致时只写一次；不一致时记为冲突，列出写入该文件的全部宿主
+interface PathEntry {
+  file: HostFile // 写出的文件：第一个宿主的文件，或合并结果
+  readonly versions: HostFile[] // 各宿主的文件，按宿主顺序
+  readonly hosts: HostName[]
+  readonly hints: string[]
+  differs: boolean
+}
+
+// 各宿主的同名文件内容一致时只写一次；不一致而都标为可合并时按命名空间合并，合并结果作为生成
+// 的文件；否则记为冲突，列出写入该文件的全部宿主
 function mergeViews(views: readonly HostView[]): {
   files: PlannedFile[]
   conflicts: Conflict[]
 } {
-  const entries = new Map<
-    string,
-    { file: HostFile; hosts: HostName[]; hints: string[]; differs: boolean }
-  >()
+  const entries = new Map<string, PathEntry>()
   for (const [host, view] of views) {
     for (const file of view.values()) {
       const entry = entries.get(file.path)
       const hint = file.conflictHint
       if (entry === undefined) {
         const hints = hint === undefined ? [] : [hint]
-        entries.set(file.path, { file, hosts: [host], hints, differs: false })
+        entries.set(file.path, {
+          file,
+          versions: [file],
+          hosts: [host],
+          hints,
+          differs: false,
+        })
         continue
       }
+      entry.versions.push(file)
       entry.hosts.push(host)
       if (hint !== undefined && !entry.hints.includes(hint)) entry.hints.push(hint)
       if (!entry.file.content.equals(file.content)) entry.differs = true
     }
+  }
+  for (const entry of entries.values()) {
+    if (!entry.differs) continue
+    const merged = mergeJsonExtensions(entry.versions)
+    if (merged === null) continue
+    entry.file = { path: entry.file.path, content: merged, copyFrom: null }
+    entry.differs = false
   }
   const sorted = [...entries.values()].sort((a, b) => byPath(a.file, b.file))
   const files = sorted.map(({ file }) => ({

@@ -31,6 +31,9 @@ export interface HostInput {
 export interface OutputFile {
   readonly path: string // 相对插件目录，POSIX 分隔，不含 '..'
   readonly content: string | Uint8Array
+  // 按命名空间合并（F-03-07）：同名文件都标此值时，解析后比较 extensions 以外的字段，
+  // extensions 按命名空间合并；现有宿主模块不设置
+  readonly merge?: 'json-extensions'
   // 合并布局中与其他宿主的同名文件冲突时，附在冲突错误之后
   readonly conflictHint?: string
 }
