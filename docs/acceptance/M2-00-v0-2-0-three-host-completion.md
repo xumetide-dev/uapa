@@ -69,8 +69,8 @@
 
 | # | 债 | 出自 | 去向 |
 |---|---|---|---|
-| 1 | TA-11 的嵌套会话在会话的 Bash 中启动：容器中 Bash 工具启动的 `claude -p` 没有以环境变量提供的令牌，未登录；其他继承的环境变量对命令 hooks 的影响未覆盖 | M2-05 §7 第 1 行 | 下一个 Sprint 排单时列入：在以钥匙串登录的维护者机器上运行，提示只要求运行标记命令 |
-| 2 | agy 根 `agents.json` 的格式未能确定：与 `agents/*.md` 并存时后者照常加载，三种写法都未使其声明的子代理出现 | M2-01 §7 第 1 行、M2-05 §7 第 2 行 | agy 文档或源码给出格式后再测；UAPA 不生成该文件 |
+| 1 | TA-11 的嵌套会话在会话的 Bash 中启动：容器中 Bash 工具启动的 `claude -p` 没有以环境变量提供的令牌，未登录；其他继承的环境变量对命令 hooks 的影响未覆盖 | M2-05 §7 第 1 行 | 转入 Sprint M3 的 [M3-01](../workorders/M3-01-claude-code-nested-session.md)：在以钥匙串登录的维护者机器上运行，提示只要求运行标记命令 |
+| 2 | agy 根 `agents.json` 的格式未能确定：与 `agents/*.md` 并存时后者照常加载，三种写法都未使其声明的子代理出现 | M2-01 §7 第 1 行、M2-05 §7 第 2 行 | 转入 Sprint M3 的 [M3-02](../workorders/M3-02-agy-agents-json-stop-timeout.md)：agy 1.3.5 内嵌文档给出的 `entries` 格式未测过 |
 
 ## 5. 回流
 
@@ -85,5 +85,5 @@
 
 - v0.2.0 已发布。按 SD-28，四个目标稳定运行之前不新增目标；之后按社区反馈决定是否增加 DSH、
   Kimi Code、ZCode 等宿主。
-- 下一个 Sprint 的候选：§4 的两项；Codex 中提示阻断（`promptGate`）与 hooks 出错、超时处理的
-  宿主实测（P-01、P-04 的 RISK 来源）。
+- 下一个 Sprint 为 [Sprint M3](../workorders/M3-00-three-host-live-test-gaps.md)：§4 的两项，以及
+  Codex 的提示阻断与 hook 出错、超时，agy 停机前检查的超时（P-01、P-04 的 RISK 来源）。
