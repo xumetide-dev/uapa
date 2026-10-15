@@ -41,7 +41,7 @@ function toTargetReport(state: TargetState): TargetReport {
     hostValidation: state.hostValidation,
     residualRisks: [
       ...capabilityRisks(state),
-      ...state.sharedSkillRisks,
+      ...state.sharedRisks,
       ...state.hostRisks,
     ],
   }

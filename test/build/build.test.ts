@@ -1,4 +1,4 @@
-// 构建编排（F-03-02～F-03-05、F-03-09、F-03-11）：以测试用的宿主模块与能力数据运行，
+// 构建编排（F-03-02～F-03-05、F-03-09、F-03-11；agents 按 SD-30）：以测试用的宿主模块与能力数据运行，
 // 不依赖宿主功能模块。
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
@@ -74,6 +74,87 @@ test('不能承载 skills 时：未写 targets 的 skill 跳过，显式写了�
     assert.deepEqual(entry?.units, [])
     assert.ok(!existsSync(join(root, 'dist/claude-code')))
   })
+})
+
+const AGENT = (extra = '') =>
+  `---\nname: reviewer\ndescription: 审查\n${extra}---\n\n你是审查者。\n`
+
+test('agents 原样复制为插件目录的 agents/<name>.md', async () => {
+  const text = AGENT(`targets: [${TARGET}]\n`)
+  await buildIn({ 'agents/reviewer.md': text }, deps(), async (root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.equal(entry?.status, 'ok')
+    assert.deepEqual(entry?.skipped, [])
+    const written = join(root, 'dist/claude-code/agents/reviewer.md')
+    assert.equal(await readFile(written, 'utf8'), text)
+  })
+})
+
+test('不能承载 agents 时：未写 targets 的 agent 跳过，显式写了本目标的使目标失败（TA-04）', async () => {
+  const noAgents: TargetCapabilities = {
+    ...claudeCodeSubprocess,
+    components: { ...claudeCodeSubprocess.components, agents: 'none' },
+  }
+  await buildIn(
+    { 'agents/reviewer.md': AGENT() },
+    deps(writesManifest, noAgents),
+    async (root, outcome) => {
+      const [entry] = done(outcome).report.targets
+      assert.equal(entry?.status, 'ok')
+      assert.deepEqual(entry?.skipped, [
+        { component: 'agents/reviewer.md', reason: '本目标不能承载 agents' },
+      ])
+      assert.ok(!existsSync(join(root, 'dist/claude-code/agents')))
+    },
+  )
+  const explicit = { 'agents/reviewer.md': AGENT(`targets: [${TARGET}]\n`) }
+  await buildIn(explicit, deps(writesManifest, noAgents), async (root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.equal(entry?.status, 'failed')
+    assert.deepEqual(entry?.errors, [
+      'agent reviewer 显式限定了本目标，但本目标不能承载 agents',
+    ])
+    assert.ok(!existsSync(join(root, 'dist/claude-code')))
+  })
+})
+
+test('共用插件目录中不适用于某目标的 agent 记为该目标的残余风险；不承载 agents 的目标不记', async () => {
+  const text = AGENT(`targets: [${TARGET}]\n`)
+  const targets = ['claude-code:in-process', TARGET] as const
+  await buildIn(
+    { 'agents/reviewer.md': text },
+    deps(),
+    async (_root, outcome) => {
+      const [inProcess, subprocess] = done(outcome).report.targets
+      assert.deepEqual(inProcess?.residualRisks, [
+        'agent reviewer 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载',
+      ])
+      assert.deepEqual(subprocess?.residualRisks, ['宿主模块给出的风险'])
+    },
+    { targets: [...targets] },
+  )
+  const shared = {
+    targets: [TARGET, 'codex:subprocess'] as UapaConfig['targets'],
+    hosts: { 'claude-code': { dir: 'shared' }, codex: { dir: 'shared' } },
+  }
+  await buildIn(
+    { 'agents/reviewer.md': AGENT() },
+    deps(),
+    async (root, outcome) => {
+      const [claude, codex] = done(outcome).report.targets
+      assert.equal(codex?.status, 'ok')
+      assert.deepEqual(codex?.skipped, [
+        { component: 'agents/reviewer.md', reason: '本目标不能承载 agents' },
+      ])
+      assert.ok(!codex?.residualRisks.some(risk => risk.startsWith('agent ')))
+      assert.ok(!claude?.residualRisks.some(risk => risk.startsWith('agent ')))
+      assert.equal(
+        await readFile(join(root, 'shared/agents/reviewer.md'), 'utf8'),
+        AGENT(),
+      )
+    },
+    shared,
+  )
 })
 
 test('宿主模块失败时该宿主的目标失败，插件目录保持原状', async () => {

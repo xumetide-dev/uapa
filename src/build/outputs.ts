@@ -1,6 +1,6 @@
 // 计划写出的文件集合（模块接口 §8）：写出（F-03-05、F-03-06）与比对（F-03-08）都从它得出。
-// 每个插件目录汇总各宿主模块生成的文件、skills（F-03-04）与覆盖文件（F-03-12）；合并布局中
-// 同名文件内容不同时，写入该目录的全部目标失败，该目录不进入集合。
+// 每个插件目录汇总各宿主模块生成的文件、skills（F-03-04）、agents（SD-30）与覆盖文件
+// （F-03-12）；合并布局中同名文件内容不同时，写入该目录的全部目标失败，该目录不进入集合。
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type PluginDir, resolvePluginDirs } from '../config/layout.ts'
@@ -8,14 +8,14 @@ import { displayPath } from '../config/paths.ts'
 import { type HostName, hostOf } from '../config/targets.ts'
 import { compare } from '../source/files.ts'
 import { OVERRIDES_DIR } from '../source/overrides.ts'
-import type { Skill } from '../source/types.ts'
+import type { Agent, Skill } from '../source/types.ts'
 import type { OutputFile } from '../targets/types.ts'
 import { type BuildInput, succeeded, type TargetState } from './state.ts'
 
 export interface PlannedFile {
   readonly path: string // 相对插件目录，POSIX 分隔
   readonly content: Buffer
-  // 复制的源文件（skills、覆盖文件）的绝对路径，写出时复制以保留文件权限；生成的文件为 null
+  // 复制的源文件（skills、agents、覆盖文件）的绝对路径，写出时复制以保留文件权限；生成的文件为 null
   readonly copyFrom: string | null
 }
 
@@ -63,15 +63,20 @@ async function planDir(
     s => dir.hosts.includes(hostOf(s.target)) && succeeded(s),
   )
   if (targets.length === 0) return null
-  // 合并布局的目录就是源项目根目录时，skills 已在原位，不复制
+  // 合并布局的目录就是源项目根目录时，skills 与 agents 已在原位，不复制
   const atRoot = dir.path === build.root
-  const skills = atRoot ? [] : await skillFiles(build.root, skillUnion(targets))
+  const copied = atRoot
+    ? []
+    : [
+        ...(await skillFiles(build.root, skillUnion(targets))),
+        ...(await agentFiles(build.root, agentUnion(targets))),
+      ]
   const views: HostView[] = []
   for (const host of dir.hosts) {
     const generated = hostFiles.get(host)
     if (generated === undefined) continue
     const own = targets.filter(s => hostOf(s.target) === host)
-    views.push([host, await hostView(build, host, generated, skills, own)])
+    views.push([host, await hostView(build, host, generated, copied, own)])
   }
   const { files, conflicts } = mergeViews(views)
   if (conflicts.length > 0) {
@@ -79,22 +84,23 @@ async function planDir(
     for (const state of targets) state.errors.push(...messages)
     return null
   }
-  const present = atRoot ? build.source.skills : skillUnion(targets)
-  recordSkillRisks(targets, present)
+  recordSkillRisks(targets, atRoot ? build.source.skills : skillUnion(targets))
+  recordAgentRisks(targets, atRoot ? build.source.agents : agentUnion(targets))
   return { dir, merged: dir.hosts.length > 1, files, targets }
 }
 
-// 生成的文件在前，再放 skills，最后用覆盖文件替换或新增；覆盖文件记入该宿主各目标的 overridden
+// 生成的文件在前，再放 skills 与 agents，最后用覆盖文件替换或新增；覆盖文件记入该宿主各目标的
+// overridden
 async function hostView(
   build: BuildInput,
   host: HostName,
   generated: readonly OutputFile[],
-  skills: readonly PlannedFile[],
+  copied: readonly PlannedFile[],
   own: readonly TargetState[],
 ): Promise<Map<string, HostFile>> {
   const view = new Map<string, HostFile>()
   for (const file of generated) view.set(file.path, generatedFile(file))
-  for (const file of skills) view.set(file.path, file)
+  for (const file of copied) view.set(file.path, file)
   for (const path of build.source.overrides[host] ?? []) {
     const from = join(build.root, OVERRIDES_DIR, host, ...path.split('/'))
     const hint = view.get(path)?.conflictHint
@@ -205,8 +211,47 @@ function recordSkillRisks(
   for (const state of targets) {
     const own = new Set(state.plan?.skills.map(skill => skill.name))
     for (const skill of present.filter(s => !own.has(s.name))) {
-      state.sharedSkillRisks.push(
+      state.sharedRisks.push(
         `skill ${skill.name} 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载`,
+      )
+    }
+  }
+}
+
+// 写入该目录的成功目标所适用 agent 的并集，按名称排序
+function agentUnion(targets: readonly TargetState[]): Agent[] {
+  const union = new Map<string, Agent>()
+  for (const state of targets) {
+    for (const agent of state.plan?.agents ?? []) union.set(agent.name, agent)
+  }
+  return [...union.values()].sort(byName)
+}
+
+// agent 原样复制为 agents/<name>.md，frontmatter（含 targets）不改（SD-30）
+async function agentFiles(
+  root: string,
+  agents: readonly Agent[],
+): Promise<PlannedFile[]> {
+  const files: PlannedFile[] = []
+  for (const agent of agents) {
+    const from = join(root, ...agent.path.split('/'))
+    const path = `agents/${agent.name}.md`
+    files.push({ path, content: await readFile(from), copyFrom: from })
+  }
+  return files
+}
+
+// 同 skills；不承载 agents 的目标（如 Codex）不加载 agents/，不记风险
+function recordAgentRisks(
+  targets: readonly TargetState[],
+  present: readonly Agent[],
+): void {
+  for (const state of targets) {
+    if (state.capabilities.components.agents === 'none') continue
+    const own = new Set(state.plan?.agents.map(agent => agent.name))
+    for (const agent of present.filter(a => !own.has(a.name))) {
+      state.sharedRisks.push(
+        `agent ${agent.name} 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载`,
       )
     }
   }
@@ -216,6 +261,6 @@ function byPath(a: { readonly path: string }, b: { readonly path: string }): num
   return compare(a.path, b.path)
 }
 
-function byName(a: Skill, b: Skill): number {
+function byName(a: { readonly name: string }, b: { readonly name: string }): number {
   return compare(a.name, b.name)
 }

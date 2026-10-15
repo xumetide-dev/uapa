@@ -42,6 +42,7 @@ async function generate(
         target: TARGET,
         capabilities: codexSubprocess,
         skills: [],
+        agents: [],
         checks,
         commandHooks: [],
       },

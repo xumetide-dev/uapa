@@ -11,6 +11,7 @@ const plan: TargetPlan = {
   target: 'claude-code:subprocess',
   capabilities: claudeCodeSubprocess,
   skills: [],
+  agents: [],
   checks: [],
   commandHooks: [],
 }

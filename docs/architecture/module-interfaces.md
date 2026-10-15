@@ -239,8 +239,8 @@ export interface HostModule {
   而不在同目录某目标的 `skills` 中时，该目标的残余风险写明“skill <name> 不适用于本目标，但
   与其他目标共用插件目录，宿主仍会加载”。宿主模块不返回 skill 文件。
 - agents（v0.2.0，SD-30）同样由构建编排按插件目录放置：把写入该目录的成功目标 `TargetPlan.agents`
-  的并集原样复制为 `agents/<name>.md`，不适用于同目录某目标的 agent 按上一条写残余风险；宿主
-  模块不返回 agent 文件。
+  的并集原样复制为 `agents/<name>.md`，不适用于同目录某目标的 agent 按上一条写残余风险（不承载
+  agents 的目标不加载该目录，不写）；宿主模块不返回 agent 文件。
 - MCP 服务器（v0.2.0，SD-30）由宿主模块按 `TargetPlan.mcpServers` 生成：Claude Code 为
   `.mcp.json`，Codex 为 `mcp.json`，agy 为 `mcp_config.json`，顶层都为 `mcpServers`，服务器按名称
   排序；不能换算的服务器不写入，返回 `TargetSkip`。没有要写入的服务器时不生成该文件，manifest

@@ -1,6 +1,7 @@
-// 读取源项目（F-01-04～F-01-06）。只读，不写文件。
+// 读取源项目（F-01-04～F-01-07）。只读，不写文件。
 import type { Loaded } from '../config/issues.ts'
 import type { UapaConfig } from '../config/types.ts'
+import { readAgents } from './agents.ts'
 import { readOverrides } from './overrides.ts'
 import { readSkills } from './skills.ts'
 import type { SourceProject } from './types.ts'
@@ -12,13 +13,21 @@ export async function readSource(
   root: string,
 ): Promise<Loaded<SourceProject>> {
   const skills = await readSkills(root)
+  const agents = await readAgents(root)
   const overrides = await readOverrides(config, root)
-  if (!skills.ok || !overrides.ok) {
+  if (!skills.ok || !agents.ok || !overrides.ok) {
     const issues = [
       ...(skills.ok ? [] : skills.issues),
+      ...(agents.ok ? [] : agents.issues),
       ...(overrides.ok ? [] : overrides.issues),
     ]
     return { ok: false, issues }
   }
-  return { ok: true, value: { root, skills: skills.value, overrides: overrides.value } }
+  const value = {
+    root,
+    skills: skills.value,
+    agents: agents.value,
+    overrides: overrides.value,
+  }
+  return { ok: true, value }
 }

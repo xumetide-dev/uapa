@@ -340,3 +340,48 @@ test('同一宿主两个目标：skill 只限定 claude-code:subprocess 时 clau
     )
   })
 })
+
+const AGENT = (extra = '') => `---\nname: reviewer\ndescription: 审查\n${extra}---\n`
+
+test('agents：合并布局的目录为源项目根目录时不复制，不适用的 agent 记残余风险，不承载 agents 的目标不记', async () => {
+  const only = AGENT('targets: [claude-code:subprocess]\n')
+  await inProject({ 'agents/reviewer.md': only }, async root => {
+    const modules = {
+      'claude-code': returning('claude-code', [{ path: 'a.json', content: 'A\n' }]),
+      codex: returning('codex', [{ path: 'b.json', content: 'B\n' }]),
+      agy: agyManifest,
+    }
+    const config: Partial<UapaConfig> = {
+      targets: ['claude-code:in-process', 'claude-code:subprocess', 'codex:subprocess'],
+      hosts: { 'claude-code': { dir: '.' }, codex: { dir: '.' } },
+    }
+    const outcome = await buildAt(root, hostDeps(modules), config)
+    const tree = await readTree(root)
+    assert.deepEqual(
+      [...tree.keys()].filter(path => !path.startsWith('dist/')),
+      ['a.json', 'agents/reviewer.md', 'b.json'],
+    )
+    assert.deepEqual(targetOf(outcome, 'claude-code:in-process').residualRisks, [
+      'agent reviewer 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载',
+    ])
+    assert.deepEqual(targetOf(outcome, 'claude-code:subprocess').residualRisks, [])
+    assert.deepEqual(targetOf(outcome, 'codex:subprocess').residualRisks, [])
+  })
+})
+
+test('比对：agents 计入计划写出的文件，--check 不写文件', async () => {
+  await inProject({ 'agents/reviewer.md': AGENT() }, async root => {
+    const modules = {
+      'claude-code': returning('claude-code', [{ path: 'a.json', content: 'A\n' }]),
+      codex: returning('codex', []),
+      agy: agyManifest,
+    }
+    const before = await readTree(root)
+    const outcome = done(await buildAt(root, hostDeps(modules), {}, { check: true }))
+    assert.deepEqual(outcome.changes, [
+      { change: 'added', path: 'dist/claude-code/a.json' },
+      { change: 'added', path: 'dist/claude-code/agents/reviewer.md' },
+    ])
+    assert.deepEqual(await readTree(root), before)
+  })
+})

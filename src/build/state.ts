@@ -26,7 +26,7 @@ export interface TargetState {
   readonly overridden: string[] // 覆盖或新增的文件，相对插件目录
   // 因 stopGate、promptGate、withholdOutput 缺失而省略的检查（F-03-13）
   readonly omitted: GatedCheck[]
-  readonly sharedSkillRisks: string[] // 共用插件目录中不适用于本目标的 skill
+  readonly sharedRisks: string[] // 共用插件目录中不适用于本目标的 skill 与 agent
   readonly hostRisks: string[] // HostResult.residualRisks 中本目标的条目
   plan: TargetPlan | null // 未通过能力检查时为 null
   unit: string | null // 写出的插件目录（显示路径）
@@ -45,7 +45,7 @@ export function newState(
     degraded: [],
     overridden: [],
     omitted: [],
-    sharedSkillRisks: [],
+    sharedRisks: [],
     hostRisks: [],
     plan: null,
     unit: null,

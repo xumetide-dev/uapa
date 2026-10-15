@@ -46,6 +46,7 @@ function generate(c: Case): Promise<HostResult> {
         target: c.capabilities.target,
         capabilities: c.capabilities,
         skills: [],
+        agents: [],
         checks: c.checks,
         commandHooks: c.commandHooks,
       },

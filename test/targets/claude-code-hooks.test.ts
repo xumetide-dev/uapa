@@ -33,6 +33,7 @@ async function generate(
         target: 'claude-code:subprocess',
         capabilities: claudeCodeSubprocess,
         skills: [],
+        agents: [],
         checks,
         commandHooks: [],
       },

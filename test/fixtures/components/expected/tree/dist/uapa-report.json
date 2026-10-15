@@ -1,0 +1,97 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:in-process",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-mods-guide.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": []
+    },
+    {
+      "target": "claude-code:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": []
+    },
+    {
+      "target": "codex:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "codex",
+        "version": "0.162.1",
+        "checked": "2026-10-14",
+        "source": "codex-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/codex"
+        }
+      ],
+      "skipped": [
+        {
+          "component": "agents/reviewer.md",
+          "reason": "本目标不能承载 agents"
+        }
+      ],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "none",
+      "residualRisks": []
+    },
+    {
+      "target": "agy:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "agy",
+        "version": "1.3.4",
+        "checked": "2026-10-14",
+        "source": "agy-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/agy"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "none",
+      "residualRisks": []
+    }
+  ]
+}

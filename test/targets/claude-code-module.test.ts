@@ -23,7 +23,7 @@ const GUARD = {
 function plan(target: TargetPlan['target'], checks: readonly GuardCheck[]): TargetPlan {
   const capabilities =
     target === 'claude-code:in-process' ? claudeCodeInProcess : claudeCodeSubprocess
-  return { target, capabilities, skills: [], checks, commandHooks: [] }
+  return { target, capabilities, skills: [], agents: [], checks, commandHooks: [] }
 }
 
 async function generate(

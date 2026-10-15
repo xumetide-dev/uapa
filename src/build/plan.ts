@@ -1,4 +1,4 @@
-// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills（F-03-02），按守卫的 requires
+// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills 与 agents（F-03-02），按守卫的 requires
 // 与目标能力得出要生成 hook 的检查（F-03-13），按事件承载得出命令 hooks 声明（F-03-15），
 // 合为 TargetPlan。
 import type { TargetCapabilities } from '../capabilities/types.ts'
@@ -6,7 +6,7 @@ import { hostOf, type TargetName } from '../config/targets.ts'
 import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
 import type { Capability, GuardCheck } from '../runtime/core/types.ts'
 import type { GuardDeclaration } from '../source/guard.ts'
-import type { Skill, SourceProject } from '../source/types.ts'
+import type { SourceProject } from '../source/types.ts'
 import { type GatedCheck, newState, type TargetState } from './state.ts'
 
 export function planTargets(
@@ -17,7 +17,8 @@ export function planTargets(
 ): TargetState[] {
   return config.targets.map(target => {
     const state = newState(target, capabilities[target])
-    const skills = planSkills(state, source.skills)
+    const skills = planComponents(state, 'skills', source.skills)
+    const agents = planComponents(state, 'agents', source.agents)
     const checks = guard === null ? [] : planChecks(state, guard)
     const commandHooks = planCommandHooks(state, config, capabilities)
     if (state.errors.length === 0) {
@@ -25,6 +26,7 @@ export function planTargets(
         target,
         capabilities: state.capabilities,
         skills,
+        agents,
         checks,
         commandHooks,
       }
@@ -33,21 +35,35 @@ export function planTargets(
   })
 }
 
-// 不适用本目标的 skill 不计；本目标不能承载 skills 时，
-// 显式写了本目标的 skill 使目标失败，未写 targets 的 skill 列为跳过
-function planSkills(state: TargetState, skills: readonly Skill[]): Skill[] {
-  const carried = state.capabilities.components.skills !== 'none'
-  const planned: Skill[] = []
-  for (const skill of skills) {
-    if (skill.targets !== null && !skill.targets.includes(state.target)) continue
-    if (carried) planned.push(skill)
-    else if (skill.targets !== null) {
-      state.errors.push(`skill ${skill.name} 显式限定了本目标，但本目标不能承载 skills`)
+interface Component {
+  readonly name: string
+  readonly targets: readonly TargetName[] | null
+}
+
+// 跳过项的 component 与错误信息中的写法
+const COMPONENT_KINDS = {
+  skills: { label: 'skill', path: (name: string) => `skills/${name}` },
+  agents: { label: 'agent', path: (name: string) => `agents/${name}.md` },
+} as const
+
+// 不适用本目标的组件不计；本目标不能承载该类组件时，
+// 显式写了本目标的组件使目标失败，未写 targets 的列为跳过
+function planComponents<T extends Component>(
+  state: TargetState,
+  kind: keyof typeof COMPONENT_KINDS,
+  components: readonly T[],
+): T[] {
+  const carried = state.capabilities.components[kind] !== 'none'
+  const { label, path } = COMPONENT_KINDS[kind]
+  const planned: T[] = []
+  for (const component of components) {
+    const { name, targets } = component
+    if (targets !== null && !targets.includes(state.target)) continue
+    if (carried) planned.push(component)
+    else if (targets !== null) {
+      state.errors.push(`${label} ${name} 显式限定了本目标，但本目标不能承载 ${kind}`)
     } else {
-      state.skipped.push({
-        component: `skills/${skill.name}`,
-        reason: '本目标不能承载 skills',
-      })
+      state.skipped.push({ component: path(name), reason: `本目标不能承载 ${kind}` })
     }
   }
   return planned

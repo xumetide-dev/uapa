@@ -1,10 +1,9 @@
 // 读取 skills（F-01-04）与 frontmatter 中的目标限定（F-01-05）。
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { parse } from 'yaml'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
-import { isTargetName, type TargetName } from '../config/targets.ts'
 import { compare, listFiles, orMissing } from './files.ts'
+import { readFrontmatter, readTargets } from './frontmatter.ts'
 import type { Skill } from './types.ts'
 
 export async function readSkills(root: string): Promise<Loaded<readonly Skill[]>> {
@@ -50,46 +49,4 @@ async function readSkill(root: string, dirName: string): Promise<Loaded<Skill>> 
   const files = await listFiles(join(root, dir), file, issues)
   if (issues.length > 0) return failed(issues)
   return loaded({ name: dirName, dir, files, targets })
-}
-
-// frontmatter 为文件开头两行 `---` 之间的 YAML 映射
-function readFrontmatter(text: string, file: string): Loaded<Record<string, unknown>> {
-  const lines = text.split(/\r?\n/)
-  const end = lines[0] === '---' ? lines.indexOf('---', 1) : -1
-  if (end < 0) {
-    return failed([{ file, field: null, message: '缺少以 --- 包围的 frontmatter' }])
-  }
-  let value: unknown
-  try {
-    value = parse(lines.slice(1, end).join('\n'))
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return failed([
-      { file, field: null, message: `frontmatter 不是有效的 YAML：${message}` },
-    ])
-  }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return failed([{ file, field: null, message: 'frontmatter 应为映射' }])
-  }
-  return loaded(value as Record<string, unknown>)
-}
-
-// 未写 targets 时为 null（适用于全部目标）；写了就必须是非空的已登记目标名列表
-function readTargets(
-  value: unknown,
-  file: string,
-  issues: InputIssue[],
-): readonly TargetName[] | null {
-  if (value === undefined) return null
-  if (!Array.isArray(value) || value.length === 0) {
-    issues.push({ file, field: 'targets', message: '应为非空的目标名列表' })
-    return null
-  }
-  value.forEach((target, index) => {
-    if (!isTargetName(target)) {
-      const shown = JSON.stringify(target)
-      issues.push({ file, field: `targets[${index}]`, message: `未知目标名 ${shown}` })
-    }
-  })
-  return value.filter(isTargetName)
 }
