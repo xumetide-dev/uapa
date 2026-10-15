@@ -52,11 +52,17 @@
 `source` 与去重变量 `UAPA_MODULE_SESSION_BOTH_GUARD`；“只由模块执行”指插件数据目录中没有命令
 入口写的 `uapa-stop-<会话 id>.json`。交互会话以 tmux 驱动，权限模式为 `dontAsk`。
 
+嵌套会话的命令 hooks 在维护者机器（macOS，Claude Code 2.1.296，钥匙串登录）上实测：外层与内层
+会话都以 `--permission-mode default`、只含标记命令的 `--allowedTools`、`--setting-sources project`
+与 `--strict-mcp-config` 运行，插件以 `--plugin-dir` 从 `mkdtemp` 中的副本加载，内层会话以
+`--output-format json` 输出会话 id。Claude Code 照常在其配置目录下写会话记录，计数文件写在
+`plugins/data/both-guard-inline/`。
+
 | 项目 | 做法 | 结果 |
 |---|---|---|
 | Bash 工具的环境 | 会话中运行 `printenv UAPA_MODULE_SESSION_BOTH_GUARD` | 输出当前会话 id：模块写入的变量传给 Bash 工具启动的进程，嵌套会话因此继承父会话的值 |
-| 嵌套会话的登录 | 在会话的 Bash 中运行 `claude -p` | 嵌套会话显示未登录：以环境变量提供的令牌没有传给 Bash 工具启动的进程 |
-| 嵌套会话的命令 hooks | 以父会话 id 作为该变量的值启动只含命令 hooks 的同名插件的会话，要求运行 `echo uapa-deny-probe` | 命令入口拒绝该命令（`PreToolUse:Bash hook error: [node "…/uapa-claude-code.mjs" before-tool]: 拒绝标记命令 uapa-deny-probe`），并写出本会话的停机计数文件：变量与 stdin 的会话 id 不同，命令 hook 不被跳过 |
+| 嵌套会话的登录 | 在会话的 Bash 中运行 `claude -p` | 容器中未登录：Claude Code 对 Bash 工具的子进程去掉一组凭据变量（含 `CLAUDE_CODE_OAUTH_TOKEN`），`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0` 时同样没有该变量。维护者机器上以钥匙串登录，嵌套会话正常运行（见下一行） |
+| 嵌套会话的命令 hooks（维护者机器） | 外层会话加载两种形态都有的副本 A，以 Bash 工具运行脚本；脚本并行启动两个内层会话，都要求运行 `echo uapa-deny-probe`：内层 B 加载删去 `hooks/register.ts` 的副本（只有命令 hooks），内层 A 加载副本 A | Bash 工具环境中的变量为外层会话 id，两个内层会话都继承它。内层 B：命令入口拒绝该命令（`PreToolUse:Bash hook error: [node "…/uapa-claude-code.mjs" before-tool]: 拒绝标记命令 uapa-deny-probe`），插件数据目录中有内层 B 会话 id 的停机计数文件，停机门禁继续两次后归零：命令 hooks 不被误跳过。内层 A：模块拒绝该命令（`<tool_use_error>拒绝标记命令 uapa-deny-probe</tool_use_error>`），没有内层 A 会话 id 的计数文件；外层会话同样没有：同一事件只由模块处理 |
 | `claude -p --resume <id>` | 恢复上一个会话 | 会话 id 不变；新进程触发 `session.start`，变量等于该 id，停机只由模块处理 |
 | `claude -p --resume <id> --fork-session` | 分叉上一个会话 | 新会话 id；变量等于新 id，停机只由模块处理 |
 | 交互会话的 `/clear` | 执行后再提交提示 | 新会话 id，`SessionStart` 的 `source` 为 `clear`；变量等于新 id，停机只由模块处理 |
