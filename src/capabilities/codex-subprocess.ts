@@ -26,10 +26,11 @@ export const codexSubprocess: TargetCapabilities = {
     // PostToolUse 返回 decision: "block" 与非空 reason 时以 reason 替换工具结果，只对成功的调用触发
     withholdOutput: true,
     stopGate: true, // Stop 返回 decision: "block" 与 reason
-    promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15）
+    promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15；0.162.1 容器实测）
   },
   // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）；
-  // PostToolUse 失败时原输出保留（源码核对「PostToolUse」）
+  // PostToolUse 失败时原输出保留（源码核对「PostToolUse」）。退出码 1、超时与 PreToolUse、
+  // PostToolUse 的无效输出于 0.162.1 容器实测（codex-plugins.md「容器实测（0.162.1）」）
   failureDefault: {
     beforeTool: allow,
     beforePrompt: allow,
