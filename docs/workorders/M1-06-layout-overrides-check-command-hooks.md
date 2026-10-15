@@ -75,6 +75,9 @@
 - 夹具：三个里程碑 M4 夹具的比对与入口用例。
 - 承接 [M1-03 验收 §7](../acceptance/M1-03-claude-code-command-hooks-guard.md#7-已知限制与技术债) 第 1 行（比对模式实现后）：
   `--check` 模式不调用宿主模块的 `verify`，各目标报告的 `hostValidation` 为 `none`。
+- 承接 [M1-05 验收 §7](../acceptance/M1-05-codex-target.md#7-已知限制与技术债) 第 2 行（合并布局实现后）：
+  Codex 与生成 `hooks/hooks.json` 的其他宿主共用目录而 Codex 没有 hooks 时，Codex 的 manifest 不得
+  让宿主读取该文件；先按 Codex 源码核对 `hooks: []` 是否阻止读取默认文件，再写实现与单元测试。
 - 承接 [M1-04 验收 §7](../acceptance/M1-04-agy-target.md#7-已知限制与技术债) 第 1 行（合并布局实现后）：
   agy 与 Claude Code 共用插件目录时，`agy:subprocess` 的残余风险写明安装命令是否把含 `.claude-plugin/`
   的目录按 Claude Code 插件转换未实测（F-11-03）；`HostInput` 目前不含插件目录布局，宿主模块需由构建

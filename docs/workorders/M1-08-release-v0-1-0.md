@@ -21,6 +21,9 @@
 ## ⚠️ 关键落地约束（必须先验证）
 
 - 发布前须有结论：TA-15 的入口前提（SD-22）与发布前两项（SD-23）。缺任一项时不创建 tag。
+- 承接 [M1-05 验收 §7](../acceptance/M1-05-codex-target.md#7-已知限制与技术债) 第 1 行：Codex 的结论来自
+  rust-v0.162.1 源码核对。创建 tag 前由维护者在 Codex 中安装 `full` 夹具的 Codex 产物、在 `/hooks`
+  中信任后运行一次最小会话，确认拒绝的标记命令不执行且原因可见，结果写入 Codex 调研文档。
 - Node 22.0.0：由维护者确认后下载；发布脚本以 `--node22 <路径>` 接收，缺少时失败。
 - `dist/` 由 `tsc` 编译（`rewriteRelativeImportExtensions` 把 `.ts` 导入改为 `.js`）；`bundle` 从
   `dist/` 打包入口由 F-10-05 验证。
