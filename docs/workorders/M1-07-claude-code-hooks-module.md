@@ -80,6 +80,12 @@
 - 承接 [M1-02 验收 §7](../acceptance/M1-02-skills-end-to-end.md#7-已知限制与技术债) 第 3 行（同一宿主有两个目标后）：
   skill 只限定 `claude-code:subprocess` 时，`claude-code:in-process` 的报告记一条残余风险；
   同一宿主中一个目标失败时，该目标不进入插件目录，另一目标照常写出。
+- 承接 [M1-06 验收 §7](../acceptance/M1-06-layout-overrides-check-command-hooks.md#7-已知限制与技术债) 第 1 行：
+  同时配置两个 Claude Code 目标时，未写 `targets` 的 `SessionEnd` 声明列入 `claude-code:subprocess`
+  的 `commandHooks`，`claude-code:in-process` 不承载也不写 `skipped`（F-03-15）。
+- 承接 [M1-06 验收 §7](../acceptance/M1-06-layout-overrides-check-command-hooks.md#7-已知限制与技术债) 第 2 行：
+  `claude-code:in-process` 的 `commandHookEvents` 全部为 `null`；声明的命令只写在 `hooks/hooks.json`
+  的 `hooks` 键中，去重（F-05-08）不作用于这些条目（F-05-15）。
 
 ## 验收
 

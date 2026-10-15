@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M1-06](M1-06-layout-overrides-check-command-hooks.md) | 合并布局、覆盖文件、比对与命令 hooks | 有条件通过（§7 两项由 M1-07 接手） | 2026-10-14 | `bb89b1d` |
 | [M1-05](M1-05-codex-target.md) | Codex 目标 | 有条件通过（§7 两项由 M1-06、M1-08 接手） | 2026-10-14 | `6661075` |
 | [M1-04](M1-04-agy-target.md) | agy 目标 | 有条件通过（§7 一项由 M1-06 接手） | 2026-10-14 | `dba16fa` |
 | [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
