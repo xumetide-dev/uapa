@@ -255,8 +255,11 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | `trigger: glob`，`globs: "*.uapaprobe"` | 读取匹配的文件之后探测词出现；没有读取匹配文件的对照会话中不出现 |
 | `trigger: glob`，`globs` 为逗号分隔的字符串（`"*.a,*.b"` 与 `"*.a, *.b"`） | 读取匹配其中一个模式的文件后，两种写法的探测词都出现 |
 | `trigger: glob`，`globs` 为 YAML 列表 | 读取匹配的文件后探测词仍不出现 |
+| `trigger: glob`，含目录的模式；读取工作区中的 `src/ui/b.tsx` | 生效：`*.tsx`、`**/*.tsx`、`**/b.tsx`、`**/src/**/*.tsx`、`**/src/ui/*.tsx`、`/tmp/**/b.tsx`，以及以工作区目录名开头的 `**/<目录名>/src/**/*.tsx`；不生效：`src/**/*.tsx`、`src/ui/*.tsx`、`ui/*.tsx`、`*.md,src/**/*.tsx`、`<目录名>/src/ui/b.tsx`。同一组规则在另一工作区目录中重跑，只有含原目录名的模式改为不生效 |
 | `trigger: manual` 与 `description` | 打印模式的提示以 `@<规则文件名>` 开头时探测词不出现；交互式会话中的引用方式未测 |
 
+- `globs` 按被读文件的绝对路径匹配：不含 `/` 的模式匹配文件名，含 `/` 的模式须匹配整个绝对路径。
+  按工作区相对路径写的模式（如 `src/**/*.tsx`）不生效，写为 `**/src/**/*.tsx` 时生效。
 - `agy plugin install` 与 `agy plugin validate` 的输出只列 skills、agents、commands、mcpServers、
   hooks，不报告 rules；`agy plugin list --json` 的 `rules` 列出 `rules/` 下的全部文件名。
 - agy 内嵌的说明文字写明 `model_decision` 规则与 skill 类似，只有 `always_on` 的规则始终进入上下文。

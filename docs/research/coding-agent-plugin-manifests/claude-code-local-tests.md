@@ -215,6 +215,10 @@ string，没有默认值），以及同一 `hooks/hooks.json` 中的 hooks 模�
 | TA-12 | 对 `claude-both` 的产物运行 `validate --strict` 与 `claude plugin test`；产物含覆盖文件 `hooks/guard.test.ts` | 两处都通过；5 个用例（拒绝、放行、改写、停机连续继续两次后结束、提示阻断）通过 |
 | 执行后检查：模块 | `after-tool` 产物（两种形态并存，由模块处理）；Bash 运行 `echo uapa-replace-probe` 与 `echo uapa-withhold-probe`，Read 读取内容为 `uapa-replace-probe` 的文件 | 替换：模型读到 `uapa-replaced`（Read 带行号前缀）；扣留：模型读到 `Bash ran, and a plugin withheld its result: 扣留标记输出 uapa-withhold-probe`，标为错误 |
 | 执行后检查：命令 hooks | 同上，副本去掉 `modules` | 替换同上；扣留：`stdout` 换为扣留原因，模型只读到原因 |
+| commands | `rules-commands` 产物以 `--plugin-dir` 加载，`--permission-mode default --allowedTools Read`；分别提交 `/rules-commands:review` 与 `/rules-commands:claude-only note.txt`，`note.txt` 的内容为一个探测词 | 初始化信息的 `slash_commands` 列出 `rules-commands:claude-only` 与 `rules-commands:review`，会话记录中有两个命令的正文；`review` 的回复审查了工作目录（模型另以 Skill 工具调用同名项，只得到 `Launching skill`）；`claude-only` 的回复读取 `note.txt` 并给出其中的探测词 |
+| 守卫选项：校验与安装 | `guard-options` 产物 `validate --strict`；副本放入本地 marketplace，`claude plugin install` | 校验通过；安装输出 `3 userConfig options not yet set`，提示以 `/plugin configure` 或 `--config KEY=VALUE` 设置 |
+| 守卫选项：命令 hooks | 副本去掉 `modules`；`--permission-mode default --allowedTools "Bash(echo uapa-deny-probe)"`，要求运行该命令；再以 `claude plugin configure ... --values-stdin` 输入 `{"maxLength":"64","strict_mode":"false","label":"x y=z"}`，运行第二次会话 | 设置前模型读到 `PreToolUse:Bash hook error: [node ".../uapa-claude-code.mjs" before-tool]: uapa-guard: 拒绝标记命令 uapa-deny-probe（maxLength=200，strict_mode=true）`；`configure` 输出 `Configuration saved. Restart Claude Code to apply it.`，下一个会话的原因为 `x y=z: 拒绝标记命令 uapa-deny-probe（maxLength=64，strict_mode=false）` |
+| 守卫选项：hooks 模块 | 副本去掉 `hooks`，其余同上 | 设置前模型读到 `<tool_use_error>uapa-guard: 拒绝标记命令 uapa-deny-probe（maxLength=200，strict_mode=true）</tool_use_error>`；设置后的原因为 `x y=z: …（maxLength=64，strict_mode=false）`，与命令 hooks 一致 |
 | agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器（与覆盖文件的放置方式相同） | 初始化信息列出 `components:reviewer`，不含只限 agy 的 `agy-helper`；`docs` 与 `launcher` 为 `connected`，`plain`（命令不存在）与 `remote`（地址不可达）为 `failed`；桩服务器日志中参数与 `UAPA_DATA` 已展开为插件目录，工作目录为会话的工作目录 |
 
 ## 使用的命令
@@ -237,4 +241,8 @@ echo "<提示>" | claude -p --model haiku --plugin-dir ./command-probe --allowed
 
 ```bash
 claude -p "<提示>" --plugin-dir ./after-tool-probe --permission-mode default --allowedTools Read --output-format stream-json --verbose
+```
+
+```bash
+printf '%s' '{"maxLength":"64"}' | claude plugin configure guard-options@<marketplace> --values-stdin
 ```
