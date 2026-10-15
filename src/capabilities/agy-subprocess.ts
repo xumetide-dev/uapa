@@ -46,4 +46,13 @@ export const agySubprocess: TargetCapabilities = {
     search_web: 'web_search',
     invoke_subagent: 'subagent',
   },
+  // 宿主没有会话结束与提示提交事件（command-hooks.md 第 2 节）
+  commandHookEvents: {
+    SessionStart: 'SessionStart',
+    SessionEnd: null,
+    UserPromptSubmit: null,
+    PreToolUse: 'PreToolUse',
+    PostToolUse: 'PostToolUse',
+    Stop: 'Stop',
+  },
 }

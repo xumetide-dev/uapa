@@ -1,0 +1,16 @@
+{
+  "args": [
+    "before-stop"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "uapa: 守卫出错: throwing-guard\n"
+}

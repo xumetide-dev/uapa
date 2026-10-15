@@ -38,4 +38,13 @@ export const codexSubprocess: TargetCapabilities = {
     spawn_agent: 'subagent',
     update_plan: 'todo',
   },
+  // 六个事件均为同名宿主事件（command-hooks.md 第 2 节）
+  commandHookEvents: {
+    SessionStart: 'SessionStart',
+    SessionEnd: 'SessionEnd',
+    UserPromptSubmit: 'UserPromptSubmit',
+    PreToolUse: 'PreToolUse',
+    PostToolUse: 'PostToolUse',
+    Stop: 'Stop',
+  },
 }

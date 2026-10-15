@@ -1,0 +1,20 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "toolCall": {
+      "name": "run_command",
+      "args": {
+        "CommandLine": "git status",
+        "Cwd": "/project"
+      }
+    }
+  },
+  "env": {
+    "TMPDIR": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"deny\",\"reason\":\"uapa: 无法解析宿主输入: conversationId\"}\n",
+  "stderr": ""
+}

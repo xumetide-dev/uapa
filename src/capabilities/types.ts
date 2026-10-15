@@ -1,5 +1,6 @@
 // 目标能力数据的模型（模块接口 §4，F-03-01）。每个目标一个数据模块 <宿主>-<形态>.ts。
 import type { HostName, TargetName } from '../config/targets.ts'
+import type { CommandHookEvent } from '../config/types.ts'
 import type { Capability, GuardCheck, ToolNameMap } from '../runtime/core/types.ts'
 
 export type Carrier = 'package' | 'manifest' | 'none' // 包内、manifest 字段、不承载
@@ -24,4 +25,6 @@ export interface TargetCapabilities {
   readonly hookTimeoutSeconds: number | null
   readonly defaultTimeoutSeconds: number | null // 宿主默认超时；进程内目标为 null
   readonly toolNames: ToolNameMap // 宿主工具名 → 规范名
+  // 命令 hooks 声明的事件 → 宿主事件名；null 为不承载或调研未记载（command-hooks.md 第 2 节）
+  readonly commandHookEvents: Readonly<Record<CommandHookEvent, string | null>>
 }

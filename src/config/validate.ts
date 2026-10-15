@@ -1,11 +1,11 @@
-// 构建配置校验（F-01-03）：字段类型与取值由 zod 检查，宿主与目标的对应关系、
-// 插件目录的路径规则另行检查。错误给出字段路径（模块接口 §8）。
+// 构建配置校验（F-01-03、F-01-09）：字段类型与取值由 zod 检查，宿主与目标的对应关系、
+// 命令 hooks 声明的目标限定与插件目录的路径规则另行检查。错误给出字段路径（模块接口 §8）。
 import { posix, win32 } from 'node:path'
 import { z } from 'zod'
 import { failed, fieldPath, type InputIssue, type Loaded, loaded } from './issues.ts'
 import { checkPluginDirs, configuredHosts } from './layout.ts'
 import { HOSTS, type HostName, TARGETS } from './targets.ts'
-import type { HostOptions, UapaConfig } from './types.ts'
+import { COMMAND_HOOK_EVENTS, type HostOptions, type UapaConfig } from './types.ts'
 
 // semver 2.0.0 规范给出的正则
 const SEMVER =
@@ -52,6 +52,33 @@ const targetName = z.enum(TARGETS, {
   error: issue => `未知目标名 ${JSON.stringify(issue.input)}`,
 })
 
+// 列表中第二次及以后出现的目标各记一条
+function noDuplicateTargets(targets: readonly string[], ctx: z.RefinementCtx): void {
+  targets.forEach((target, index) => {
+    if (targets.indexOf(target) !== index) {
+      ctx.addIssue({ code: 'custom', path: [index], message: `重复的目标 ${target}` })
+    }
+  })
+}
+
+// 命令 hooks 声明（命令 hooks 声明第 1 节）：matcher、timeout 等字段按未知字段拒绝
+const commandHook = z.strictObject({
+  event: z.enum(COMMAND_HOOK_EVENTS, {
+    error: issue => `未知事件 ${JSON.stringify(issue.input)}`,
+  }),
+  command: z
+    .string()
+    .min(1, { error: '不能为空', abort: true })
+    .refine(command => !command.includes('\n') && !command.includes('\r'), {
+      error: '应为单行，不能含换行',
+    }),
+  targets: z
+    .array(targetName)
+    .min(1, '至少列出一个目标')
+    .superRefine(noDuplicateTargets)
+    .optional(),
+})
+
 const configSchema = z.strictObject({
   name: text,
   version: z.string().regex(SEMVER, '不是 semver 版本号'),
@@ -64,18 +91,9 @@ const configSchema = z.strictObject({
   targets: z
     .array(targetName)
     .min(1, '至少配置一个目标')
-    .superRefine((targets, ctx) => {
-      targets.forEach((target, index) => {
-        if (targets.indexOf(target) !== index) {
-          ctx.addIssue({
-            code: 'custom',
-            path: [index],
-            message: `重复的目标 ${target}`,
-          })
-        }
-      })
-    }),
+    .superRefine(noDuplicateTargets),
   outDir: relativeDir.optional(),
+  commandHooks: z.array(commandHook).optional(),
   hosts: z.strictObject(hostOptionSchemas).partial().optional(),
 })
 
@@ -124,6 +142,24 @@ export function validateConfig(
       })
     }
   }
+  issues.push(...unconfiguredHookTargets(config, file))
   issues.push(...checkPluginDirs(config, root, file))
   return issues.length > 0 ? failed(issues) : loaded(config)
+}
+
+// 命令 hooks 声明的 targets 只能含已配置的目标
+function unconfiguredHookTargets(config: UapaConfig, file: string): InputIssue[] {
+  const issues: InputIssue[] = []
+  const hooks = config.commandHooks ?? []
+  for (const [index, hook] of hooks.entries()) {
+    for (const [at, target] of (hook.targets ?? []).entries()) {
+      if (config.targets.includes(target)) continue
+      issues.push({
+        file,
+        field: `commandHooks[${index}].targets[${at}]`,
+        message: `${target} 不在 targets 中`,
+      })
+    }
+  }
+  return issues
 }

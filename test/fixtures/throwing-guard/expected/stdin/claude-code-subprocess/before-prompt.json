@@ -1,0 +1,16 @@
+{
+  "args": [
+    "before-prompt"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "你好"
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "uapa: 守卫出错: throwing-guard\n"
+}

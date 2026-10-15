@@ -128,6 +128,7 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
 
 - 带 hooks 的插件须用兼容 manifest `.codex-plugin/plugin.json`；其 `hooks` 字段替换默认的
   `hooks/hooks.json`。根 `plugin.json` 只在 `$schema` 为 agent-plugins 地址时优先。
+- 不读取默认 `hooks/hooks.json` 的写法是 `"hooks": {"hooks": {}}`；`"hooks": []` 等同未写。
 - hooks 文件为 `{ "hooks": { <事件>: [{ "matcher"?, "hooks": [<处理器>] }] } }`，根对象出现其他键
   （如 `modules`）时整份文件不加载；处理器的超时字段为 `timeout`，单位秒。
 - 省略 matcher 时匹配全部工具；命令经 shell 执行，`${PLUGIN_ROOT}` 由 Codex 在执行前替换。

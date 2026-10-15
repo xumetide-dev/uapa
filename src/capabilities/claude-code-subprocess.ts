@@ -48,4 +48,13 @@ export const claudeCodeSubprocess: TargetCapabilities = {
     TaskUpdate: 'todo',
     TodoWrite: 'todo', // 默认关闭，由 TaskCreate 等取代
   },
+  // 六个事件均为同名宿主事件（command-hooks.md 第 2 节）
+  commandHookEvents: {
+    SessionStart: 'SessionStart',
+    SessionEnd: 'SessionEnd', // 2.1.296 本地实测，-p 模式也触发
+    UserPromptSubmit: 'UserPromptSubmit',
+    PreToolUse: 'PreToolUse',
+    PostToolUse: 'PostToolUse',
+    Stop: 'Stop',
+  },
 }

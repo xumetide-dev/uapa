@@ -36,8 +36,17 @@ async function generate(
   const requests: BundleRequest[] = []
   const result = await agy.generate({
     config: { ...agyConfig, ...config } as UapaConfig,
-    plans: [{ target: TARGET, capabilities: agySubprocess, skills: [], checks }],
+    plans: [
+      {
+        target: TARGET,
+        capabilities: agySubprocess,
+        skills: [],
+        checks,
+        commandHooks: [],
+      },
+    ],
     guard,
+    sharedWith: [],
     bundle: async request => {
       requests.push(request)
       return 'BUNDLED\n'

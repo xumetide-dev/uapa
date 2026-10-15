@@ -1,0 +1,10 @@
+import type { UapaConfig } from 'uapa'
+
+export default {
+  name: 'throwing-guard',
+  version: '0.1.0',
+  description: '各检查都抛错的守卫，配置三个子进程目标的夹具（TA-03）',
+  author: { name: 'UAPA Fixtures' },
+  targets: ['claude-code:subprocess', 'codex:subprocess', 'agy:subprocess'],
+  guard: 'guard.ts',
+} satisfies UapaConfig

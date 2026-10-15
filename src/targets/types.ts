@@ -2,7 +2,7 @@
 import type { BundleRequest } from '../bundle/types.ts'
 import type { TargetCapabilities } from '../capabilities/types.ts'
 import type { HostName, TargetName } from '../config/targets.ts'
-import type { UapaConfig } from '../config/types.ts'
+import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
 import type { GuardCheck } from '../runtime/core/types.ts'
 import type { GuardDeclaration } from '../source/guard.ts'
 import type { Skill } from '../source/types.ts'
@@ -12,12 +12,15 @@ export interface TargetPlan {
   readonly capabilities: TargetCapabilities
   readonly skills: readonly Skill[] // 已按 frontmatter 与承载能力筛选
   readonly checks: readonly GuardCheck[] // 本目标要生成 hook 的检查
+  readonly commandHooks: readonly CommandHookDecl[] // 本目标承载的命令 hooks 声明（F-03-15）
 }
 
 export interface HostInput {
   readonly config: UapaConfig // 已校验
   readonly plans: readonly TargetPlan[] // 该宿主通过能力检查的目标，至少一个
   readonly guard: GuardDeclaration | null
+  // 与本宿主写入同一插件目录的其他宿主，按 targets.ts 中的顺序；默认布局为空
+  readonly sharedWith: readonly HostName[]
   readonly bundle: (request: BundleRequest) => Promise<string>
 }
 

@@ -1,0 +1,16 @@
+{
+  "args": [
+    "before-prompt"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "API_KEY=placeholder 帮我部署"
+  },
+  "env": {
+    "PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "提示中含疑似密钥\n"
+}

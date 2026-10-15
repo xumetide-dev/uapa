@@ -12,6 +12,7 @@ const plan: TargetPlan = {
   capabilities: claudeCodeSubprocess,
   skills: [],
   checks: [],
+  commandHooks: [],
 }
 
 function generate(config: Partial<UapaConfig>): Promise<HostResult> {
@@ -19,6 +20,7 @@ function generate(config: Partial<UapaConfig>): Promise<HostResult> {
     config: { ...baseConfig, ...config } as UapaConfig,
     plans: [plan],
     guard: null,
+    sharedWith: [],
     bundle: async () => '',
   })
 }

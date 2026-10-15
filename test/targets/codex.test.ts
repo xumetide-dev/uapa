@@ -37,8 +37,17 @@ async function generate(
   const requests: BundleRequest[] = []
   const result = await codex.generate({
     config: { ...codexConfig, ...config } as UapaConfig,
-    plans: [{ target: TARGET, capabilities: codexSubprocess, skills: [], checks }],
+    plans: [
+      {
+        target: TARGET,
+        capabilities: codexSubprocess,
+        skills: [],
+        checks,
+        commandHooks: [],
+      },
+    ],
     guard,
+    sharedWith: [],
     bundle: async request => {
       requests.push(request)
       return 'BUNDLED\n'

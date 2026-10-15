@@ -21,6 +21,11 @@
 - `name` 为空时取插件目录名；该文件不检查 kebab-case。
 - `hooks` 可为以 `./` 开头的路径、路径数组、内联 hooks 对象或其数组。路径须以 `./` 开头、不含
   `..`、位于插件目录内；违反时该路径被丢弃并告警，不报解析错误。
+- `hooks` 的解析（`resolve_manifest_hooks`）：路径数组或内联对象数组为空、或其中路径全部被丢弃时，
+  结果与未写 `hooks` 相同，仍读取默认的 `hooks/hooks.json`；单个内联对象（如 `{"hooks": {}}`）解析为
+  内联 hooks，`load_plugin_hooks` 跳过事件全为空的条目且不回退到默认文件。因此 `"hooks": []` 不能阻止
+  读取默认文件，`"hooks": {"hooks": {}}` 可以。`HooksFile` 的两个字段都有默认值，`{}` 与
+  `{"hooks": {}}` 都能解析。
 - `interface` 的字段：`displayName`、`shortDescription`、`longDescription`、`developerName`、
   `category`、`capabilities`、`websiteUrl`、`privacyPolicyUrl`、`termsOfServiceUrl`、
   `defaultPrompt`、`brandColor`、`composerIcon`、`logo`、`logoDark`、`screenshots`；后三个 URL 字段

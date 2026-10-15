@@ -1,8 +1,9 @@
 // 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills（F-03-02），按守卫的 requires
-// 与目标能力得出要生成 hook 的检查（F-03-13），合为 TargetPlan。
+// 与目标能力得出要生成 hook 的检查（F-03-13），按事件承载得出命令 hooks 声明（F-03-15），
+// 合为 TargetPlan。
 import type { TargetCapabilities } from '../capabilities/types.ts'
-import type { TargetName } from '../config/targets.ts'
-import type { UapaConfig } from '../config/types.ts'
+import { hostOf, type TargetName } from '../config/targets.ts'
+import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
 import type { Capability, GuardCheck } from '../runtime/core/types.ts'
 import type { GuardDeclaration } from '../source/guard.ts'
 import type { Skill, SourceProject } from '../source/types.ts'
@@ -18,8 +19,15 @@ export function planTargets(
     const state = newState(target, capabilities[target])
     const skills = planSkills(state, source.skills)
     const checks = guard === null ? [] : planChecks(state, guard)
+    const commandHooks = planCommandHooks(state, config, capabilities)
     if (state.errors.length === 0) {
-      state.plan = { target, capabilities: state.capabilities, skills, checks }
+      state.plan = {
+        target,
+        capabilities: state.capabilities,
+        skills,
+        checks,
+        commandHooks,
+      }
     }
     return state
   })
@@ -70,4 +78,36 @@ function planChecks(state: TargetState, guard: GuardDeclaration): GuardCheck[] {
     state.omitted.push(check)
     return false
   })
+}
+
+// 命令 hooks 声明的承载检查（command-hooks.md 第 4 节）：适用且本目标承载该事件的声明按声明
+// 顺序列入；不承载时，targets 显式列出本目标则失败，否则列为跳过，同一宿主的另一目标承载时不写
+function planCommandHooks(
+  state: TargetState,
+  config: UapaConfig,
+  capabilities: Readonly<Record<TargetName, TargetCapabilities>>,
+): CommandHookDecl[] {
+  const planned: CommandHookDecl[] = []
+  for (const [index, hook] of (config.commandHooks ?? []).entries()) {
+    const explicit = hook.targets !== undefined
+    if (explicit && !hook.targets.includes(state.target)) continue
+    if (state.capabilities.commandHookEvents[hook.event] !== null) {
+      planned.push(hook)
+      continue
+    }
+    const reason = `本目标不承载 ${hook.event} 事件`
+    if (explicit) {
+      state.errors.push(`commandHooks[${index}] 显式限定了本目标，但${reason}`)
+      continue
+    }
+    const carriedBySibling = config.targets.some(
+      other =>
+        other !== state.target &&
+        hostOf(other) === hostOf(state.target) &&
+        capabilities[other].commandHookEvents[hook.event] !== null,
+    )
+    if (!carriedBySibling)
+      state.skipped.push({ component: `commandHooks[${index}]`, reason })
+  }
+  return planned
 }

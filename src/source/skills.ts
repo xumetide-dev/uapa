@@ -1,9 +1,10 @@
 // 读取 skills（F-01-04）与 frontmatter 中的目标限定（F-01-05）。
 import { readdir, readFile, stat } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { join } from 'node:path'
 import { parse } from 'yaml'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
 import { isTargetName, type TargetName } from '../config/targets.ts'
+import { compare, listFiles, orMissing } from './files.ts'
 import type { Skill } from './types.ts'
 
 export async function readSkills(root: string): Promise<Loaded<readonly Skill[]>> {
@@ -91,41 +92,4 @@ function readTargets(
     }
   })
   return value.filter(isTargetName)
-}
-
-// 递归列出目录下的全部文件，相对该目录、POSIX 分隔、按字典序；符号链接等不支持
-async function listFiles(
-  dir: string,
-  file: string,
-  issues: InputIssue[],
-): Promise<string[]> {
-  const entries = await readdir(dir, { recursive: true, withFileTypes: true })
-  const files: string[] = []
-  for (const entry of entries) {
-    if (entry.isDirectory()) continue
-    const path = relative(dir, join(entry.parentPath, entry.name)).split(sep).join('/')
-    if (entry.isFile()) files.push(path)
-    else
-      issues.push({
-        file,
-        field: null,
-        message: `不支持的文件类型（如符号链接）：${path}`,
-      })
-  }
-  return files.sort(compare)
-}
-
-// 路径不存在时为 null，其他读取错误照常抛出
-async function orMissing<T>(pending: Promise<T>): Promise<T | null> {
-  try {
-    return await pending
-  } catch (error) {
-    if ((error as { code?: unknown }).code === 'ENOENT') return null
-    throw error
-  }
-}
-
-// 按 UTF-16 码元比较，与区域设置无关
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
 }

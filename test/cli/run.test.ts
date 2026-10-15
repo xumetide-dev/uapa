@@ -1,8 +1,8 @@
-// 命令行（F-09-01～F-09-03）：退出码以构造的 BuildOutcome 与抛出的异常
+// 命令行（F-09-01～F-09-04）：退出码以构造的 BuildOutcome 与抛出的异常
 // 覆盖模块接口 §8 的每一行
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { BuildOutcome } from '../../src/build/index.ts'
+import type { BuildOutcome, FileChange } from '../../src/build/index.ts'
 import { HELP, parseCommand } from '../../src/cli/args.ts'
 import { type CliDeps, exitCodeOf, run } from '../../src/cli/run.ts'
 import type { TargetReport } from '../../src/report/types.ts'
@@ -27,7 +27,7 @@ const entry: TargetReport = {
 
 const done = (
   targets: TargetReport[],
-  changes: { change: 'added'; path: string }[] | null = null,
+  changes: FileChange[] | null = null,
 ): BuildOutcome => ({
   kind: 'done',
   report: { targets },
@@ -113,6 +113,39 @@ test('input-error 与 build 抛出的异常都以 2 结束，异常输出堆栈'
   assert.match(thrown.stderr, /^uapa: 未预期的错误：Error: boom\n {4}at /)
 })
 
+test('--check：以 check 调用 build，stdout 只写差异行，有差异或目标失败时以 1 结束', async () => {
+  const changes: FileChange[] = [
+    { change: 'removed', path: 'dist/claude-code/extra.txt' },
+    { change: 'modified', path: 'dist/codex/.codex-plugin/plugin.json' },
+  ]
+  let options: { readonly check: boolean } | null = null
+  const diff = await invoke(['build', '--check'], {
+    build: async (_config, _root, given) => {
+      options = given
+      return done([entry], changes)
+    },
+  })
+  assert.deepEqual(options, { check: true })
+  assert.equal(diff.code, 1)
+  assert.equal(
+    diff.stdout,
+    'removed dist/claude-code/extra.txt\nmodified dist/codex/.codex-plugin/plugin.json\n',
+  )
+  assert.equal(diff.stderr, '')
+  const same = await invoke(['build', '--check'], {
+    build: async () => done([entry], []),
+  })
+  assert.deepEqual([same.code, same.stdout, same.stderr], [0, '', ''])
+  const failed = { ...entry, status: 'failed' as const, errors: ['名称不合规'] }
+  const failing = await invoke(['build', '--check'], {
+    build: async () => done([failed], []),
+  })
+  assert.deepEqual(
+    [failing.code, failing.stdout, failing.stderr],
+    [1, '', 'uapa: claude-code:subprocess: 名称不合规\n'],
+  )
+})
+
 test('--config 指定配置文件，相对路径以当前目录为基准', async () => {
   let loaded = ''
   await invoke(['build', '--config', 'sub/u.config.ts'], {
@@ -135,10 +168,20 @@ test('--help、--version 输出到 stdout 并以 0 结束；用法错误以 2 �
 })
 
 test('参数解析', () => {
-  assert.deepEqual(parseCommand(['build']), { kind: 'build', config: null })
+  assert.deepEqual(parseCommand(['build']), {
+    kind: 'build',
+    config: null,
+    check: false,
+  })
   assert.deepEqual(parseCommand(['build', '--config=a.ts']), {
     kind: 'build',
     config: 'a.ts',
+    check: false,
+  })
+  assert.deepEqual(parseCommand(['build', '--check', '--config', 'a.ts']), {
+    kind: 'build',
+    config: 'a.ts',
+    check: true,
   })
   const errors: [string[], RegExp][] = [
     [[], /缺少命令/],

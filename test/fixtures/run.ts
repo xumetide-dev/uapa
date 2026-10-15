@@ -15,6 +15,8 @@ const CLI = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url))
 // 子进程目标的入口文件，相对插件目录（入口与打包接口第 2 节）
 const ENTRY_FILES: Readonly<Partial<Record<TargetName, string>>> = {
   'claude-code:subprocess': 'hooks/uapa-claude-code.mjs',
+  'codex:subprocess': 'hooks/uapa-codex.mjs',
+  'agy:subprocess': 'hooks/uapa-agy.mjs',
 }
 
 export interface FixtureCase {
@@ -141,10 +143,12 @@ async function pluginDir(run: FixtureRun, target: TargetName): Promise<string> {
   return join(run.project, ...unit.split('/'))
 }
 
-// 以插件目录为工作目录运行入口；{dataDir} 换为本用例新建的临时目录
+// 以插件目录为工作目录运行入口；{dataDir} 换为本用例新建的临时目录。extraEnv 另加入子进程
+// 环境（TA-05 的第二次运行），不做替换
 export async function runEntryCase(
   run: FixtureRun,
   entryCase: EntryCase,
+  extraEnv: Readonly<Record<string, string>> = {},
 ): Promise<{ result: EntryResult; expected: EntryResult }> {
   const entryFile = ENTRY_FILES[entryCase.target]
   if (entryFile === undefined) throw new Error(`${entryCase.target} 没有子进程入口`)
@@ -156,9 +160,12 @@ export async function runEntryCase(
       typeof entryCase.stdin === 'string'
         ? entryCase.stdin
         : JSON.stringify(entryCase.stdin)
-    const env = Object.fromEntries(
-      Object.entries(entryCase.env).map(([key, value]) => [key, fill(value)]),
-    )
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(entryCase.env).map(([key, value]) => [key, fill(value)]),
+      ),
+      ...extraEnv,
+    }
     const spawned = spawnSync(
       process.execPath,
       [join(dir, ...entryFile.split('/')), ...entryCase.args.map(fill)],

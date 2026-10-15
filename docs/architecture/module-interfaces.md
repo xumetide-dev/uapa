@@ -166,6 +166,8 @@ export interface HostInput {
   readonly config: UapaConfig // 已校验
   readonly plans: readonly TargetPlan[] // 该宿主通过能力检查的目标，至少一个
   readonly guard: GuardDeclaration | null
+  // 与本宿主写入同一插件目录的其他宿主，按 targets.ts 中的顺序；默认布局为空
+  readonly sharedWith: readonly HostName[]
   readonly bundle: (request: BundleRequest) => Promise<string> // 见入口与打包接口
 }
 export interface OutputFile {
@@ -217,7 +219,10 @@ export interface HostModule {
 - 预留（F-03-07）：标为 `json-extensions` 的文件合并时，以宿主标识在 `src/config/targets.ts` 中排在最前的宿主
   的文件为基准，保留其键序；`extensions` 中各命名空间按字典序写出；按上一条的格式序列化。
 - Codex 的 `.codex-plugin/plugin.json` 依次写 `name`、`version`、`description`，配置有值时写
-  `keywords`，再按需写 `hooks`、`interface`（F-06-02）。
+  `keywords`，再按需写 `hooks`、`interface`（F-06-02）。没有 hooks 配置而 `sharedWith` 非空时，
+  `hooks` 写 `{"hooks": {}}`，使 Codex 不读取其他宿主写出的 `hooks/hooks.json`。
+- `sharedWith` 由构建编排按 `resolvePluginDirs` 得出，与目标是否成功无关；宿主模块只用它决定
+  manifest 的写法与残余风险（F-06-02、F-06-03、F-11-03），不据此读取其他宿主的文件。
 - `$schema` 格式的根 `plugin.json`（预留的 Copilot CLI）顶层依次写 `$schema`
   （`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`）、`name`、`version`、
   `description`，配置有值时写 `author`、`keywords`，最后写 `extensions`（没有内容时不写）；各宿主

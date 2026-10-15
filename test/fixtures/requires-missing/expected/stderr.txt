@@ -1,0 +1,1 @@
+uapa: agy:subprocess: 守卫的 requires 声明了 promptGate，本目标缺少该能力

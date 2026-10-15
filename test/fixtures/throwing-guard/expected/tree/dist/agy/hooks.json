@@ -1,0 +1,23 @@
+{
+  "throwing-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node hooks/uapa-agy.mjs before-tool",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node hooks/uapa-agy.mjs before-stop",
+        "timeout": 30
+      }
+    ]
+  }
+}

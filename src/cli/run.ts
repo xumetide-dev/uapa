@@ -1,4 +1,4 @@
-// 命令行（F-09-01～F-09-03）：构建器中只有本模块读取命令行参数、
+// 命令行（F-09-01～F-09-04）：构建器中只有本模块读取命令行参数、
 // 向终端输出与设置退出码。退出码与错误输出格式见模块接口 §8。
 import { readFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
@@ -38,12 +38,20 @@ export async function run(
     case 'usage-error':
       io.stderr(`uapa: ${command.message}\n`)
       return 2
-    case 'build':
-      return runBuild(resolve(cwd, command.config ?? DEFAULT_CONFIG), io, deps)
+    case 'build': {
+      const configPath = resolve(cwd, command.config ?? DEFAULT_CONFIG)
+      return runBuild(configPath, { check: command.check }, io, deps)
+    }
   }
 }
 
-async function runBuild(configPath: string, io: Io, deps: CliDeps): Promise<number> {
+// options 原样传给 build
+async function runBuild(
+  configPath: string,
+  options: { readonly check: boolean },
+  io: Io,
+  deps: CliDeps,
+): Promise<number> {
   try {
     // 报告与错误中的路径相对配置文件所在目录；
     // 取真实路径，使其与 Node 报告的模块路径一致
@@ -53,7 +61,7 @@ async function runBuild(configPath: string, io: Io, deps: CliDeps): Promise<numb
       writeIssues(config.issues, io)
       return 2
     }
-    const outcome = await deps.build(config.value, root, { check: false })
+    const outcome = await deps.build(config.value, root, options)
     writeOutcome(outcome, io)
     return exitCodeOf(outcome)
   } catch (error) {
@@ -87,8 +95,12 @@ function writeOutcome(outcome: BuildOutcome, io: Io): void {
   for (const target of outcome.report.targets) {
     for (const error of target.errors) io.stderr(`uapa: ${target.target}: ${error}\n`)
   }
-  if (outcome.reportPath !== null)
+  // --check 只写差异行，无差异时 stdout 为空
+  if (outcome.changes !== null) {
+    for (const { change, path } of outcome.changes) io.stdout(`${change} ${path}\n`)
+  } else if (outcome.reportPath !== null) {
     io.stdout(formatSummary(outcome.report, outcome.reportPath))
+  }
 }
 
 function packageVersion(): string {

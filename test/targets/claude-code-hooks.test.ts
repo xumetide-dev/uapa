@@ -34,9 +34,11 @@ async function generate(
         capabilities: claudeCodeSubprocess,
         skills: [],
         checks,
+        commandHooks: [],
       },
     ],
     guard,
+    sharedWith: [],
     bundle: async request => {
       requests.push(request)
       return 'BUNDLED\n'

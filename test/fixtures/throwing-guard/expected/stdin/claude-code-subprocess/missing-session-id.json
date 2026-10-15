@@ -1,0 +1,21 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git status"
+    },
+    "tool_use_id": "toolu_fixture",
+    "cwd": "/project",
+    "permission_mode": "default"
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "uapa: 无法解析宿主输入: session_id\n"
+}

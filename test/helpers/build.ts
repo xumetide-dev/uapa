@@ -5,10 +5,11 @@ import { agySubprocess } from '../../src/capabilities/agy-subprocess.ts'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import { codexSubprocess } from '../../src/capabilities/codex-subprocess.ts'
 import type { TargetCapabilities } from '../../src/capabilities/types.ts'
+import type { HostName } from '../../src/config/targets.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import { agy } from '../../src/targets/agy/index.ts'
 import { codex } from '../../src/targets/codex/index.ts'
-import type { HostModule } from '../../src/targets/types.ts'
+import type { HostModule, OutputFile } from '../../src/targets/types.ts'
 import { baseConfig, tempProject } from './project.ts'
 
 export const TARGET = 'claude-code:subprocess'
@@ -66,4 +67,24 @@ export async function buildIn(
   } finally {
     await project.cleanup()
   }
+}
+
+// 只返回给定文件的宿主模块，不读取输入
+export function returning(host: HostName, files: readonly OutputFile[]): HostModule {
+  return { host, generate: async () => ({ ok: true, files, residualRisks: [] }) }
+}
+
+// 三个宿主都换成测试用的宿主模块，能力数据取真实数据
+export function hostDeps(modules: Readonly<Record<HostName, HostModule>>): BuildDeps {
+  return { ...deps(), hostModules: modules }
+}
+
+// 在已有的源项目中构建一次；check 为 true 时只比对
+export function buildAt(
+  root: string,
+  buildDeps: BuildDeps,
+  config: Partial<UapaConfig>,
+  options: { readonly check: boolean } = { check: false },
+): Promise<BuildOutcome> {
+  return runBuild({ ...baseConfig, ...config } as UapaConfig, root, options, buildDeps)
 }

@@ -1,11 +1,11 @@
-// 命令行参数解析（F-09-01、F-09-03）。只认 build 命令与下列选项，其余为用法错误。
+// 命令行参数解析（F-09-01、F-09-03、F-09-04）。只认 build 命令与下列选项，其余为用法错误。
 export type Command =
   | { readonly kind: 'help' }
   | { readonly kind: 'version' }
-  | { readonly kind: 'build'; readonly config: string | null }
+  | { readonly kind: 'build'; readonly config: string | null; readonly check: boolean }
   | { readonly kind: 'usage-error'; readonly message: string }
 
-export const HELP = `用法：uapa build [--config <路径>]
+export const HELP = `用法：uapa build [--config <路径>] [--check]
       uapa --help | --version
 
 命令：
@@ -13,6 +13,7 @@ export const HELP = `用法：uapa build [--config <路径>]
 
 选项：
   --config <路径>  构建配置文件，默认为当前目录下的 uapa.config.ts
+  --check          只比对产物与磁盘，不写文件；列出差异，有差异时以退出码 1 结束
   --help           显示本帮助
   --version        显示版本
 `
@@ -24,16 +25,18 @@ export function parseCommand(argv: readonly string[]): Command {
   if (command === undefined) return usage('缺少命令')
   if (command !== 'build') return usage(`未知命令 ${command}`)
   let config: string | null = null
+  let check = false
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i] as string
-    if (arg === '--config' || arg.startsWith('--config=')) {
+    if (arg === '--check') check = true
+    else if (arg === '--config' || arg.startsWith('--config=')) {
       const value = arg === '--config' ? rest[++i] : arg.slice('--config='.length)
       if (value === undefined || value === '') return usage('--config 缺少路径')
       config = value
     } else if (arg.startsWith('-')) return usage(`未知选项 ${arg}`)
     else return usage(`多余的参数 ${arg}`)
   }
-  return { kind: 'build', config }
+  return { kind: 'build', config, check }
 }
 
 function usage(message: string): Command {
