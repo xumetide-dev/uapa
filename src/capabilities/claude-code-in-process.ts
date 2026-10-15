@@ -29,8 +29,14 @@ export const claudeCodeInProcess: TargetCapabilities = {
     stopGate: true, // classic.Stop 返回 { block }
     promptGate: true, // prompt.submit 返回 { drop }
   },
-  // 钩子抛错、返回形状不符或超出预算时被跳过，等同放行；入口的收口见 F-05-06
-  failureDefault: { beforeTool: allow, beforePrompt: allow, beforeStop: allow },
+  // 钩子抛错、返回形状不符或超出预算时被跳过，等同放行；入口的收口见 F-05-06，执行后检查
+  // 在 next 之后出错时由 .catch 扣留（F-04-08）
+  failureDefault: {
+    beforeTool: allow,
+    beforePrompt: allow,
+    beforeStop: allow,
+    afterTool: allow,
+  },
   hookTimeoutSeconds: null, // 进程内运行，没有 hook 进程的超时字段
   defaultTimeoutSeconds: null,
   toolNames: {

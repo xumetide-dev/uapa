@@ -208,9 +208,11 @@ export function replacedOutput(output: unknown, text: string): unknown
 | 字符串（Codex 的执行命令与 `apply_patch`，Claude Code hooks 模块报错的 `result`） | 原值 | `null` |
 | 对象，`stdout` 为字符串（Claude Code 的 Bash） | `stdout`；`stderr` 为非空字符串时另接一个换行与 `stderr` | 复制对象，`stdout` 换为文本；有 `stderr` 字段时置为 `''` |
 | 对象，`file.content` 为字符串（Claude Code 的 Read） | `file.content` | 复制对象与 `file`，`file.content` 换为文本 |
-| 其他 | `JSON.stringify` 的结果 | `null` |
+| 其他 | `JSON.stringify` 的结果；没有 JSON 文本（`undefined`）时为空串 | `null` |
 
 hooks 模块入口的执行后检查（F-05-13）：`next` 的结果含 `deny` 时原样返回，不调用 `afterTool`；
 否则以 `outputText(ran.result)` 调用，报错的结果（`isError` 为真）同样检查。`keep` 返回 `ran`；
 交出文本时，`replacedOutput(ran.result, 文本)` 不为 `null` 且为替换则返回 `{ ...ran, result }`，
-其余情况返回 `{ deny: 文本 }`。
+其余情况返回 `{ deny: 文本 }`。执行后检查收到的调用按交给 `next` 的事件换算，改写后为新命令；
+入参无法换算时（规范名为 `shell` 而缺命令）不调用 `next`，返回
+`{ deny: 'uapa: 无法解析宿主输入: <字段>' }`，只计划执行后检查时同样如此。

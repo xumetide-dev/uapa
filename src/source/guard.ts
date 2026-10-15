@@ -19,10 +19,6 @@ export interface GuardDeclaration {
   readonly checks: readonly GuardCheck[] // 默认导出上存在的方法
 }
 
-// v0.1.0 不支持执行后检查（SD-20）
-const AFTER_TOOL_ONLY: readonly Capability[] = ['replaceOutput', 'withholdOutput']
-const NO_AFTER_TOOL = 'v0.1.0 不支持执行后检查（SD-20）'
-
 export async function readGuard(
   config: UapaConfig,
   root: string,
@@ -62,12 +58,9 @@ function checkGuard(guard: Record<string, unknown>, file: string): InputIssue[] 
       const field = `requires[${index}]`
       if (!CAPABILITIES.includes(capability as Capability)) {
         issue(field, `未知能力 ${JSON.stringify(capability)}`)
-      } else if (AFTER_TOOL_ONLY.includes(capability as Capability)) {
-        issue(field, `${NO_AFTER_TOOL}，不能声明 ${capability}`)
       }
     })
   }
-  if (guard.afterTool !== undefined) issue('afterTool', NO_AFTER_TOOL)
   for (const check of GUARD_CHECKS) {
     if (guard[check] !== undefined && typeof guard[check] !== 'function') {
       issue(check, '应为函数')

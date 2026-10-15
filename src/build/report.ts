@@ -12,12 +12,16 @@ const CHECK_LABELS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: '执行前检查',
   beforePrompt: '提示提交前检查',
   beforeStop: '停机前检查',
+  afterTool: '执行后检查',
 }
 
 // 省略检查的原因（hooks 适配第 6 节）
 const OMITTED_RISKS: Readonly<Record<GatedCheck, string>> = {
   beforePrompt: '本目标缺少 promptGate，未生成提示提交前检查的 hook：提示不受检查',
   beforeStop: '本目标缺少 stopGate，未生成停机前检查的 hook：停机不受检查',
+  afterTool:
+    '本目标缺少 withholdOutput，未生成执行后检查的 hook：执行后检查不生效，' +
+    '模型能读到原始输出',
 }
 
 export function toReport(states: readonly TargetState[]): BuildReport {

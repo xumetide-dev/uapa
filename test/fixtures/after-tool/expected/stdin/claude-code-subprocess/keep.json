@@ -1,0 +1,31 @@
+{
+  "args": [
+    "after-tool"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo uapa-after-tool-probe",
+      "description": "夹具"
+    },
+    "tool_response": {
+      "stdout": "uapa-keep-probe\n",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_fixture",
+    "duration_ms": 12,
+    "cwd": "/project",
+    "permission_mode": "default"
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": ""
+}

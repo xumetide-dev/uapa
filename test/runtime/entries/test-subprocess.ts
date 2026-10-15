@@ -1,5 +1,5 @@
 // 测试用的最小子进程入口：协议的字段名与输出格式只为测试设定，不对应任何宿主。
-// 工具入参中的命令字段为 cmd；数据目录为 TEST_DATA/<插件名>。
+// 工具入参中的命令字段为 cmd，工具输出为 output；数据目录为 TEST_DATA/<插件名>。
 import { join } from 'node:path'
 import { runSubprocessEntry } from '../../../src/runtime/entries/subprocess.ts'
 
@@ -12,11 +12,14 @@ await runSubprocessEntry({
     if (!isRecord(stdin) || typeof stdin.session !== 'string')
       throw new Error('session')
     const sessionId = stdin.session
-    if (check === 'before-tool') {
+    if (check === 'before-tool' || check === 'after-tool') {
       if (typeof stdin.tool !== 'string') throw new Error('tool')
       const input = isRecord(stdin.input) ? stdin.input : {}
       const command = typeof input.cmd === 'string' ? { command: input.cmd } : {}
-      return { sessionId, tool: { name: stdin.tool, input, ...command } }
+      const tool = { name: stdin.tool, input, ...command }
+      if (check === 'before-tool') return { sessionId, tool }
+      if (!Object.hasOwn(stdin, 'output')) throw new Error('output')
+      return { sessionId, tool, toolOutput: stdin.output }
     }
     if (check === 'before-prompt') {
       if (typeof stdin.prompt !== 'string') throw new Error('prompt')
@@ -37,6 +40,14 @@ await runSubprocessEntry({
     stdout: `${JSON.stringify({ ...input, cmd: command })}\n`,
   }),
   continueStop: reason => ({ exitCode: 0, stdout: `${JSON.stringify({ reason })}\n` }),
+  replaceOutput: output => ({
+    exitCode: 0,
+    stdout: `${JSON.stringify({ replaced: output })}\n`,
+  }),
+  blockOutput: text => ({
+    exitCode: 0,
+    stdout: `${JSON.stringify({ block: text })}\n`,
+  }),
   dataDir: env =>
     env.TEST_DATA === undefined ? null : join(env.TEST_DATA, __UAPA_PLUGIN_NAME__),
 })

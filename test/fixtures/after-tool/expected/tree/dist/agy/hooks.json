@@ -1,0 +1,16 @@
+{
+  "after-tool-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node hooks/uapa-agy.mjs before-tool",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

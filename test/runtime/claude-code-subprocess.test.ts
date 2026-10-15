@@ -1,4 +1,4 @@
-// claude-code:subprocess 的子进程协议（F-05-04）：以 Claude Code 的能力数据与测试守卫打包
+// claude-code:subprocess 的子进程协议（F-05-04、F-05-13）：以 Claude Code 的能力数据与测试守卫打包
 // 真实入口后运行，断言字段名、输出格式与数据目录变量
 import assert from 'node:assert/strict'
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -166,4 +166,75 @@ test('去重变量等于 session_id 时放行，不调用守卫；为 null 时�
     runEntry(entries.plain, ['before-tool'], thrown, env),
     denied('uapa: 守卫出错: boom'),
   )
+})
+
+// PostToolUse 的 stdin，字段取自本地实测「执行后检查」（2.1.296）
+const ran = (name: string, input: object, response?: unknown) =>
+  JSON.stringify({
+    session_id: 's1',
+    hook_event_name: 'PostToolUse',
+    tool_name: name,
+    tool_input: input,
+    ...(response === undefined ? {} : { tool_response: response }),
+    tool_use_id: 'toolu_1',
+    duration_ms: 3,
+  })
+
+const updated = (output: unknown) => ({
+  status: 0,
+  stdout: `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: output } })}\n`,
+  stderr: '',
+})
+const blocked = (reason: string) => ({
+  status: 0,
+  stdout: `${JSON.stringify({ decision: 'block', reason })}\n`,
+  stderr: '',
+})
+
+test('执行后检查：能力数据记为能替换与扣留，入口以 updatedToolOutput 替换 Bash 与 Read 的输出', () => {
+  assert.equal(claudeCodeSubprocess.capabilities.replaceOutput, true)
+  assert.equal(claudeCodeSubprocess.capabilities.withholdOutput, true)
+  const after = (name: string, input: object, response: unknown) =>
+    runEntry(entries.plain, ['after-tool'], ran(name, input, response))
+  const bash = (stdout: string) => ({
+    stdout,
+    stderr: '',
+    interrupted: false,
+    isImage: false,
+    noOutputExpected: false,
+  })
+  const read = (content: string) => ({
+    type: 'text',
+    file: { filePath: 'a.txt', content, numLines: 1, startLine: 1, totalLines: 1 },
+  })
+  const command = { command: 'echo uapa-after-tool-probe' }
+  assert.deepEqual(after('Bash', command, bash('uapa-keep-probe')), allowed)
+  assert.deepEqual(
+    after('Bash', command, bash('uapa-replace-probe')),
+    updated(bash('uapa-replaced')),
+  )
+  assert.deepEqual(
+    after('Read', { file_path: 'a.txt' }, read('uapa-withhold-probe')),
+    updated(read('uapa-withheld')),
+  )
+  // 其他形状只能以 decision: "block" 附加原因
+  const glob = { filenames: ['uapa-replace-probe'], numFiles: 1 }
+  assert.deepEqual(after('Glob', { pattern: '*' }, glob), blocked('uapa-replaced'))
+})
+
+test('执行后检查：守卫出错与 tool_response 缺失时扣留', () => {
+  const command = { command: 'echo uapa-after-tool-probe' }
+  const thrown = { stdout: 'uapa-throw-probe', stderr: '' }
+  assert.deepEqual(
+    runEntry(entries.plain, ['after-tool'], ran('Bash', command, thrown)),
+    updated({ stdout: 'uapa: 守卫出错: after boom', stderr: '' }),
+  )
+  assert.deepEqual(
+    runEntry(entries.plain, ['after-tool'], ran('Bash', command)),
+    blocked('uapa: 无法解析宿主输入: tool_response'),
+  )
+  // 去重变量等于 session_id 时同样跳过执行后检查
+  const env = { UAPA_MODULE_SESSION_DEMO: 's1' }
+  const stdin = ran('Bash', command, thrown)
+  assert.deepEqual(runEntry(entries.deduped, ['after-tool'], stdin, env), allowed)
 })

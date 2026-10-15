@@ -1,4 +1,4 @@
-// 守卫能力检查（F-03-13，TA-04 以合成的能力数据）与写出后的宿主校验（F-03-14）
+// 守卫能力检查（F-03-13、F-02-04，TA-04 以合成的能力数据）与写出后的宿主校验（F-03-14）
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -14,6 +14,7 @@ const METHODS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: "beforeTool: () => ({ kind: 'allow' })",
   beforePrompt: "beforePrompt: () => ({ kind: 'allow' })",
   beforeStop: "beforeStop: () => ({ kind: 'stop' })",
+  afterTool: "afterTool: () => ({ kind: 'keep' })",
 }
 
 function guardFile(requires: readonly Capability[], checks: readonly GuardCheck[]) {
@@ -134,6 +135,83 @@ test('检查全部被省略时 TargetPlan.checks 为空，不写入口与超时�
       assert.deepEqual(entry.residualRisks, [
         '本目标缺少 stopGate，未生成停机前检查的 hook：停机不受检查',
       ])
+    },
+    withGuard,
+  )
+})
+
+test('执行后检查：requires 含缺失的 withholdOutput 或 replaceOutput 时目标失败', async () => {
+  for (const capability of ['withholdOutput', 'replaceOutput'] as const) {
+    const plans: TargetPlan[] = []
+    await buildIn(
+      guardFile([capability], ['afterTool']),
+      deps(recordingHost(plans), lacking(capability)),
+      async (_root, outcome) => {
+        const entry = report(outcome)
+        assert.equal(entry.status, 'failed')
+        assert.deepEqual(entry.errors, [
+          `守卫的 requires 声明了 ${capability}，本目标缺少该能力`,
+        ])
+        assert.equal(plans.length, 0)
+      },
+      withGuard,
+    )
+  }
+})
+
+test('执行后检查：未列入 requires 的 withholdOutput 缺失时省略检查，不记 replace 的降级', async () => {
+  const plans: TargetPlan[] = []
+  await buildIn(
+    guardFile([], ['beforeTool', 'afterTool']),
+    deps(recordingHost(plans), lacking('withholdOutput', 'replaceOutput')),
+    async (_root, outcome) => {
+      const entry = report(outcome)
+      assert.equal(entry.status, 'ok')
+      assert.deepEqual(plans[0]?.checks, ['beforeTool'])
+      assert.deepEqual(entry.degraded, [])
+      assert.deepEqual(entry.residualRisks, [
+        '缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）',
+        '本目标缺少 withholdOutput，未生成执行后检查的 hook：执行后检查不生效，' +
+          '模型能读到原始输出',
+      ])
+    },
+    withGuard,
+  )
+})
+
+test('执行后检查：未列入 requires 的 replaceOutput 缺失时 replace 记为按扣留写出的降级', async () => {
+  const plans: TargetPlan[] = []
+  await buildIn(
+    guardFile(['withholdOutput'], ['afterTool']),
+    deps(recordingHost(plans), lacking('replaceOutput')),
+    async (_root, outcome) => {
+      const entry = report(outcome)
+      assert.equal(entry.status, 'ok')
+      assert.deepEqual(plans[0]?.checks, ['afterTool'])
+      assert.deepEqual(entry.degraded, [
+        {
+          decision: 'replace',
+          as: 'withhold',
+          reason: '本目标不能替换输出，replace 的 text 作为扣留说明写出',
+        },
+      ])
+      assert.deepEqual(entry.residualRisks, [
+        '缺少 Node ≥ 22 或入口无法启动时，执行后检查不生效（宿主在 hook 出错时放行）',
+      ])
+    },
+    withGuard,
+  )
+})
+
+test('执行后检查：目标具备两项能力时生成检查，不记降级', async () => {
+  const plans: TargetPlan[] = []
+  await buildIn(
+    guardFile(['replaceOutput', 'withholdOutput'], [...ALL, 'afterTool']),
+    deps(recordingHost(plans), withCapabilities({})),
+    async (_root, outcome) => {
+      const entry = report(outcome)
+      assert.deepEqual(plans[0]?.checks, [...ALL, 'afterTool'])
+      assert.deepEqual(entry.degraded, [])
     },
     withGuard,
   )

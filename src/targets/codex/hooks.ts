@@ -1,4 +1,4 @@
-// hooks 配置（F-06-03、F-06-08）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
+// hooks 配置（F-06-03、F-06-07、F-06-08）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
 // Claude Code 相同；不写 matcher（省略时匹配全部工具）；timeout 单位秒。命令中的 ${PLUGIN_ROOT}
 // 由 Codex 在交给 shell 之前替换为插件目录，各平台的 shell 都能执行。依据 codex-plugins.md
 // 「源码核对（rust-v0.162.1）」。
@@ -19,6 +19,7 @@ const EVENTS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: 'PreToolUse',
   beforePrompt: 'UserPromptSubmit',
   beforeStop: 'Stop',
+  afterTool: 'PostToolUse', // 不写 matcher，覆盖全部工具（SD-29）
 }
 
 // 入口的第一个参数（入口与打包接口第 2 节）
@@ -26,6 +27,7 @@ const CHECK_ARGS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: 'before-tool',
   beforePrompt: 'before-prompt',
   beforeStop: 'before-stop',
+  afterTool: 'after-tool',
 }
 
 // hooks 配置相对插件目录的路径，不以 ./ 开头；hooksFile 已由配置校验限定在插件目录内

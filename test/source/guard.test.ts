@@ -64,21 +64,20 @@ test('默认导出不符合 GuardPlugin 时返回 InputIssue', async () => {
   }
 })
 
-test('含 afterTool 或 requires 含执行后能力时返回 InputIssue（SD-20）', async () => {
-  const after = await read(
-    "export default { name: 'g', requires: [], afterTool() {} }\n",
-  )
-  assert.ok(!after.result.ok)
-  assert.equal(after.result.issues[0]?.field, 'afterTool')
-  assert.match(after.result.issues[0]?.message ?? '', /不支持执行后检查/)
-  for (const capability of ['replaceOutput', 'withholdOutput']) {
-    const { result } = await read(
-      `export default { name: 'g', requires: ['${capability}'] }\n`,
-    )
-    assert.ok(!result.ok)
-    assert.equal(result.issues[0]?.field, 'requires[0]')
-    assert.match(result.issues[0]?.message ?? '', /不支持执行后检查/)
-  }
+test('afterTool 与执行后能力参与读取（F-02-04）', async () => {
+  const { result } = await read(`export default {
+  name: 'g',
+  requires: ['replaceOutput', 'withholdOutput'],
+  afterTool: () => ({ kind: 'keep' }),
+}
+`)
+  assert.ok(result.ok)
+  assert.deepEqual(result.value?.requires, ['replaceOutput', 'withholdOutput'])
+  assert.deepEqual(result.value?.checks, ['afterTool'])
+  const bad = await read("export default { name: 'g', requires: [], afterTool: 1 }\n")
+  assert.ok(!bad.result.ok)
+  assert.equal(bad.result.issues[0]?.field, 'afterTool')
+  assert.match(bad.result.issues[0]?.message ?? '', /函数/)
 })
 
 test('守卫文件不存在时返回 InputIssue', async () => {

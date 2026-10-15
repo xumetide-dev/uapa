@@ -29,6 +29,10 @@ const DIRECTORY_RISK = '含 hooks 的插件不能进入 Codex 的公开插件目
 // 写入的 timeout 超过上限时按上限执行（codex-source-review.md「matcher、命令执行与超时」）
 const SESSION_END_RISK =
   'Codex 的 SessionEnd 默认超时 1 秒、上限 3 秒：声明的 SessionEnd 命令运行超过 3 秒即被终止'
+// 计划了执行后检查时（SD-29；codex-source-review.md「PostToolUse」）
+const AFTER_TOOL_RISK =
+  'Codex 只对执行成功的调用触发 PostToolUse：处理器报错与 MCP 结果 isError 为真的调用' +
+  '不受执行后检查'
 // Claude Code 按目录加载 hooks/hooks.json，不经 manifest 指定
 const SHARED_HOOKS_RISK =
   '与 Claude Code 共用插件目录时，Claude Code 也加载 hooks/hooks.json 并运行其中为 Codex ' +
@@ -75,6 +79,8 @@ function hooksRisks(
   if (plan.commandHooks.some(hook => hook.event === 'SessionEnd')) {
     messages.push(SESSION_END_RISK)
   }
+  // 没有守卫时 checks 为空
+  if (plan.checks.includes('afterTool')) messages.push(AFTER_TOOL_RISK)
   if (input.sharedWith.includes('claude-code') && hooksFile === DEFAULT_HOOKS_FILE) {
     messages.push(SHARED_HOOKS_RISK)
   }

@@ -1,6 +1,6 @@
 // 守卫返回值检查（入口与打包接口第 4 节，F-04-04）：子进程入口与 hooks 模块入口共用。
 // 返回值以检查后新建的对象传出，守卫返回的多余字段不进入宿主输出。
-import type { BeforePrompt, BeforeStop, BeforeTool } from './types.ts'
+import type { AfterTool, BeforePrompt, BeforeStop, BeforeTool } from './types.ts'
 
 export type Checked<T> =
   | { readonly ok: true; readonly value: T }
@@ -55,6 +55,19 @@ export function checkBeforeStop(value: unknown): Checked<BeforeStop> {
   if (value.kind === 'stop') return valid({ kind: 'stop' })
   if (value.kind === 'continue' && isReason(value.reason)) {
     return valid({ kind: 'continue', reason: value.reason })
+  }
+  return invalid
+}
+
+// replace.text 与 withhold.reason 都须为非空白字符串（F-04-08）
+export function checkAfterTool(value: unknown): Checked<AfterTool> {
+  if (!isRecord(value)) return invalid
+  if (value.kind === 'keep') return valid({ kind: 'keep' })
+  if (value.kind === 'replace' && isReason(value.text)) {
+    return valid({ kind: 'replace', text: value.text })
+  }
+  if (value.kind === 'withhold' && isReason(value.reason)) {
+    return valid({ kind: 'withhold', reason: value.reason })
   }
   return invalid
 }

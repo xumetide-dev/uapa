@@ -53,10 +53,11 @@ function planSkills(state: TargetState, skills: readonly Skill[]): Skill[] {
   return planned
 }
 
-// 缺失时省略对应 hook 的能力（hooks 适配第 6 节）；rewriteInput 缺失按降级处理
+// 缺失时省略对应 hook 的能力（hooks 适配第 6 节）；rewriteInput 与 replaceOutput 缺失按降级处理
 const GATE_OF_CHECK: Readonly<Record<GatedCheck, Capability>> = {
   beforePrompt: 'promptGate',
   beforeStop: 'stopGate',
+  afterTool: 'withholdOutput',
 }
 
 // requires 中有本目标缺失的能力时目标失败；未列入 requires 的缺失能力记为降级或省略检查
@@ -71,6 +72,18 @@ function planChecks(state: TargetState, guard: GuardDeclaration): GuardCheck[] {
       decision: 'rewrite',
       as: 'deny',
       reason: '本目标不能改写入参，rewrite 按 fallbackReason 拒绝',
+    })
+  }
+  // 执行后检查被省略时（缺 withholdOutput）没有 replace 可降级（SD-29）
+  if (
+    guard.checks.includes('afterTool') &&
+    supported.withholdOutput &&
+    !supported.replaceOutput
+  ) {
+    state.degraded.push({
+      decision: 'replace',
+      as: 'withhold',
+      reason: '本目标不能替换输出，replace 的 text 作为扣留说明写出',
     })
   }
   return guard.checks.filter(check => {

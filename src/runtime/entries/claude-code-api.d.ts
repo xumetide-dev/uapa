@@ -41,9 +41,13 @@ declare module 'claude-code' {
     readonly [field: string]: unknown
   }
 
-  // 入口只构造下列字段，其余结果原样返回 next 的结果
+  // 入口只构造下列字段，其余结果原样返回 next 的结果。tool.call 的 next 结果另有 ref、text、
+  // isError 等字段：result 的形状同命令 hooks 的 tool_response，报错时为字符串；text 由宿主按
+  // result 重新生成，只改 text 无效（本地实测「hooks 模块的 tool.call」）
   export interface ToolCallResult {
     readonly deny?: string
+    readonly result?: unknown
+    readonly [field: string]: unknown
   }
   export interface PromptSubmitResult {
     readonly drop?: string

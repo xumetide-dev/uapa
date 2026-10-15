@@ -1,4 +1,4 @@
-// 子进程入口的公共部分（F-04-03～F-04-05）：以 test/ 下的最小入口与守卫打包后，
+// 子进程入口的公共部分（F-04-03～F-04-05、F-04-08）：以 test/ 下的最小入口与守卫打包后，
 // 用 process.execPath 运行
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
@@ -42,7 +42,14 @@ function data(
 }
 
 let dir = ''
-const entries = { full: '', limited: '', toolOnly: '' }
+const entries = {
+  full: '',
+  limited: '',
+  toolOnly: '',
+  after: '',
+  withholdOnly: '',
+  toolOnlyAfter: '',
+}
 
 async function bundleTo(name: string, guard: string, runtime: TargetRuntimeData) {
   const code = await bundle({
@@ -62,6 +69,11 @@ before(async () => {
   const limited = data({ rewriteInput: false, promptGate: false }, null)
   entries.limited = await bundleTo('limited.mjs', 'scripted', limited)
   entries.toolOnly = await bundleTo('tool-only.mjs', 'tool-only', data({}, null))
+  const output = data({ replaceOutput: true, withholdOutput: true }, 'TEST_SKIP')
+  entries.after = await bundleTo('after.mjs', 'scripted', output)
+  const withhold = data({ withholdOutput: true }, null)
+  entries.withholdOnly = await bundleTo('withhold-only.mjs', 'scripted', withhold)
+  entries.toolOnlyAfter = await bundleTo('tool-only-after.mjs', 'tool-only', output)
 })
 
 after(() => rm(dir, { recursive: true, force: true }))
@@ -76,7 +88,7 @@ function expectDeny(result: ReturnType<typeof runEntry>, reason: string) {
 const allowed = { status: 0, stdout: '', stderr: '' }
 
 test('检查名缺失或无效时以 1 结束，不读取 stdin', async () => {
-  for (const args of [[], ['after-tool']]) {
+  for (const args of [[], ['after-stop']]) {
     // stdin 保持打开：入口若读取 stdin 会一直等待，超时后用例失败
     const child = spawn(process.execPath, [entries.full, ...args], { env: {} })
     let stderr = ''
@@ -88,8 +100,8 @@ test('检查名缺失或无效时以 1 结束，不读取 stdin', async () => {
     clearTimeout(timer)
     child.stdin.destroy()
     assert.equal(status, 1)
-    assert.match(stderr, /before-tool、before-prompt 或 before-stop/)
-    assert.match(stderr, args.length === 0 ? /（缺失）/ : /after-tool/)
+    assert.match(stderr, /before-tool、before-prompt、before-stop 或 after-tool，/)
+    assert.match(stderr, args.length === 0 ? /（缺失）/ : /收到 after-stop/)
   }
 })
 
@@ -263,4 +275,88 @@ test('数据目录为 null、不可写或计数文件无效时按 0 计，并在
   assert.match(result.stderr, /^uapa: 停机计数文件内容无效，按 0 处理: /)
   const content = await readFile(join(corrupt, 'demo', 'uapa-stop-a.json'), 'utf8')
   assert.equal(content, '{"continuations":1}\n')
+})
+
+const ran = (tool: string, input: object, output: unknown, session = 's1') =>
+  JSON.stringify({ session, tool, input, output })
+
+const stdoutOf = (value: unknown) => ({
+  status: 0,
+  stdout: `${JSON.stringify(value)}\n`,
+  stderr: '',
+})
+
+test('执行后检查：withholdOutput 为 false 或守卫未实现 afterTool 时放行，不调用守卫', () => {
+  const thrown = ran('Bash', { cmd: 'ls' }, 'uapa-throw-probe')
+  assert.deepEqual(runEntry(entries.full, ['after-tool'], thrown), allowed)
+  assert.deepEqual(runEntry(entries.toolOnlyAfter, ['after-tool'], thrown), allowed)
+  const skipped = runEntry(entries.after, ['after-tool'], thrown, { TEST_SKIP: 's1' })
+  assert.deepEqual(skipped, allowed)
+})
+
+test('执行后检查：keep 放行；形状可替换时替换输出，否则扣留（SD-29）', () => {
+  const bash = (stdout: string) => ({ stdout, stderr: 'warn', interrupted: false })
+  const read = (content: string) => ({ type: 'text', file: { filePath: 'a', content } })
+  const after = (output: unknown, entry = entries.after) =>
+    runEntry(entry, ['after-tool'], ran('Bash', { cmd: 'ls' }, output))
+  assert.deepEqual(after('uapa-keep-probe'), allowed)
+  assert.deepEqual(after(bash('uapa-keep-probe')), allowed)
+  assert.deepEqual(
+    after(bash('uapa-replace-probe')),
+    stdoutOf({ replaced: { stdout: 'uapa-replaced', stderr: '', interrupted: false } }),
+  )
+  assert.deepEqual(
+    after(read('uapa-withhold-probe')),
+    stdoutOf({ replaced: read('uapa-withheld') }),
+  )
+  // 字符串与其他形状不能替换，replace 的 text 作为扣留原因
+  assert.deepEqual(after('uapa-replace-probe'), stdoutOf({ block: 'uapa-replaced' }))
+  const mcp = { content: [{ type: 'text', text: 'uapa-withhold-probe' }] }
+  assert.deepEqual(after(mcp), stdoutOf({ block: 'uapa-withheld' }))
+  // 目标缺 replaceOutput 时 replace 按扣留写出
+  assert.deepEqual(
+    after(bash('uapa-replace-probe'), entries.withholdOnly),
+    stdoutOf({ block: 'uapa-replaced' }),
+  )
+})
+
+test('执行后检查：输出文本按形状取得，守卫收到换算后的工具名', () => {
+  const after = (tool: string, input: object, output: unknown) =>
+    runEntry(entries.withholdOnly, ['after-tool'], ran(tool, input, output))
+  const echo = 'uapa-echo-probe'
+  assert.deepEqual(
+    after('Bash', { cmd: 'ls' }, { stdout: echo, stderr: 'e' }),
+    stdoutOf({ block: `shell {"command":"ls"} ${echo}\ne` }),
+  )
+  assert.deepEqual(
+    after('Bash', { cmd: 'ls' }, { stdout: echo, stderr: '' }),
+    stdoutOf({ block: `shell {"command":"ls"} ${echo}` }),
+  )
+  assert.deepEqual(
+    after('Read', {}, { file: { content: echo } }),
+    stdoutOf({ block: `read_file {} ${echo}` }),
+  )
+  assert.deepEqual(
+    after('Other', {}, { a: echo }),
+    stdoutOf({ block: `host:Other {} {"a":"${echo}"}` }),
+  )
+})
+
+test('执行后检查：守卫抛错、返回值无效与输入无法解析时扣留（F-04-08）', () => {
+  const reason = (field: string) => `uapa: 无法解析宿主输入: ${field}`
+  const after = (stdin: string) => runEntry(entries.after, ['after-tool'], stdin)
+  const bash = { stdout: 'uapa-throw-probe', stderr: '' }
+  assert.deepEqual(
+    after(ran('Bash', { cmd: 'ls' }, bash)),
+    stdoutOf({ replaced: { stdout: 'uapa: 守卫出错: after boom', stderr: '' } }),
+  )
+  assert.deepEqual(
+    after(ran('Bash', { cmd: 'ls' }, 'uapa-invalid-probe')),
+    stdoutOf({ block: 'uapa: 守卫返回值无效' }),
+  )
+  assert.deepEqual(after('not json'), stdoutOf({ block: reason('stdin') }))
+  const noOutput = JSON.stringify({ session: 's1', tool: 'Bash', input: { cmd: 'ls' } })
+  assert.deepEqual(after(noOutput), stdoutOf({ block: reason('output') }))
+  const noCommand = ran('Bash', {}, bash)
+  assert.deepEqual(after(noCommand), stdoutOf({ block: reason('tool.command') }))
 })

@@ -125,6 +125,13 @@ test('提示提交前检查不调用守卫，输出 {}', async () => {
   assert.deepEqual(run('before-prompt', 'not json', env), out({}))
 })
 
+test('执行后检查不调用守卫，输出 {}（withholdOutput 为不支持）', async () => {
+  assert.equal(agySubprocess.capabilities.withholdOutput, false)
+  assert.equal(agySubprocess.capabilities.replaceOutput, false)
+  const env = { TMPDIR: await freshTmp() }
+  assert.deepEqual(run('after-tool', 'not json', env), out({}))
+})
+
 test('停机继续输出 decision: "continue"，计数写入 TMPDIR 下的 uapa-<插件名>/', async () => {
   const tmp = await freshTmp()
   const env = { TMPDIR: tmp }

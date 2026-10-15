@@ -1,8 +1,9 @@
-// 守卫公共类型（F-02-01、F-02-02）：包入口导出插件作者用到的类型，GuardPlugin 不含
-// afterTool；类型不符时 tsc 报错，由 @ts-expect-error 在 pnpm check 中核对
+// 守卫公共类型（F-02-01、F-02-02、F-02-04）：包入口导出插件作者用到的类型；
+// 类型不符时 tsc 报错，由 @ts-expect-error 在 pnpm check 中核对
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type {
+  AfterTool,
   BeforePrompt,
   BeforeStop,
   BeforeTool,
@@ -51,12 +52,33 @@ test('GuardPlugin 的三个检查方法按约定的返回值工作', async () =>
   })
 })
 
-test('GuardPlugin 不含 afterTool（SD-20），类型不符时 tsc 报错', () => {
-  // @ts-expect-error v0.1.0 没有执行后检查
+test('afterTool 接收调用与输出文本，返回 AfterTool（F-02-04）', async () => {
+  const guard: GuardPlugin = {
+    name: 'demo',
+    requires: ['replaceOutput', 'withholdOutput'],
+    afterTool: async (call: ToolCall, output: string): Promise<AfterTool> => {
+      if (output.includes('密钥')) return { kind: 'replace', text: '[已隐去]' }
+      return call.tool === 'web_fetch'
+        ? { kind: 'withhold', reason: '不读取网页' }
+        : { kind: 'keep' }
+    },
+  }
+  const call = { sessionId: 's', tool: 'shell', input: {} }
+  assert.deepEqual(await guard.afterTool?.(call, '含密钥'), {
+    kind: 'replace',
+    text: '[已隐去]',
+  })
+  assert.deepEqual(await guard.afterTool?.(call, 'ok'), { kind: 'keep' })
+})
+
+test('类型不符时 tsc 报错', () => {
+  // @ts-expect-error afterTool 的返回值只有 keep、replace 与 withhold
   const after: GuardPlugin = { name: 'demo', requires: [], afterTool: () => undefined }
   // @ts-expect-error requires 只能写 Capability
   const unknown: GuardPlugin = { name: 'demo', requires: ['afterTool'] }
   // @ts-expect-error BeforePrompt 只有 allow 与 block
   const rewrite: BeforePrompt = { kind: 'rewrite', reason: 'x' }
-  assert.ok(after && unknown && rewrite)
+  // @ts-expect-error replace 须带 text
+  const replace: AfterTool = { kind: 'replace', reason: 'x' }
+  assert.ok(after && unknown && rewrite && replace)
 })

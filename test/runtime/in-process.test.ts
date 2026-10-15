@@ -1,4 +1,4 @@
-// hooks 模块的决策与异常收口（TA-17，F-05-05～F-05-08）：以 node:module 的解析钩子把
+// hooks 模块的决策与异常收口（TA-17、TA-19，F-05-05～F-05-08、F-05-13）：以 node:module 的解析钩子把
 // 'claude-code' 解析到 stubs/claude-code.ts，加载打包后的守卫文件，调用 register 后逐一调用
 // 记录到的处理函数与 .catch 处理器。claude-both 夹具的产物覆盖决策；守卫抛错、返回值无效与
 // 只计划部分检查的情况另以 scripted 守卫打包。
@@ -287,4 +287,119 @@ test('去重变量为 null 时不注册会话事件；只计划的检查才注�
     withEnv.map(r => r.event),
     ['session.start', 'classic.SessionStart', 'prompt.submit'],
   )
+})
+
+// next 返回给定的结果，记录收到的事件
+function ranWith(result: unknown, called = false) {
+  const calls: unknown[] = []
+  const next = Object.assign(
+    async (e: unknown) => {
+      calls.push(e)
+      return result
+    },
+    { called },
+  )
+  return { next, calls }
+}
+
+test('执行后检查：只计划 afterTool 时也只注册一个不带 matcher 的 tool.call，带 .catch', async () => {
+  const registered = await scripted(['afterTool'], null)
+  assert.deepEqual(
+    registered.map(r => [r.event, r.matcher, r.catchHandler !== null]),
+    [['tool.call', null, true]],
+  )
+  const combined = await scripted(['beforeTool', 'afterTool'], null)
+  assert.deepEqual(
+    combined.map(r => r.event),
+    ['tool.call'],
+  )
+})
+
+test('执行后检查：keep 原样返回，Bash 与 Read 以 { ...ran, result } 替换，其余返回 { deny }', async () => {
+  const hook = only(await scripted(['afterTool'], null), 'tool.call').hook
+  const bashCall = {
+    tool: 'Bash',
+    tool_use_id: 't',
+    command: 'echo uapa-after-tool-probe',
+  }
+  const run = async (e: object, ran: unknown) => hook(api('s'), e, ranWith(ran).next)
+  const bash = (stdout: string) => ({
+    ref: 'r1',
+    result: { stdout, stderr: 'w', interrupted: false },
+    text: stdout,
+    isReadOnly: false,
+  })
+  const kept = bash('uapa-keep-probe')
+  assert.equal(await run(bashCall, kept), kept)
+  const replaced = bash('uapa-replace-probe')
+  assert.deepEqual(await run(bashCall, replaced), {
+    ...replaced,
+    result: { stdout: 'uapa-replaced', stderr: '', interrupted: false },
+  })
+  const readCall = { tool: 'Read', tool_use_id: 't', file_path: 'a.txt' }
+  const read = {
+    ref: 'r2',
+    result: {
+      type: 'text',
+      file: { filePath: 'a.txt', content: 'uapa-replace-probe' },
+    },
+    text: '1\tuapa-replace-probe',
+  }
+  assert.deepEqual(await run(readCall, read), {
+    ...read,
+    result: { type: 'text', file: { filePath: 'a.txt', content: 'uapa-replaced' } },
+  })
+  // withhold 与不可替换形状的 replace 返回 { deny }；报错的结果同样检查
+  assert.deepEqual(await run(bashCall, bash('uapa-withhold-probe')), {
+    deny: 'uapa-withheld',
+  })
+  const globCall = { tool: 'Glob', tool_use_id: 't', pattern: '*' }
+  const glob = { ref: 'r3', result: { filenames: ['uapa-replace-probe'] }, text: 'x' }
+  assert.deepEqual(await run(globCall, glob), { deny: 'uapa-replaced' })
+  const failed = { ref: 'r4', result: 'Error: uapa-withhold-probe', isError: true }
+  assert.deepEqual(await run(bashCall, failed), { deny: 'uapa-withheld' })
+  // next 的结果含 deny 时原样返回，不调用守卫
+  const denied = { deny: '下层拒绝', result: 'uapa-throw-probe' }
+  assert.equal(await run(bashCall, denied), denied)
+})
+
+test('执行后检查：守卫抛错与返回值无效时返回 { deny }（F-04-08）', async () => {
+  const hook = only(await scripted(['afterTool'], null), 'tool.call').hook
+  const e = { tool: 'Bash', tool_use_id: 't', command: 'echo uapa-after-tool-probe' }
+  const result = (stdout: string) => ({ result: { stdout, stderr: '' } })
+  assert.deepEqual(await hook(api('s'), e, ranWith(result('uapa-throw-probe')).next), {
+    deny: 'uapa: 守卫出错: after boom',
+  })
+  assert.deepEqual(
+    await hook(api('s'), e, ranWith(result('uapa-invalid-probe')).next),
+    { deny: 'uapa: 守卫返回值无效' },
+  )
+})
+
+test('执行前与执行后检查在同一处理函数中：拒绝时不调用 next，改写后执行后检查看到新命令', async () => {
+  const hook = only(await scripted(['beforeTool', 'afterTool'], null), 'tool.call').hook
+  const shell = (command: string) => ({ tool: 'Bash', tool_use_id: 't', command })
+  const denied = ranWith({ result: { stdout: 'uapa-keep-probe', stderr: '' } })
+  assert.deepEqual(await hook(api('s'), shell('deny'), denied.next), { deny: '不允许' })
+  assert.deepEqual(denied.calls, [])
+  const echoed = ranWith({ result: { stdout: 'uapa-echo-probe', stderr: '' } })
+  assert.deepEqual(await hook(api('s'), shell('rewrite'), echoed.next), {
+    deny: 'shell {"command":"echo safe"} uapa-echo-probe',
+  })
+  assert.deepEqual(echoed.calls, [shell('echo safe')])
+})
+
+test('.catch：计划了执行后检查时，next 已调用也返回 { deny }，不重放原输出', async () => {
+  for (const checks of [['afterTool'], ['beforeTool', 'afterTool']] as const) {
+    const handler = only(await scripted(checks, null), 'tool.call').catchHandler
+    assert.ok(handler !== null)
+    const e = { tool: 'Bash', tool_use_id: 't', command: 'echo uapa-after-tool-probe' }
+    for (const called of [false, true]) {
+      const { next, calls } = nextOf(called)
+      assert.deepEqual(await handler(api('s'), e, next), {
+        deny: 'uapa: hooks 模块出错',
+      })
+      assert.deepEqual(calls, [])
+    }
+  }
 })

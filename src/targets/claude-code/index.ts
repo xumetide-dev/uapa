@@ -20,6 +20,15 @@ const MODULE_ONLY_RISK =
   'Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；' +
   '同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底'
 
+// 计划了执行后检查时（SD-29）：按输出形状替换，Bash 与 Read 之外的工具没有可替换的形状
+const SUBPROCESS_AFTER_TOOL_RISK =
+  '命令 hooks 的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace ' +
+  '与 withhold 只把文本附加给模型，模型仍读到原输出；工具报错时宿主不触发 PostToolUse，' +
+  '报错的结果不受检查'
+const MODULE_AFTER_TOOL_RISK =
+  'hooks 模块的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace ' +
+  '按扣留写出，模型读到以替换文本为原因的扣留说明'
+
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`
 }
@@ -88,6 +97,25 @@ function hooksConfigFile(
   return [{ path: HOOKS_FILE, content: json(content) }]
 }
 
+function residualRisksOf(
+  subprocess: TargetPlan | undefined,
+  inProcess: TargetPlan | undefined,
+  hooksModule: ModuleFiles | null,
+): TargetNote[] {
+  const risks: TargetNote[] = []
+  if (hooksModule !== null && subprocess === undefined) {
+    risks.push({ target: 'claude-code:in-process', message: MODULE_ONLY_RISK })
+  }
+  // 没有守卫时 checks 为空
+  if (subprocess?.checks.includes('afterTool') === true) {
+    risks.push({ target: subprocess.target, message: SUBPROCESS_AFTER_TOOL_RISK })
+  }
+  if (inProcess?.checks.includes('afterTool') === true) {
+    risks.push({ target: inProcess.target, message: MODULE_AFTER_TOOL_RISK })
+  }
+  return risks
+}
+
 export const claudeCode: HostModule = {
   host: 'claude-code',
   async generate(input) {
@@ -113,10 +141,7 @@ export const claudeCode: HostModule = {
       ...(command?.files ?? []),
       ...(hooksModule?.files ?? []),
     ]
-    const residualRisks: TargetNote[] =
-      hooksModule !== null && subprocess === undefined
-        ? [{ target: 'claude-code:in-process', message: MODULE_ONLY_RISK }]
-        : []
+    const residualRisks = residualRisksOf(subprocess, inProcess, hooksModule)
     return { ok: true, files, residualRisks }
   },
   async verify(dir) {

@@ -48,14 +48,14 @@ function valid(value) {
 		value
 	};
 }
-function isRecord$1(value) {
+function isRecord$2(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isReason(value) {
 	return typeof value === "string" && value.trim() !== "";
 }
 function checkBeforeTool(value, tool) {
-	if (!isRecord$1(value)) return invalid;
+	if (!isRecord$2(value)) return invalid;
 	if (value.kind === "allow") return valid({ kind: "allow" });
 	if (value.kind === "deny") return isReason(value.reason) ? valid({
 		kind: "deny",
@@ -63,7 +63,7 @@ function checkBeforeTool(value, tool) {
 	}) : invalid;
 	if (value.kind !== "rewrite") return invalid;
 	const { input, fallbackReason } = value;
-	if (!isRecord$1(input) || !isReason(fallbackReason)) return invalid;
+	if (!isRecord$2(input) || !isReason(fallbackReason)) return invalid;
 	const command = input.command;
 	if (tool === "shell" && (typeof command !== "string" || command === "")) return invalid;
 	return valid({
@@ -73,7 +73,7 @@ function checkBeforeTool(value, tool) {
 	});
 }
 function checkBeforePrompt(value) {
-	if (!isRecord$1(value)) return invalid;
+	if (!isRecord$2(value)) return invalid;
 	if (value.kind === "allow") return valid({ kind: "allow" });
 	if (value.kind === "block" && isReason(value.reason)) return valid({
 		kind: "block",
@@ -82,7 +82,7 @@ function checkBeforePrompt(value) {
 	return invalid;
 }
 function checkBeforeStop(value) {
-	if (!isRecord$1(value)) return invalid;
+	if (!isRecord$2(value)) return invalid;
 	if (value.kind === "stop") return valid({ kind: "stop" });
 	if (value.kind === "continue" && isReason(value.reason)) return valid({
 		kind: "continue",
@@ -90,8 +90,61 @@ function checkBeforeStop(value) {
 	});
 	return invalid;
 }
+function checkAfterTool(value) {
+	if (!isRecord$2(value)) return invalid;
+	if (value.kind === "keep") return valid({ kind: "keep" });
+	if (value.kind === "replace" && isReason(value.text)) return valid({
+		kind: "replace",
+		text: value.text
+	});
+	if (value.kind === "withhold" && isReason(value.reason)) return valid({
+		kind: "withhold",
+		reason: value.reason
+	});
+	return invalid;
+}
 function guardErrorReason(error) {
 	return `uapa: 守卫出错: ${error instanceof Error ? error.message : String(error)}`;
+}
+function isRecord$1(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function hasStdout(output) {
+	return isRecord$1(output) && typeof output.stdout === "string";
+}
+function fileOf(output) {
+	if (!isRecord$1(output) || !isRecord$1(output.file)) return null;
+	const file = output.file;
+	return typeof file.content === "string" ? file : null;
+}
+function outputText(output) {
+	if (typeof output === "string") return output;
+	if (hasStdout(output)) {
+		const stderr = output.stderr;
+		return typeof stderr === "string" && stderr !== "" ? `${output.stdout}\n${stderr}` : output.stdout;
+	}
+	const file = fileOf(output);
+	if (file !== null) return file.content;
+	return JSON.stringify(output) ?? "";
+}
+function replacedOutput(output, text) {
+	if (hasStdout(output)) return "stderr" in output ? {
+		...output,
+		stdout: text,
+		stderr: ""
+	} : {
+		...output,
+		stdout: text
+	};
+	const file = fileOf(output);
+	if (file !== null && isRecord$1(output)) return {
+		...output,
+		file: {
+			...file,
+			content: text
+		}
+	};
+	return null;
 }
 function canonicalToolName(hostName, toolNames) {
 	return (Object.hasOwn(toolNames, hostName) ? toolNames[hostName] : void 0) ?? `host:${hostName}`;
@@ -135,7 +188,8 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 const CHECKS = {
 	"before-tool": "beforeTool",
 	"before-prompt": "beforePrompt",
-	"before-stop": "beforeStop"
+	"before-stop": "beforeStop",
+	"after-tool": "afterTool"
 };
 function isCheckArg(value) {
 	return value !== void 0 && Object.hasOwn(CHECKS, value);
@@ -144,7 +198,7 @@ async function runSubprocessEntry(protocol) {
 	const arg = process.argv[2];
 	if (!isCheckArg(arg)) {
 		const shown = arg === void 0 ? "（缺失）" : arg;
-		process.stderr.write(`uapa: 检查名应为 before-tool、before-prompt 或 before-stop，收到 ${shown}\n`);
+		process.stderr.write(`uapa: 检查名应为 before-tool、before-prompt、before-stop 或 after-tool，收到 ${shown}\n`);
 		process.exitCode = 1;
 		return;
 	}
@@ -154,7 +208,9 @@ async function runSubprocessEntry(protocol) {
 	process.exitCode = output.exitCode;
 }
 async function decide(protocol, check, text, env) {
-	if (!(typeof guard[CHECKS[check]] === "function") || check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate) return protocol.allow(check);
+	const implemented = typeof guard[CHECKS[check]] === "function";
+	const unsupported = check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate || check === "after-tool" && !_uapa_target_data_default.capabilities.withholdOutput;
+	if (!implemented || unsupported) return protocol.allow(check);
 	let event;
 	try {
 		event = protocol.parse(check, parseJson(text));
@@ -164,6 +220,7 @@ async function decide(protocol, check, text, env) {
 	if (protocol.skip?.(event, env) === true) return protocol.allow(check);
 	if (check === "before-tool") return beforeTool(protocol, event);
 	if (check === "before-prompt") return beforePrompt(protocol, event);
+	if (check === "after-tool") return afterTool(protocol, event);
 	return beforeStop(protocol, event, env);
 }
 function parseJson(text) {
@@ -176,6 +233,7 @@ function parseJson(text) {
 function unparseable(protocol, check, field) {
 	const reason = `uapa: 无法解析宿主输入: ${field}`;
 	if (check === "before-stop") return withNote(protocol.allow(check), reason);
+	if (check === "after-tool") return withhold(protocol, reason);
 	return protocol.deny(check, reason);
 }
 function withNote(output, note) {
@@ -221,6 +279,30 @@ async function beforePrompt(protocol, event) {
 	if (!checked.ok) return protocol.deny(check, checked.reason);
 	if (checked.value.kind === "block") return protocol.deny(check, checked.value.reason);
 	return protocol.allow(check);
+}
+async function afterTool(protocol, event) {
+	const check = "after-tool";
+	const tool = event.tool;
+	if (tool === void 0) return unparseable(protocol, check, "tool");
+	const output = event.toolOutput;
+	if (output === void 0) return unparseable(protocol, check, "toolOutput");
+	const converted = toToolCall(event.sessionId, tool, _uapa_target_data_default.toolNames);
+	if (!converted.ok) return unparseable(protocol, check, converted.field);
+	const { call } = converted;
+	const checked = await callGuard(() => guard.afterTool?.(call, outputText(output)), checkAfterTool);
+	if (!checked.ok) return handOver(protocol, output, checked.reason);
+	const decision = checked.value;
+	if (decision.kind === "keep") return protocol.allow(check);
+	return handOver(protocol, output, decision.kind === "replace" ? decision.text : decision.reason);
+}
+function handOver(protocol, output, text) {
+	const replaceOutput = _uapa_target_data_default.capabilities.replaceOutput ? protocol.replaceOutput : void 0;
+	const replaced = replaceOutput === void 0 ? null : replacedOutput(output, text);
+	if (replaceOutput === void 0 || replaced === null) return withhold(protocol, text);
+	return replaceOutput.call(protocol, replaced);
+}
+function withhold(protocol, text) {
+	return protocol.blockOutput?.(text) ?? protocol.deny("after-tool", text);
 }
 async function beforeStop(protocol, event, env) {
 	const counter = openStopCounter(protocol.dataDir(env), event.sessionId);
@@ -304,22 +386,32 @@ function isRecord(value) {
 function jsonLine(value) {
 	return `${JSON.stringify(value)}\n`;
 }
+function hostTool(stdin) {
+	if (typeof stdin.tool_name !== "string") throw new Error("tool_name");
+	if (!isRecord(stdin.tool_input)) throw new Error("tool_input");
+	const input = stdin.tool_input;
+	const command = typeof input.command === "string" ? { command: input.command } : {};
+	return {
+		name: stdin.tool_name,
+		input,
+		...command
+	};
+}
 await runSubprocessEntry({
 	parse(check, stdin) {
 		if (!isRecord(stdin) || typeof stdin.session_id !== "string") throw new Error("session_id");
 		const sessionId = stdin.session_id;
-		if (check === "before-tool") {
-			if (typeof stdin.tool_name !== "string") throw new Error("tool_name");
-			if (!isRecord(stdin.tool_input)) throw new Error("tool_input");
-			const input = stdin.tool_input;
-			const command = typeof input.command === "string" ? { command: input.command } : {};
+		if (check === "before-tool") return {
+			sessionId,
+			tool: hostTool(stdin)
+		};
+		if (check === "after-tool") {
+			const tool = hostTool(stdin);
+			if (!Object.hasOwn(stdin, "tool_response")) throw new Error("tool_response");
 			return {
 				sessionId,
-				tool: {
-					name: stdin.tool_name,
-					input,
-					...command
-				}
+				tool,
+				toolOutput: stdin.tool_response
 			};
 		}
 		if (check === "before-prompt") {
@@ -354,6 +446,20 @@ await runSubprocessEntry({
 		stdout: jsonLine({
 			decision: "block",
 			reason
+		})
+	}),
+	replaceOutput: (output) => ({
+		exitCode: 0,
+		stdout: jsonLine({ hookSpecificOutput: {
+			hookEventName: "PostToolUse",
+			updatedToolOutput: output
+		} })
+	}),
+	blockOutput: (text) => ({
+		exitCode: 0,
+		stdout: jsonLine({
+			decision: "block",
+			reason: text
 		})
 	}),
 	dataDir(env) {

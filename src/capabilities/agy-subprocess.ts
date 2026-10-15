@@ -31,6 +31,8 @@ export const agySubprocess: TargetCapabilities = {
     beforePrompt: { error: 'allow', timeout: 'allow' }, // 宿主没有该事件
     // Stop 出错时本轮照常结束（本地实测）；超时未实测
     beforeStop: { error: 'allow', timeout: 'allow' },
+    // 宿主不能阻断或替换输出，不生成执行后 hook（SD-29）
+    afterTool: { error: 'allow', timeout: 'allow' },
   },
   hookTimeoutSeconds: 30, // 处理器的 timeout 字段，单位秒（本地实测生效）
   defaultTimeoutSeconds: 30,

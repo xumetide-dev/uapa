@@ -29,6 +29,12 @@ export type BeforeTool =
   // 宿主不能改写入参时，按 fallbackReason 拒绝，不放行原始入参
   | { kind: 'rewrite'; input: Record<string, unknown>; fallbackReason: string }
 
+// 执行后检查的结果（SD-29）：宿主不能替换输出时，replace 按 withhold 写出，text 作原因
+export type AfterTool =
+  | { kind: 'keep' }
+  | { kind: 'replace'; text: string }
+  | { kind: 'withhold'; reason: string }
+
 export type BeforeStop = { kind: 'stop' } | { kind: 'continue'; reason: string }
 
 export interface PromptSubmit {
@@ -38,12 +44,13 @@ export interface PromptSubmit {
 
 export type BeforePrompt = { kind: 'allow' } | { kind: 'block'; reason: string }
 
-// v0.1.0 不含 afterTool（SD-20）；v0.2.0 由 F-02-04 加入
 export interface GuardPlugin {
   readonly name: string
   readonly requires: readonly Capability[]
   beforeTool?(call: ToolCall): BeforeTool | Promise<BeforeTool>
   beforePrompt?(p: PromptSubmit): BeforePrompt | Promise<BeforePrompt>
+  // output 为工具输出的文本形式，取法见入口与打包接口第 4 节（F-02-04）
+  afterTool?(call: ToolCall, output: string): AfterTool | Promise<AfterTool>
   // continuations 为连续强制继续的次数：返回 continue 时加 1，返回 stop 时清零；
   // 供插件自行设上限
   beforeStop?(s: {
@@ -54,13 +61,14 @@ export interface GuardPlugin {
 
 // 以下类型不由包入口导出
 
-// 守卫检查名，与 GuardPlugin 的方法名一致；v0.2.0 增加 'afterTool'
-export type GuardCheck = 'beforeTool' | 'beforePrompt' | 'beforeStop'
+// 守卫检查名，与 GuardPlugin 的方法名一致
+export type GuardCheck = 'beforeTool' | 'beforePrompt' | 'beforeStop' | 'afterTool'
 
 export const GUARD_CHECKS: readonly GuardCheck[] = [
   'beforeTool',
   'beforePrompt',
   'beforeStop',
+  'afterTool',
 ]
 
 // 规范工具名（hooks 适配 §3）；不在映射表中的宿主工具以 `host:<原名>` 传给守卫

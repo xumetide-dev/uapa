@@ -24,7 +24,8 @@ export interface TargetState {
   readonly skipped: { component: string; reason: string }[]
   readonly degraded: { decision: string; as: string; reason: string }[]
   readonly overridden: string[] // 覆盖或新增的文件，相对插件目录
-  readonly omitted: GatedCheck[] // 因 stopGate、promptGate 缺失而省略的检查（F-03-13）
+  // 因 stopGate、promptGate、withholdOutput 缺失而省略的检查（F-03-13）
+  readonly omitted: GatedCheck[]
   readonly sharedSkillRisks: string[] // 共用插件目录中不适用于本目标的 skill
   readonly hostRisks: string[] // HostResult.residualRisks 中本目标的条目
   plan: TargetPlan | null // 未通过能力检查时为 null

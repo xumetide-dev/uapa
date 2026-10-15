@@ -1,0 +1,33 @@
+{
+  "args": [
+    "after-tool"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "/project/notes.txt"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "/project/notes.txt",
+        "content": "uapa-withhold-probe\n",
+        "numLines": 1,
+        "startLine": 1,
+        "totalLines": 1
+      }
+    },
+    "tool_use_id": "toolu_fixture",
+    "duration_ms": 12,
+    "cwd": "/project",
+    "permission_mode": "default"
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"updatedToolOutput\":{\"type\":\"text\",\"file\":{\"filePath\":\"/project/notes.txt\",\"content\":\"扣留标记输出 uapa-withhold-probe\",\"numLines\":1,\"startLine\":1,\"totalLines\":1}}}}\n",
+  "stderr": ""
+}

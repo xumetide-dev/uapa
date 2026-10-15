@@ -1,5 +1,5 @@
-// 子进程入口的公共部分（入口与打包接口第 3 节，F-04-03～F-04-05）：读取参数与 stdin、
-// 工具名换算、调用守卫、异常收口与停机计数。宿主字段名与输出格式只出现在各目标的
+// 子进程入口的公共部分（入口与打包接口第 3 节，F-04-03～F-04-05、F-04-08）：读取参数与
+// stdin、工具名换算、调用守卫、异常收口与停机计数。宿主字段名与输出格式只出现在各目标的
 // <宿主>-subprocess.ts 协议实现中。
 import {
   accessSync,
@@ -14,20 +14,24 @@ import guard from 'uapa:guard'
 import data from 'uapa:target-data'
 import {
   type Checked,
+  checkAfterTool,
   checkBeforePrompt,
   checkBeforeStop,
   checkBeforeTool,
   guardErrorReason,
 } from '../core/decisions.ts'
+import { outputText, replacedOutput } from '../core/output.ts'
 import { type HostTool, resolveToolDecision, toToolCall } from '../core/tools.ts'
 import type { GuardCheck } from '../core/types.ts'
 
-export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop'
+export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop' | 'after-tool'
 
 export interface HostEvent {
   readonly sessionId: string
   readonly tool?: HostTool // parse 不按工具名判断；command 为宿主命令字段（是字符串时）
   readonly prompt?: string
+  // after-tool 时必填：宿主 stdin 中的工具输出原值，文本由 outputText 取出
+  readonly toolOutput?: unknown
 }
 
 export interface ProcessOutput {
@@ -51,6 +55,10 @@ export interface SubprocessProtocol {
     command: string,
   ): ProcessOutput
   continueStop(reason: string): ProcessOutput
+  // 只在能力数据 replaceOutput 为 true 的目标上实现；output 为 replacedOutput 的结果
+  replaceOutput?(output: unknown): ProcessOutput
+  // 只在能力数据 withholdOutput 为 true 的目标上实现；以宿主的阻断写法交出 text（非空）
+  blockOutput?(text: string): ProcessOutput
   dataDir(env: Env): string | null // 插件数据目录
 }
 
@@ -58,6 +66,7 @@ const CHECKS: Readonly<Record<CheckArg, GuardCheck>> = {
   'before-tool': 'beforeTool',
   'before-prompt': 'beforePrompt',
   'before-stop': 'beforeStop',
+  'after-tool': 'afterTool',
 }
 
 function isCheckArg(value: string | undefined): value is CheckArg {
@@ -70,7 +79,7 @@ export async function runSubprocessEntry(protocol: SubprocessProtocol): Promise<
   if (!isCheckArg(arg)) {
     const shown = arg === undefined ? '（缺失）' : arg
     process.stderr.write(
-      `uapa: 检查名应为 before-tool、before-prompt 或 before-stop，收到 ${shown}\n`,
+      `uapa: 检查名应为 before-tool、before-prompt、before-stop 或 after-tool，收到 ${shown}\n`,
     )
     process.exitCode = 1
     return
@@ -87,11 +96,12 @@ async function decide(
   text: string,
   env: Env,
 ): Promise<ProcessOutput> {
-  // 守卫未实现该检查，或目标不支持提示提交前检查时放行，不调用守卫
+  // 守卫未实现该检查，或目标不支持提示提交前检查、不能扣留输出时放行，不调用守卫
   const implemented = typeof guard[CHECKS[check]] === 'function'
-  if (!implemented || (check === 'before-prompt' && !data.capabilities.promptGate)) {
-    return protocol.allow(check)
-  }
+  const unsupported =
+    (check === 'before-prompt' && !data.capabilities.promptGate) ||
+    (check === 'after-tool' && !data.capabilities.withholdOutput)
+  if (!implemented || unsupported) return protocol.allow(check)
   let event: HostEvent
   try {
     event = protocol.parse(check, parseJson(text))
@@ -105,6 +115,7 @@ async function decide(
   if (protocol.skip?.(event, env) === true) return protocol.allow(check)
   if (check === 'before-tool') return beforeTool(protocol, event)
   if (check === 'before-prompt') return beforePrompt(protocol, event)
+  if (check === 'after-tool') return afterTool(protocol, event)
   return beforeStop(protocol, event, env)
 }
 
@@ -116,7 +127,8 @@ function parseJson(text: string): unknown {
   }
 }
 
-// 执行前与提示提交前检查拒绝；停机前检查不阻止结束，在 stderr 写同一原因
+// 执行前与提示提交前检查拒绝；停机前检查不阻止结束，在 stderr 写同一原因；
+// 执行后检查没有可替换的原值，按扣留写出
 function unparseable(
   protocol: SubprocessProtocol,
   check: CheckArg,
@@ -124,6 +136,7 @@ function unparseable(
 ): ProcessOutput {
   const reason = `uapa: 无法解析宿主输入: ${field}`
   if (check === 'before-stop') return withNote(protocol.allow(check), reason)
+  if (check === 'after-tool') return withhold(protocol, reason)
   return protocol.deny(check, reason)
 }
 
@@ -187,6 +200,51 @@ async function beforePrompt(
   if (!checked.ok) return protocol.deny(check, checked.reason)
   if (checked.value.kind === 'block') return protocol.deny(check, checked.value.reason)
   return protocol.allow(check)
+}
+
+// 执行后检查（SD-29）：守卫抛错与返回值无效也交出原因，与 withhold 相同
+async function afterTool(
+  protocol: SubprocessProtocol,
+  event: HostEvent,
+): Promise<ProcessOutput> {
+  const check = 'after-tool'
+  const tool = event.tool
+  if (tool === undefined) return unparseable(protocol, check, 'tool')
+  // JSON 中没有 undefined，undefined 只表示 parse 未取到输出
+  const output = event.toolOutput
+  if (output === undefined) return unparseable(protocol, check, 'toolOutput')
+  const converted = toToolCall(event.sessionId, tool, data.toolNames)
+  if (!converted.ok) return unparseable(protocol, check, converted.field)
+  const { call } = converted
+  const checked = await callGuard(
+    () => guard.afterTool?.(call, outputText(output)),
+    checkAfterTool,
+  )
+  if (!checked.ok) return handOver(protocol, output, checked.reason)
+  const decision = checked.value
+  if (decision.kind === 'keep') return protocol.allow(check)
+  const text = decision.kind === 'replace' ? decision.text : decision.reason
+  return handOver(protocol, output, text)
+}
+
+// 输出形状能替换且目标能替换时以 text 替换输出，否则按扣留写出（replace 的降级）
+function handOver(
+  protocol: SubprocessProtocol,
+  output: unknown,
+  text: string,
+): ProcessOutput {
+  const replaceOutput = data.capabilities.replaceOutput
+    ? protocol.replaceOutput
+    : undefined
+  const replaced = replaceOutput === undefined ? null : replacedOutput(output, text)
+  if (replaceOutput === undefined || replaced === null) return withhold(protocol, text)
+  return replaceOutput.call(protocol, replaced)
+}
+
+// decide 只在 withholdOutput 为 true 时进入执行后检查，这类目标都实现 blockOutput；
+// 未实现时退回 deny，不放行
+function withhold(protocol: SubprocessProtocol, text: string): ProcessOutput {
+  return protocol.blockOutput?.(text) ?? protocol.deny('after-tool', text)
 }
 
 async function beforeStop(

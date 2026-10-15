@@ -18,6 +18,7 @@ const CHECK_ARGS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: 'before-tool',
   beforePrompt: 'before-prompt',
   beforeStop: 'before-stop',
+  afterTool: 'after-tool', // 能力数据记 withholdOutput 为不支持，不生成（SD-29）
 }
 
 // 处理器的键序固定为 type、command、timeout；timeout 为 null 时不写
@@ -44,9 +45,12 @@ function guardEvents(
       events.PreToolUse = [element('PreToolUse', command, timeout)]
     } else if (check === 'beforeStop') {
       events.Stop = [element('Stop', command, timeout)]
-    } else {
+    } else if (check === 'beforePrompt') {
       // 能力数据记 promptGate 为不支持，构建编排不会传入提示提交前检查
       throw new Error('agy 没有提示提交事件，不能生成 beforePrompt 的 hook')
+    } else {
+      // 能力数据记 withholdOutput 为不支持，构建编排不会传入执行后检查
+      throw new Error('agy 不能扣留工具输出，不能生成 afterTool 的 hook')
     }
   }
   return events

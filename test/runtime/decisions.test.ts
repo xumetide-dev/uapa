@@ -1,7 +1,8 @@
-// 守卫返回值检查（F-04-04，入口与打包接口第 4 节）：每个失败分支
+// 守卫返回值检查（F-04-04、F-04-08，入口与打包接口第 4 节）：每个失败分支
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  checkAfterTool,
   checkBeforePrompt,
   checkBeforeStop,
   checkBeforeTool,
@@ -75,6 +76,35 @@ test('checkBeforePrompt 与 checkBeforeStop', () => {
   ]) {
     assert.deepEqual(checkBeforeStop(value), invalid)
   }
+})
+
+test('checkAfterTool：keep、replace、withhold 通过，多余字段去掉；text 或 reason 空白时无效', () => {
+  assert.deepEqual(checkAfterTool({ kind: 'keep', text: 'x' }), {
+    ok: true,
+    value: { kind: 'keep' },
+  })
+  assert.deepEqual(checkAfterTool({ kind: 'replace', text: '新', reason: 'r' }), {
+    ok: true,
+    value: { kind: 'replace', text: '新' },
+  })
+  assert.deepEqual(checkAfterTool({ kind: 'withhold', reason: '扣留' }), {
+    ok: true,
+    value: { kind: 'withhold', reason: '扣留' },
+  })
+  const cases: unknown[] = [
+    undefined,
+    'keep',
+    [],
+    { kind: 'allow' },
+    { kind: 'replace' },
+    { kind: 'replace', text: ' ' },
+    { kind: 'replace', text: 1 },
+    { kind: 'replace', reason: '新' },
+    { kind: 'withhold' },
+    { kind: 'withhold', reason: '' },
+    { kind: 'withhold', text: '扣留' },
+  ]
+  for (const value of cases) assert.deepEqual(checkAfterTool(value), invalid)
 })
 
 test('guardErrorReason 写明错误消息', () => {

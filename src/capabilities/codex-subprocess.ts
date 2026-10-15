@@ -28,8 +28,14 @@ export const codexSubprocess: TargetCapabilities = {
     stopGate: true, // Stop 返回 decision: "block" 与 reason
     promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15）
   },
-  // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）
-  failureDefault: { beforeTool: allow, beforePrompt: allow, beforeStop: allow },
+  // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）；
+  // PostToolUse 失败时原输出保留（源码核对「PostToolUse」）
+  failureDefault: {
+    beforeTool: allow,
+    beforePrompt: allow,
+    beforeStop: allow,
+    afterTool: allow,
+  },
   hookTimeoutSeconds: 30, // 处理器的 timeout 字段，单位秒（TA-15）
   defaultTimeoutSeconds: 600,
   // 读文件、按模式找文件、内容搜索与抓取网页没有独立工具；网络搜索不触发 hook

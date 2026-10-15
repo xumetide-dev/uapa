@@ -164,7 +164,10 @@ function register(on) {
 		await $.env.set("UAPA_MODULE_SESSION_BOTH_GUARD", await $.session.id());
 		return next(e);
 	});
-	on("tool.call", ($, e, next) => beforeTool($, e, next)).catch((_$, e, next) => next.called ? next(e) : { deny: HOOK_FAILED_REASON });
+	on("tool.call", ($, e, next) => toolCall($, e, next)).catch((_$, e, next) => {
+		if (!next.called) return { deny: HOOK_FAILED_REASON };
+		return next(e);
+	});
 	on("prompt.submit", ($, e, next) => beforePrompt($, e, next)).catch((_$, e, next) => next.called ? next(e) : { drop: HOOK_FAILED_REASON });
 	on("classic.Stop", ($, e, next) => beforeStop($, e, next));
 }
@@ -178,26 +181,36 @@ async function callGuard(call, check) {
 		};
 	}
 }
-async function beforeTool($, e, next) {
+function toolCallOf(sessionId, e) {
 	const { tool, tool_use_id: _toolUseId, ...input } = e;
-	const command = typeof e.command === "string" ? { command: e.command } : {};
-	const converted = toToolCall(await $.session.id(), {
+	return toToolCall(sessionId, {
 		name: tool,
 		input,
-		...command
+		...typeof e.command === "string" ? { command: e.command } : {}
 	}, _uapa_target_data_default.toolNames);
+}
+async function toolCall($, e, next) {
+	const converted = toolCallOf(await $.session.id(), e);
 	if (!converted.ok) return { deny: `uapa: 无法解析宿主输入: ${converted.field}` };
-	const { call } = converted;
+	let forwarded = e;
+	{
+		const before = await beforeTool(converted.call, e);
+		if (before.deny !== void 0) return { deny: before.deny };
+		forwarded = before.forward;
+	}
+	return await next(forwarded);
+}
+async function beforeTool(call, e) {
 	const checked = await callGuard(() => guard.beforeTool?.(call), (value) => checkBeforeTool(value, call.tool));
 	if (!checked.ok) return { deny: checked.reason };
 	const decision = resolveToolDecision(checked.value, call.tool, _uapa_target_data_default.capabilities.rewriteInput);
-	if (decision.kind === "allow") return next(e);
+	if (decision.kind === "allow") return { forward: e };
 	if (decision.kind === "deny") return { deny: decision.reason };
-	if (tool !== "Bash") return { deny: decision.fallbackReason };
-	return next({
+	if (e.tool !== "Bash") return { deny: decision.fallbackReason };
+	return { forward: {
 		...e,
 		command: decision.command
-	});
+	} };
 }
 async function beforePrompt($, e, next) {
 	const prompt = e.text;

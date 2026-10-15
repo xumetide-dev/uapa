@@ -1,4 +1,4 @@
-// codex:subprocess 的子进程协议（F-06-04）：以 Codex 的能力数据与测试守卫打包真实入口后运行，
+// codex:subprocess 的子进程协议（F-06-04、F-06-07）：以 Codex 的能力数据与测试守卫打包真实入口后运行，
 // 断言字段名、输出格式与数据目录变量
 import assert from 'node:assert/strict'
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -154,5 +154,55 @@ test('只读取 PLUGIN_DATA：设置 Claude Code 的数据目录变量时输出�
   assert.deepEqual(
     run('before-tool', shell, { CLAUDE_PLUGIN_DATA: other }),
     run('before-tool', shell),
+  )
+})
+
+// stdin 的形状取自源码核对的 PostToolUseCommandInput
+const ran = (name: string, input: unknown, response?: unknown) => ({
+  ...tool(name, input),
+  hook_event_name: 'PostToolUse',
+  ...(response === undefined ? {} : { tool_response: response }),
+})
+
+const blocked = (reason: string) => ({
+  status: 0,
+  stdout: `${JSON.stringify({ decision: 'block', reason })}\n`,
+  stderr: '',
+})
+
+test('执行后检查：能力数据记为只能扣留，replace 与 withhold 都输出 decision: "block"', () => {
+  assert.equal(codexSubprocess.capabilities.replaceOutput, false)
+  assert.equal(codexSubprocess.capabilities.withholdOutput, true)
+  const command = { command: 'echo uapa-after-tool-probe' }
+  assert.deepEqual(run('after-tool', ran('Bash', command, 'uapa-keep-probe')), allowed)
+  assert.deepEqual(
+    run('after-tool', ran('Bash', command, 'uapa-replace-probe')),
+    blocked('uapa-replaced'),
+  )
+  const patch = 'Exit code: 0\nuapa-withhold-probe'
+  assert.deepEqual(
+    run('after-tool', ran('apply_patch', { action: 'x' }, patch)),
+    blocked('uapa-withheld'),
+  )
+  const mcp = { content: [{ type: 'text', text: 'uapa-echo-probe' }], isError: false }
+  assert.deepEqual(
+    run('after-tool', ran('mcp__docs__search', {}, mcp)),
+    blocked(`host:mcp__docs__search {} ${JSON.stringify(mcp)}`),
+  )
+})
+
+test('执行后检查：守卫出错、返回值无效与 tool_response 缺失时扣留', () => {
+  const command = { command: 'echo uapa-after-tool-probe' }
+  assert.deepEqual(
+    run('after-tool', ran('Bash', command, 'uapa-throw-probe')),
+    blocked('uapa: 守卫出错: after boom'),
+  )
+  assert.deepEqual(
+    run('after-tool', ran('Bash', command, 'uapa-invalid-probe')),
+    blocked('uapa: 守卫返回值无效'),
+  )
+  assert.deepEqual(
+    run('after-tool', ran('Bash', command)),
+    blocked('uapa: 无法解析宿主输入: tool_response'),
   )
 })

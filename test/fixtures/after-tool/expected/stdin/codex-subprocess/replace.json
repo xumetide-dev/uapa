@@ -1,0 +1,24 @@
+{
+  "args": [
+    "after-tool"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "turn_id": "turn_fixture",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo uapa-after-tool-probe"
+    },
+    "tool_response": "Exit code: 0\nuapa-replace-probe\n",
+    "tool_use_id": "call_fixture",
+    "cwd": "/project",
+    "permission_mode": "default"
+  },
+  "env": {
+    "PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"block\",\"reason\":\"Exit code: 0\\nuapa-replaced\\n\"}\n",
+  "stderr": ""
+}

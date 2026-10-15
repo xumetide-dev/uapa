@@ -1,4 +1,4 @@
-// claude-code:subprocess 的子进程入口（F-05-04）：只实现 Claude Code 的字段名与输出格式，
+// claude-code:subprocess 的子进程入口（F-05-04、F-05-13）：只实现 Claude Code 的字段名与输出格式，
 // 其余由公共部分 runSubprocessEntry 处理（入口与打包接口第 3 节）。
 // 字段名与输出写法依据 Claude Code 本地实测记录「命令 hooks」（TA-15，2.1.296）：
 // - stdin 的会话 id 为 session_id，工具名为 tool_name，工具入参为 tool_input，
@@ -6,7 +6,11 @@
 // - 退出码 2 并在 stderr 写原因时拒绝工具调用，或拦下提示且不调用模型；
 // - 改写只需 hookSpecificOutput.updatedInput，不需 permissionDecision；updatedInput
 //   整体替换入参，因此复制原入参后只换命令；
-// - Stop 输出 decision: "block" 与 reason 时会话继续。
+// - Stop 输出 decision: "block" 与 reason 时会话继续；
+// - PostToolUse 的 stdin 另有 tool_response；hookSpecificOutput.updatedToolOutput 为复制后
+//   只改 stdout 或 file.content 的 tool_response 时替换输出，decision: "block" 只附加原因
+//   （本地实测「执行后检查」）。
+import type { HostTool } from '../core/tools.ts'
 import { runSubprocessEntry } from './subprocess.ts'
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -18,19 +22,26 @@ function jsonLine(value: unknown): string {
   return `${JSON.stringify(value)}\n`
 }
 
+function hostTool(stdin: Readonly<Record<string, unknown>>): HostTool {
+  if (typeof stdin.tool_name !== 'string') throw new Error('tool_name')
+  if (!isRecord(stdin.tool_input)) throw new Error('tool_input')
+  const input = stdin.tool_input
+  const command = typeof input.command === 'string' ? { command: input.command } : {}
+  return { name: stdin.tool_name, input, ...command }
+}
+
 await runSubprocessEntry({
   parse(check, stdin) {
     if (!isRecord(stdin) || typeof stdin.session_id !== 'string') {
       throw new Error('session_id')
     }
     const sessionId = stdin.session_id
-    if (check === 'before-tool') {
-      if (typeof stdin.tool_name !== 'string') throw new Error('tool_name')
-      if (!isRecord(stdin.tool_input)) throw new Error('tool_input')
-      const input = stdin.tool_input
-      const command =
-        typeof input.command === 'string' ? { command: input.command } : {}
-      return { sessionId, tool: { name: stdin.tool_name, input, ...command } }
+    if (check === 'before-tool') return { sessionId, tool: hostTool(stdin) }
+    if (check === 'after-tool') {
+      const tool = hostTool(stdin)
+      // 值可为任意 JSON，按形状取文本（入口与打包接口第 4 节）
+      if (!Object.hasOwn(stdin, 'tool_response')) throw new Error('tool_response')
+      return { sessionId, tool, toolOutput: stdin.tool_response }
     }
     if (check === 'before-prompt') {
       if (typeof stdin.prompt !== 'string') throw new Error('prompt')
@@ -59,6 +70,17 @@ await runSubprocessEntry({
   continueStop: reason => ({
     exitCode: 0,
     stdout: jsonLine({ decision: 'block', reason }),
+  }),
+  replaceOutput: output => ({
+    exitCode: 0,
+    stdout: jsonLine({
+      hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: output },
+    }),
+  }),
+  // 只把原因附加给模型，原输出保留（残余风险由宿主模块写入构建报告）
+  blockOutput: text => ({
+    exitCode: 0,
+    stdout: jsonLine({ decision: 'block', reason: text }),
   }),
   dataDir(env) {
     const dir = env.CLAUDE_PLUGIN_DATA

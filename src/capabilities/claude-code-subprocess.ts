@@ -30,8 +30,14 @@ export const claudeCodeSubprocess: TargetCapabilities = {
     stopGate: true, // Stop 返回 decision: "block" 与 reason
     promptGate: true, // UserPromptSubmit 以退出码 2 阻断（TA-15）
   },
-  // hook 进程出错或超时时放行（hooks 适配第 7 节；退出码 1 与超时放行经 TA-15 实测）
-  failureDefault: { beforeTool: allow, beforePrompt: allow, beforeStop: allow },
+  // hook 进程出错或超时时放行（hooks 适配第 7 节；退出码 1 与超时放行经 TA-15 实测）；
+  // PostToolUse 以 1 退出或超时时原输出保留（「执行后检查」实测）
+  failureDefault: {
+    beforeTool: allow,
+    beforePrompt: allow,
+    beforeStop: allow,
+    afterTool: allow,
+  },
   hookTimeoutSeconds: 30, // 条目的 timeout 字段，单位秒（TA-15）
   defaultTimeoutSeconds: 600,
   toolNames: {
