@@ -86,11 +86,13 @@ globs: ["*.ts", "src/**/*.tsx"]
   `description` 必填；`glob` 在读取匹配 `globs` 中任一模式的文件后进入上下文。
 - `description` 可选（`model` 时必填），为非空单行字符串。
 - `globs` 只在 `activation` 为 `glob` 时写，为非空的字符串列表；每个模式不含 `,` 与换行，因为
-  agy 以逗号连接多个模式。
+  agy 以逗号连接多个模式。不含 `/` 的模式匹配任意目录下的文件名；含 `/` 的模式按工作区根目录
+  的相对路径书写，如 `src/**/*.tsx`。
 - frontmatter 中这三个键与 `targets` 以外的键一律拒绝：生成时 frontmatter 被重写，其他键会被
   丢弃。
 - 只有 agy 承载 rules：`activation` 依次换为 `trigger: always_on`、`model_decision`、`glob`，
-  `globs` 写为以 `,` 连接的一个字符串。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
+  `globs` 写为以 `,` 连接的一个字符串。agy 按文件的绝对路径匹配，含 `/` 的模式加 `**/` 前缀
+  （`src/**/*.tsx` 写为 `**/src/**/*.tsx`），因此也匹配其他位置的同名目录，构建报告写为残余风险。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
   的规则在它们的构建报告 `skipped` 中写为 `rules/<name>.md`。
 
 ## commands

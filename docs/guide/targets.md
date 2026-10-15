@@ -92,8 +92,8 @@
 - 全局安装的插件对本机该用户的全部 agy 会话生效，hooks 也是（agy 1.3.4 本地实测）。
 - 没有提示提交与会话结束事件；执行后 hook 不能替换或扣留输出，因此不生成。
 - 宿主没有插件数据目录：停机计数存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时归零。
-- rules 以 `trigger` 与逗号分隔的 `globs` 生效（agy 1.3.5 实测）；`agy plugin install` 与
-  `validate` 的输出不列出 rules。单个规则文件上限 24,000 字节，超出部分被截断，生成的规则超过
+- rules 以 `trigger` 与逗号分隔的 `globs` 生效（agy 1.3.5 实测）；`globs` 按文件的绝对路径匹配，
+  含 `/` 的模式生成时加 `**/` 前缀。`agy plugin install` 与 `validate` 的输出不列出 rules。单个规则文件上限 24,000 字节，超出部分被截断，生成的规则超过
   上限时构建报告写为残余风险。
 - `agy plugin validate` 对结构错误的插件也报告 `[ok]`，不能作为校验手段；UAPA 在生成时对
   `plugin.json`、`hooks.json` 与 `mcp_config.json` 做字段白名单检查。

@@ -122,7 +122,9 @@
       "degraded": [],
       "overridden": [],
       "hostValidation": "none",
-      "residualRisks": []
+      "residualRisks": [
+        "rules/typescript.md 的 globs 中含目录的模式写为 **/ 开头：agy 按文件的绝对路径匹配，这些模式也匹配其他位置的同名目录"
+      ]
     }
   ]
 }
