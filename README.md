@@ -5,7 +5,9 @@ UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构�
 
 **状态：** v0.1.0 以 tag `v0.1.0` 发布，按 [Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md)
 的施工单实现；技术选型见 [ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)。发布时
-尚未完成的宿主实测见 [Sprint M1 收口](docs/acceptance/M1-00-v0-1-0-three-host-build.md) §4。
+尚未完成的宿主实测见 [Sprint M1 收口](docs/acceptance/M1-00-v0-1-0-three-host-build.md) §4，与
+v0.2.0 的 agents、MCP 服务器和执行后检查一起按 [Sprint M2](docs/workorders/M2-00-v0-2-0-three-host-completion.md)
+施工。
 
 ## v0.1.0 范围
 

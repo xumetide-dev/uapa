@@ -71,11 +71,11 @@
 
 | # | 债 | 出自 | 去向 |
 |---|---|---|---|
-| 1 | 公共仓库的发布：同步 M1-04 起的提交、在公共仓库检出中运行发布脚本、推送 `v0.1.0` | M1-08 §7 第 1 行 | 维护者在第 2～4 行完成后执行，创建与推送 tag 各需确认 |
-| 2 | TA-12 在维护者本机运行：对 Claude Code 夹具产物运行 `claude plugin validate --strict` 与 `claude plugin test` | M1-07 §7 第 2 行 | 维护者在推送公共 tag 前完成，结果写入 Claude Code 本地实测记录 |
-| 3 | 在 Codex 中安装 `full` 的 Codex 产物，在 `/hooks` 中信任后运行最小会话，确认拒绝的标记命令不执行且原因可见 | M1-05 §7 第 1 行 | 维护者在推送公共 tag 前完成，结果写入 Codex 调研文档 |
-| 4 | Claude Code 嵌套会话中命令 hooks 照常运行、`/clear` 之后同一事件仍只由模块执行 | M1-07 §7 第 1 行 | 维护者在推送公共 tag 前完成，结果写入 Claude Code 本地实测记录 |
-| 5 | 发布后从 GitHub 以 `github:xumetide-dev/uapa#v0.1.0` 安装（pnpm；有 npm 12 时一并以 `allow-git=root` 安装） | M1-08 §7 第 3、4 行 | 推送公共 tag 后在临时项目中各安装一次 |
+| 1 | 公共仓库的发布：同步 M1-04 起的提交、在公共仓库检出中运行发布脚本、推送 `v0.1.0` | M1-08 §7 第 1 行 | 已关闭：2026-10-14 推送公共仓库的 `main` 与 tag `v0.1.0`；维护者决定在第 2～4 行之前发布 |
+| 2 | TA-12 在维护者本机运行：对 Claude Code 夹具产物运行 `claude plugin validate --strict` 与 `claude plugin test` | M1-07 §7 第 2 行 | 转入 Sprint M2 的 [M2-05](../workorders/M2-05-three-host-live-tests.md) |
+| 3 | 在 Codex 中安装 `full` 的 Codex 产物，在 `/hooks` 中信任后运行最小会话，确认拒绝的标记命令不执行且原因可见 | M1-05 §7 第 1 行 | 转入 Sprint M2 的 [M2-05](../workorders/M2-05-three-host-live-tests.md) |
+| 4 | Claude Code 嵌套会话中命令 hooks 照常运行、`/clear` 之后同一事件仍只由模块执行 | M1-07 §7 第 1 行 | 转入 Sprint M2 的 [M2-05](../workorders/M2-05-three-host-live-tests.md) |
+| 5 | 发布后从 GitHub 以 `github:xumetide-dev/uapa#v0.1.0` 安装（pnpm；有 npm 12 时一并以 `allow-git=root` 安装） | M1-08 §7 第 3、4 行 | pnpm 已关闭：2026-10-14 在容器中安装并构建 `full` 夹具，产物与期望一致；npm 12 转入 [M2-06](../workorders/M2-06-release-v0-2-0.md) |
 
 ## 5. 回流
 
@@ -87,5 +87,7 @@
 
 ## 6. 下一步
 
-- 维护者按 §4 第 2～4 行完成宿主实测，再执行第 1 行的发布与第 5 行的安装核验。
-- 下一个 Sprint 的范围见[功能清单](../feature-list/README.md)「阶段」中的 v0.2.0。
+- 2026-10-14：维护者决定先发布 v0.1.0。公共仓库的 `main` 与 tag `v0.1.0` 已推送，pnpm 从 GitHub
+  安装的核验已完成（§4 第 1、5 行）；第 2～4 行的宿主实测与 npm 12 的安装转入 Sprint M2。
+- 下一个 Sprint 为 [Sprint M2](../workorders/M2-00-v0-2-0-three-host-completion.md)：功能清单「阶段」
+  中的 v0.2.0，目标只含三个宿主（SD-28）。

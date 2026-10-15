@@ -104,10 +104,10 @@ node scripts/release.ts --node22 <Node 22.0.0 的路径>
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | 验收运行的 `v0.1.0` 只建在临时克隆中；公共仓库的发布（同步各工单提交、在公共仓库检出中运行发布脚本、推送 tag）未进行 | 使用方暂不能安装 v0.1.0 | Sprint 收口；维护者确认后执行 |
-| 2 | 发布前的宿主实测未做：[M1-05 验收 §7](M1-05-codex-target.md#7-已知限制与技术债) 第 1 行（Codex 安装 `full` 产物）与 [M1-07 验收 §7](M1-07-claude-code-hooks-module.md#7-已知限制与技术债) 第 1、2 行（嵌套会话与 `/clear` 后的去重、`claude plugin test`） | 按施工单约束，公共 tag 须在其后创建 | Sprint 收口；维护者在推送公共 tag 前完成 |
-| 3 | 安装冒烟只验证 `git+file://` 的本地 tag；从 GitHub 以 `github:xumetide-dev/uapa#v0.1.0` 安装未验证 | 远端解析与下载路径未覆盖 | 推送公共 tag 后在临时项目中安装一次 |
-| 4 | README 中 npm 12 的 `allow-git` 用法来自官方文档，本机为 npm 11.19.0，未实测 | npm 使用方的安装步骤未覆盖 | 同第 3 行，有 npm 12 时一并安装一次 |
+| 1 | 验收运行的 `v0.1.0` 只建在临时克隆中；公共仓库的发布（同步各工单提交、在公共仓库检出中运行发布脚本、推送 tag）未进行 | 使用方暂不能安装 v0.1.0 | 已关闭：2026-10-14 在公共仓库检出中运行发布脚本，推送 `main` 与 tag `v0.1.0` |
+| 2 | 发布前的宿主实测未做：[M1-05 验收 §7](M1-05-codex-target.md#7-已知限制与技术债) 第 1 行（Codex 安装 `full` 产物）与 [M1-07 验收 §7](M1-07-claude-code-hooks-module.md#7-已知限制与技术债) 第 1、2 行（嵌套会话与 `/clear` 后的去重、`claude plugin test`） | 按施工单约束，公共 tag 须在其后创建 | 维护者决定先发布 v0.1.0；三项实测转入 [M2-05](../workorders/M2-05-three-host-live-tests.md) |
+| 3 | 安装冒烟只验证 `git+file://` 的本地 tag；从 GitHub 以 `github:xumetide-dev/uapa#v0.1.0` 安装未验证 | 远端解析与下载路径未覆盖 | 已关闭：2026-10-14 在容器中以 pnpm 12.11.2 安装 `github:xumetide-dev/uapa#v0.1.0`，构建 `full` 夹具的产物与期望一致 |
+| 4 | README 中 npm 12 的 `allow-git` 用法来自官方文档，本机为 npm 11.19.0，未实测 | npm 使用方的安装步骤未覆盖 | 转入 [M2-06](../workorders/M2-06-release-v0-2-0.md)：在容器中安装 npm 12 后安装 |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
 
