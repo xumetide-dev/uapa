@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M1-04](M1-04-agy-target.md) | agy 目标 | 有条件通过（§7 一项由 M1-06 接手） | 2026-10-14 | `dba16fa` |
 | [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
 | [M1-03](M1-03-claude-code-command-hooks-guard.md) | 守卫端到端（Claude Code 命令 hooks） | 有条件通过（§7 两项由 M1-06、M1-08 接手） | 2026-10-14 | `67d6877` |
 | [M1-02](M1-02-skills-end-to-end.md) | skills 端到端 | 有条件通过（§7 四项由 M1-03～M1-07 接手） | 2026-10-14 | `8b9fdd0` |
