@@ -1,6 +1,7 @@
 # Codex hooks 源码核对记录（rust-v0.162.1）
 
-本文记录 Codex 插件 manifest 与命令 hooks 的加载、输入、输出与失败处理，依据为
+本文记录 Codex 插件 manifest 与命令 hooks 的加载、输入、输出与失败处理，以及插件中的 MCP
+服务器与 agents，依据为
 [`openai/codex`](https://github.com/openai/codex) tag `rust-v0.162.1` 的源码与其中的单元测试，
 核对日期 2026-10-14。文件路径相对 `codex-rs/`。官方文档见 [Codex](codex-plugins.md)。
 本文不是宿主实测：结论来自源码与上游测试，未在 Codex 中安装插件运行。
@@ -100,6 +101,77 @@ stdout 去掉首尾空白后须为单个 JSON 对象，按带 `deny_unknown_fiel
 同一事件的同步处理器并发执行；多个改写时最后完成的生效，任一处理器阻断时改写作废。
 `async: true` 的处理器不能阻断或改写。
 
+## PostToolUse
+
+stdin 在共有字段之外有 `tool_name`、`tool_input`、`tool_response`、`tool_use_id`
+（`hooks/src/schema.rs` 的 `PostToolUseCommandInput`）。`tool_response` 的类型随工具不同：
+
+| 工具 | `tool_response` | 依据 |
+|---|---|---|
+| 执行命令（`Bash`） | 字符串：截断后交给模型的输出 | `core/src/tools/context.rs` 的 `ExecCommandToolOutput::post_tool_use_response`；测试 `post_tool_use_records_additional_context_for_exec_command` |
+| `apply_patch` | 字符串，以 `Exit code: 0` 开头 | 测试 `post_tool_use_records_additional_context_for_apply_patch` |
+| MCP 工具 | 对象：MCP 的 `CallToolResult`（`content`、`structuredContent`、`isError`、`_meta`） | `core/src/tools/handlers/mcp.rs`；测试 `post_tool_use_records_mcp_tool_payload_and_context` |
+| 其他函数工具 | 交给模型的输出 | `core/src/tools/registry.rs` 的默认 `post_tool_use_payload` |
+
+- 触发条件：只对执行成功的调用触发（`core/src/tools/registry.rs`）。命令以非零退出码结束仍算
+  成功；处理器返回错误、MCP 结果的 `isError` 为真、执行会话仍在运行时不触发，会话经
+  `write_stdin` 结束时才触发
+  （测试 `post_tool_use_blocks_when_exec_session_completes_via_write_stdin`）。
+- 输出字段（带 `deny_unknown_fields`）：顶层 `continue`、`stopReason`、`suppressOutput`、
+  `systemMessage`、`decision`（只接受 `"block"`）、`reason`；`hookSpecificOutput` 含
+  `hookEventName`、`additionalContext`、`updatedMCPToolOutput`。形似 JSON 而无法解析时记为
+  hook 失败，不产生效果（`hooks/src/events/post_tool_use.rs` 的 `parse_completed`）。
+
+| 输出 | 结果 | 依据 |
+|---|---|---|
+| `decision: "block"` 与非空 `reason` | 以 `reason` 替换工具输出，模型读到的是原因；已执行的命令不撤销；多个处理器阻断时原因以空行连接 | `core/src/tools/registry.rs`；测试 `post_tool_use_block_decision_replaces_exec_command_output_with_reason` |
+| `decision: "block"` 而 `reason` 缺失或为空白 | 记为 hook 失败，原输出保留 | `hooks/src/events/post_tool_use.rs` |
+| 退出码 2 且 stderr 非空 | 以去掉首尾空白的 stderr 替换工具输出 | 测试 `post_tool_use_exit_two_replaces_one_shot_exec_command_output_with_feedback` |
+| `continue: false` | 以 `reason`、`stopReason` 或固定文字替换工具输出，本轮继续 | 测试 `post_tool_use_continue_false_replaces_exec_command_output_with_stop_reason` |
+| `updatedMCPToolOutput`、`suppressOutput: true`、只有 `reason` 没有 `decision` | 记为 hook 失败，原输出保留 | 测试 `unsupported_updated_mcp_tool_output_fails_open` |
+| 退出码 2 而 stderr 为空、其他退出码、超时、无法解析的 JSON | 记为 hook 失败，原输出保留 | `hooks/src/events/post_tool_use.rs` 的 `parse_completed` |
+| 不以 `{` 开头的纯文本 | 忽略 | 测试 `plain_stdout_is_ignored_for_post_tool_use` |
+
+Codex 没有替换为任意文本的输出字段；`decision: "block"` 替换后的结果对模型是一次失败的工具
+调用（`FunctionCallError::RespondToModel`），不是正常输出。`async: true` 的处理器不能阻断。
+
+## 插件中的 MCP 服务器
+
+兼容 manifest 的 `mcpServers`（`core-plugins/src/manifest.rs` 的 `RawPluginManifestMcpServers`）：
+
+| 写法 | 读取的服务器 | 依据 |
+|---|---|---|
+| 以 `./` 开头的路径（不含 `..`，位于插件目录内） | 只读该文件，不读 `.mcp.json` | 测试 `load_plugins_uses_manifest_configured_component_paths`、`legacy_manifest_can_point_at_root_mcp_json` |
+| 对象 | 只用内联的服务器；`{}` 时没有服务器（按代码推断，无专门测试） | `core-plugins/src/loader.rs`；测试 `load_plugins_loads_manifest_mcp_server_objects` |
+| 未写 | 读插件根的 `.mcp.json`（带点）；不自动读取 `mcp.json` | `core-plugins/src/loader.rs` 的 `DEFAULT_MCP_CONFIG_FILE` |
+
+MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_config`）：
+
+- 顶层为 `{"mcpServers": {...}}` 或直接为服务器名到配置的映射。
+- 服务器字段为 snake_case，与 `config.toml` 的 `[mcp_servers]` 相同（`config/src/mcp_types.rs`）：
+  本地服务器 `command`、`args`、`env`、`env_vars`、`cwd`；远程服务器 `url`、
+  `bearer_token_env_var`、`http_headers`、`env_http_headers`。`command` 与 `url` 同时出现时该
+  服务器出错并被跳过。
+- `type` 可省略，解析前被移除；`stdio`、`http`、`streamable_http`、`streamable-http` 静默接受，
+  其他取值只告警。传输方式由有 `command` 还是 `url` 决定。
+- 未知字段被静默忽略（测试 `deserialize_ignores_unknown_server_fields`），因此 `headers` 等
+  其他宿主的写法不生效。
+- 单个服务器出错只跳过该服务器；顶层格式错误时整个文件被忽略并告警。
+- 不展开任何占位符：本地服务器以 `Command::new` 启动，不经 shell
+  （`rmcp-client/src/stdio_server_launcher.rs`），`env` 原样传入；`${PLUGIN_ROOT}`、
+  `${CLAUDE_PLUGIN_ROOT}` 保持字面量。这些变量只注入插件的 hook 进程。
+- `cwd` 为相对路径时拼到插件目录下（`normalize_plugin_mcp_server_value`；测试
+  `declared_placement_preserves_local_plugin_normalization`）；省略时为会话的工作目录。
+- 服务器名不加命名空间；多个插件重名时按配置名排序后先出现的生效，并告警
+  （`core-plugins/src/loader.rs`）；用户 `[mcp_servers]` 中的同名项覆盖插件的服务器。
+
+## agents
+
+插件不承载 agents：`plugin/src/manifest.rs` 的 `PluginManifestPaths` 只有 `skills`、
+`onboarding_skill`、`mcp_servers`、`apps`、`hooks`，兼容 manifest 中没有 agents 字段，写了也被
+忽略，`agents/*.md` 不被加载。Codex 自己的自定义 agent 来自 `config.toml` 的
+`[agents.<role>]` 与各配置层的 `agents/**/*.toml`（`agent-roles/src/loader.rs`），不在插件体系内。
+
 ## 信任与加载条件
 
 - 插件 hooks 在 `features.hooks` 与 `features.plugins`（默认都开启）、插件已安装且启用时加载；
@@ -114,6 +186,10 @@ stdout 去掉首尾空白后须为单个 JSON 对象，按带 `deny_unknown_fiel
 ## 未能由源码确定的项
 
 - `hookEventName` 与当前事件不一致时是否被拒绝。
+- `PostToolUse` 输出中的未知字段使整份输出无效：由与其他事件相同的 `deny_unknown_fields`
+  写法推断，没有该事件的专门测试。
+- 兼容 manifest 的 `mcpServers` 为 `{}` 时不回退到 `.mcp.json`：由 `resolve_manifest_mcp_servers`
+  与 `load_plugin_mcp_servers_from_manifest_with_format` 的代码路径推断，没有专门测试。
 - `PLUGIN_DATA` 目录是否由其他代码路径创建。
 - 桌面端写入 `trusted_hash` 的方式；社区记录（openai/codex #46210、#47283）显示 `codex exec`
   静默跳过未信任的 hook，桌面端的 `/hooks` 存在无法写入信任的问题。

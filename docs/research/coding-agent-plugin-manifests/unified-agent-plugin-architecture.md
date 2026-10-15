@@ -2,7 +2,7 @@
 
 **状态：设计提案。** 模块划分、冻结项与 v0.1.0 范围以 [架构](../../architecture/architecture.md)、
 [模块接口](../../architecture/module-interfaces.md) 与 [功能清单](../../feature-list/README.md) 为准，
-本文与它们不一致处以它们为准。仓库中还没有实现代码，文中代码与配置均为示意写法。
+本文与它们不一致处以它们为准。文中代码与配置均为示意写法，实现以 `src/` 为准。
 
 本文说明 UAPA（Unified Agent Plugin Architecture）的定位、源项目结构、构建流程与产物：
 从一份插件源项目，构建出 Claude Code、Codex、Antigravity CLI（agy）、GitHub Copilot CLI、Cursor、
@@ -127,13 +127,16 @@ export default defineConfig({
 })
 ```
 
-- v0.1.0 只读取 `uapa.config.ts`、`skills/`、守卫逻辑与 `overrides/<宿主>/`（功能模块 01、02）。
+- v0.1.0 只读取 `uapa.config.ts`、`skills/`、守卫逻辑与 `overrides/<宿主>/`（功能模块 01、02）；
+  v0.2.0 另读取 `agents/` 与 `mcp/servers.json`（功能清单 SD-30）。
 - 配置字段以 [模块接口 §2](../../architecture/module-interfaces.md) 为准。
 - 源文件 frontmatter 可写 `targets: [...]` 限定适用目标；未写时适用于所有能承载该组件的目标。
 - `mcp/servers.json` 只用各宿主都能表达的字段：本地服务器为 `command`、`args`、`env`，远程
   服务器为 `url`、`headers`。路径中的插件根目录写作 `{pluginRoot}`，由宿主模块换成宿主变量，
   如 Claude Code 的 `${CLAUDE_PLUGIN_ROOT}`、Cursor 的 `${CURSOR_PLUGIN_ROOT}`、Copilot 的
-  `${PLUGIN_ROOT}`。目标没有对应变量时该服务器构建失败，需在 `overrides/<宿主>/` 中提供替代配置。
+  `${PLUGIN_ROOT}`。宿主不展开 MCP 配置中的变量时，参数与环境变量中的插件根按服务器的工作目录
+  换算，不能换算的服务器列为跳过，可在 `overrides/<宿主>/` 中提供替代配置；v0.2.0 三个宿主的
+  写法见功能清单 SD-30。
 - 守卫逻辑的写法与约束见 [UAPA hooks 适配](uapa-hook-adapters.md#1-守卫逻辑的约束)。
 
 ## 5. 构建目标
@@ -268,7 +271,8 @@ dist/
 ## 10. 未决问题
 
 - **用户提示的检查。** 公共类型增加 `beforePrompt` 与能力 `promptGate`，列入 v0.1.0（功能清单
-  SD-03、SD-18）；Claude Code 的提示事件可以阻断（2.1.296 本地实测），Codex 待 TA-15 实测。
+  SD-03、SD-18）；Claude Code 的提示事件可以阻断（2.1.296 本地实测），Codex 同样可以阻断
+  （rust-v0.162.1 源码核对），agy 没有提示提交事件。
 - **守卫配置的传递。** v0.1.0 只透传 Claude Code 的 `userConfig`，统一接口延后（功能清单 SD-10）。
 - **CodeBuddy Mods。** 是否增设 `codebuddy:in-process` 目标，取决于其 API 与 Claude Code 的
   对照结果与实测。

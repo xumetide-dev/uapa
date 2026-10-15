@@ -1,12 +1,13 @@
 # UAPA hooks 适配
 
 **状态：** 第 1、2、3、5 节，以及第 4、6、7、8 节中 v0.1.0 四个目标（Claude Code 两种形态、
-Codex、agy）的行，是 v0.1.0 的实现依据，功能清单逐条引用；Copilot CLI 与 Kimi Code 的行为预留
-（功能清单 SD-26、SD-27），其他目标的行是后续版本的设计，尚未排期；第 9 节的测试分层以功能清单的
-技术验收为准。文件
-位置与数据结构以 [模块接口](../../architecture/module-interfaces.md) 为准，验收以
+Codex、agy）的行，是 v0.1.0 的实现依据，功能清单逐条引用；这四个目标的执行后检查（第 4 节的
+替换与扣留列、第 6 节的 `replaceOutput` 与 `withholdOutput` 两行）是 v0.2.0 的实现依据
+（SD-29）；Copilot CLI 与 Kimi Code 的行为预留（功能清单 SD-26、SD-27），其他目标的行是后续
+版本的设计，尚未排期；第 9 节的测试分层以功能清单的技术验收为准。文件位置与数据结构以
+[模块接口](../../architecture/module-interfaces.md) 为准，验收以
 [功能清单](../../feature-list/README.md) 为准，冲突时的依据见
-[仓库 README](../../../README.md#文档冲突时的依据)。仓库中还没有实现代码，文中代码为示意写法。
+[仓库 README](../../../README.md#文档冲突时的依据)。文中代码为示意写法，实现以 `src/` 为准。
 
 本文与 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 配套，
 说明守卫逻辑（阻断危险命令、检查用户提交的提示、扣留含密钥的工具输出、停机前检查）的公共类型，以及它在各构建
@@ -75,7 +76,9 @@ export interface GuardPlugin {
 v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`Capability` 在 v0.1.0 即含
 全部五个取值，`requires` 含 `replaceOutput`、`withholdOutput` 时构建报输入错误（SD-20）。
 
-`afterTool` 只接收文本形式的输出。需要结构化输出时，按目标单独设计，不放进公共类型。
+`afterTool` 只接收文本形式的输出。需要结构化输出时，按目标单独设计，不放进公共类型。输出文本
+的取法、`replace` 的 `text` 与 `withhold` 的 `reason` 的检查，以及两者在各目标上的写出，见
+功能清单 SD-29 与[入口与打包接口](../../architecture/runtime-interfaces.md#4-守卫返回值与执行后输出)。
 
 ## 3. 工具名映射
 
@@ -108,12 +111,12 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 
 | 目标 | `deny` | `rewrite` | `replace` / `withhold` | `continue`（停机门禁） |
 |---|---|---|---|---|
-| `claude-code:in-process` | 返回 `{ deny }` | `e.tool` 为 `Bash` 时 `next({ ...e, command })`，其他工具按 `fallbackReason` 返回 `{ deny }`（F-05-05） | `next` 之后返回 `{ result }`（须符合该工具的输出 schema）；扣留可返回 `{ deny }` | `classic.Stop` 返回 `{ block }` |
-| `claude-code:subprocess` | 退出码 2 或 `permissionDecision: "deny"` | `hookSpecificOutput.updatedInput`，整体替换入参，不需 `permissionDecision`（2.1.296 实测） | `updatedToolOutput`（v2.1.121+）；退出码 2 不能扣留 | `Stop` 返回 `decision: "block"` + `reason`，连续 8 次后强制结束 |
-| `codex:subprocess` | 退出码 2（stderr 须非空）或 `permissionDecision: "deny"` | `updatedInput`（配合 `allow`） | 不能替换；扣留用 `PostToolUse` 的 `decision: "block"` 以反馈替换结果 | `Stop` 返回 `decision: "block"` + `reason` |
+| `claude-code:in-process` | 返回 `{ deny }` | `e.tool` 为 `Bash` 时 `next({ ...e, command })`，其他工具按 `fallbackReason` 返回 `{ deny }`（F-05-05） | `next` 之后：替换返回改动 `stdout` 或 `file.content` 后的 `{ ...ran, result }`，其他形状的输出以替换文本返回 `{ deny }`；扣留返回 `{ deny }`，对全部工具与报错的结果生效（2.1.296 实测） | `classic.Stop` 返回 `{ block }` |
+| `claude-code:subprocess` | 退出码 2 或 `permissionDecision: "deny"` | `hookSpecificOutput.updatedInput`，整体替换入参，不需 `permissionDecision`（2.1.296 实测） | `PostToolUse` 返回 `updatedToolOutput`：复制 `tool_response` 后改动 `stdout` 或 `file.content`，扣留时写入说明文字；其他形状的输出只能以 `decision: "block"` 附加原因，模型仍读到原输出；工具报错时只触发 `PostToolUseFailure`，不能替换（2.1.296 实测） | `Stop` 返回 `decision: "block"` + `reason`，连续 8 次后强制结束 |
+| `codex:subprocess` | 退出码 2（stderr 须非空）或 `permissionDecision: "deny"` | `updatedInput`（配合 `allow`） | 不能替换为正常输出；扣留用 `PostToolUse` 的 `decision: "block"` 与非空 `reason`，模型读到的是以 `reason` 为内容的失败调用；只对执行成功的调用触发（rust-v0.162.1 源码核对） | `Stop` 返回 `decision: "block"` + `reason` |
 | `copilot-cli:subprocess` | 退出码 2 或 `permissionDecision: "deny"` + `permissionDecisionReason` | `modifiedArgs` | `modifiedResult` | `agentStop` 返回 `decision: "block"`，连续 8 次后结束 |
 | `cursor:subprocess` | 退出码 2 或权限类 hook 返回 deny | `updated_input` | 只对 MCP 工具：`updated_mcp_tool_output` | 不支持 |
-| `agy:subprocess` | stdout `{"decision":"deny","reason":...}` | `decision: "allow"` + `overwrite`（按键浅合并） | 不支持 | `Stop` 返回 `decision: "continue"` + `reason` |
+| `agy:subprocess` | stdout `{"decision":"deny","reason":...}` | `decision: "allow"` + `overwrite`（按键浅合并） | 不支持：`PostToolUse` 的 stdin 不含输出，只能返回 `{}` | `Stop` 返回 `decision: "continue"` + `reason` |
 | `kimi:subprocess` | 退出码 2 或 `permissionDecision: "deny"` | 不支持 | 不支持 | `Stop` 退出码 2 |
 | `kiro:workspace-hook` | 退出码 2 | 不支持 | 不支持 | 仅 CLI V3：退出码 1 或 `decision: "block"`；IDE 不支持 |
 | `codebuddy:subprocess` | 退出码 2，原因写入 stdout | `modifiedInput` | `updatedToolOutput` | `continue: false` + `reason`，或退出码 2 |
@@ -229,8 +232,8 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
 | 缺失能力 | 受影响目标 | 处理 |
 |---|---|---|
 | `rewriteInput` | Kimi、Kiro、DSH | 声明需要时构建失败；否则 `rewrite` 按 `fallbackReason` 拒绝，在原因中写出纠正后的写法，并在构建报告中记为降级 |
-| `replaceOutput` | Codex、Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败 |
-| `withholdOutput` | Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败；否则在构建报告中写明残余风险：模型能读到原始输出 |
+| `replaceOutput` | Codex、Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败；否则 `replace` 按扣留写出，替换文本作为扣留的说明文字，在构建报告中记为降级（SD-29） |
+| `withholdOutput` | agy、Cursor（非 MCP 工具）、Kimi、Kiro | 声明需要时构建失败；否则不生成执行后 hook，并在构建报告中写明残余风险：执行后检查不生效，模型能读到原始输出 |
 | `stopGate` | Cursor、OpenCode、Kiro IDE | 声明需要时构建失败；否则不生成停机事件的 hook，并在构建报告中写明残余风险：停机不受检查 |
 | `promptGate` | 能力数据记为不支持的目标（见第 4 节提示提交前检查表） | 声明需要时构建失败；否则不生成提示事件的 hook，并在构建报告中写明残余风险：提示不受检查 |
 
@@ -246,7 +249,8 @@ Codex、Kimi Code 与 agy 的文档未写明。`continuations` 由适配器按�
   为准：执行前与提示提交前检查按该目标的拒绝写法输出（第 4 节；Copilot CLI 为
   `permissionDecision: "deny"`，其余为退出码 2 并在 stderr 写原因），停机前检查不阻止结束，
   执行后检查（v0.2.0）输出扣留。Codex 把 stderr 为空的退出码 2 记为 hook 失败并放行，因此原因
-  不能省略。
+  不能省略。执行后 hook 进程出错或超时时，Claude Code 与 Codex 都保留原输出（2.1.296 实测；
+  rust-v0.162.1 源码核对），即下表的放行。
 - hooks 模块用 `.catch` 收口：执行前检查写作
   `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`，提示提交前检查写作
   `.catch(($, e, next) => next.called ? next(e) : { drop: '...' })`，执行后检查返回 `{ deny }`。

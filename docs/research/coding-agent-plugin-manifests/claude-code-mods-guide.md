@@ -107,6 +107,11 @@ declare module 'claude-code' {
   其余设置 hooks。
 - `tool.call` 的结果中，`text` 是模型读到的文本，`isError` 标记工具报错；钩子原样返回
   `next` 的结果时，引擎沿用自己生成的消息。
+- 2.1.296 本地实测（[执行后检查](claude-code-local-tests.md#hooks-模块的-toolcall)）：`next` 的结果
+  为 `{ ref, result, text, isReadOnly }`，`result` 与命令 hook 的 `tool_response` 同形；报错时另有
+  `isError: true`，`result` 为字符串。替换输出要返回改动后的 `result`（如 Bash 的 `stdout`、
+  Read 的 `file.content`），只改 `text` 无效；`next` 之后返回 `{ deny }` 对报错的结果同样生效。
+  同一插件在 `tool.call` 上只能注册一个不带 matcher 的处理函数，第二个使模块校验失败。
 - 斜杠命令以 `$.command.register({ name, description })`（在 `session.start` 中）注册，
   由 `command.run` 作答；返回的 `text` 写入对话记录，模型在后续轮次可读到。
 - 模型可调用的工具以 `$.tool.register` 注册，名称为 `mcp__<plugin>__<name>`，默认置于

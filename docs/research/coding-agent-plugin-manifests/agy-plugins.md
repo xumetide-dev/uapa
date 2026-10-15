@@ -2,7 +2,8 @@
 
 本文说明 Google Antigravity CLI（命令 `agy`）插件的 manifest、组件位置、安装命令与 hooks 的配置
 结构和控制语义。官方文档以 `antigravity.google/docs` 为准，核对日期为 2026-10-14；文档未写明的
-行为以 agy 1.3.4 的本地实测补充，见「本地实测」一节。
+行为以 agy 1.3.4 的本地实测补充，agents 与 MCP 服务器以 1.3.5 的容器实测补充，见「本地实测」
+一节。
 
 ## 版本背景
 
@@ -32,7 +33,7 @@
 | 组件 | 位置 | 依据 |
 |---|---|---|
 | skills | `skills/<name>/SKILL.md` | [A1] |
-| 子代理 | `agents/<name>.md`；1.3.3 起另可用根 `agents.json` 声明 | [A1][A3] |
+| 子代理 | `agents/<name>.md`，frontmatter 必填 `name` 与 `description`；1.3.3 起另可用根 `agents.json` 声明 | [A1][A3] |
 | rules | `rules/<name>.md` | [A1] |
 | MCP 服务器 | 根 `mcp_config.json` | [A1] |
 | hooks | 根 `hooks.json` | [A1] |
@@ -42,9 +43,14 @@
 - 插件中的 MCP 服务器以 `<插件名>_<服务器名>` 命名，避免与其他插件冲突 [A3]。`mcp_config.json`
   的顶层键为 `mcpServers`；本地服务器写 `command`、`args`、`env`、`cwd`，远程服务器写
   `serverUrl` 与 `headers`，不支持 `url`、`httpUrl` [A4]。文档没有说明插件 MCP 配置中的变量是否
-  展开，也没有插件根目录变量。
+  展开，也没有插件根目录变量。1.1.28 起插件中本地服务器的 `cwd` 为相对路径或未写时按插件目录
+  解析 [A3]；1.3.5 的服务器以安装后的插件目录为工作目录，`args` 中的相对路径可用，`env` 的值
+  原样传入（容器实测）。
+- 1.3.5 的会话中子代理的名称取 frontmatter 的 `name`，与文件名无关；frontmatter 含 `targets`
+  等文档未列的键时照常加载（容器实测）。`agents.json` 与 `agents/*.md` 同时存在时的处理未核实。
 - 1.3.2 的更新日志称每个插件有数据目录，以 `PLUGIN_DATA` 提供 [A3]；1.3.4 的 hook 进程环境中
-  没有该变量（本地实测）。
+  没有该变量（本地实测）。1.3.5 的 MCP 服务器进程环境中有 `PLUGIN_ROOT`（插件目录）与
+  `PLUGIN_DATA`（`~/.gemini/antigravity-cli/plugin_data/<插件名>`）（容器实测）。
 
 ## 安装与管理
 
@@ -186,10 +192,26 @@ agy --model gemini-3.8-flash-low --dangerously-skip-permissions -p "Use only the
   `Stop` 超时与输出无法解析、`Stop` 继续的次数上限，以及插件目录同时含 `.claude-plugin/` 时安装
   命令的处理。
 
+### agents 与 MCP 服务器（1.3.5，容器）
+
+环境：测试容器中的 agy 1.3.5（Linux），2026-10-14；模型 `gemini-3.8-flash-high`。插件含两个
+agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不同）与 `mcp_config.json` 中的
+三个服务器：`relative` 的 `args` 为 `./mcp/server.mjs`，`env` 的值为相对路径；`extpath` 的 `args`
+为 `${extensionPath}/mcp/server.mjs`；`remote` 写 `serverUrl`（不存在的本地地址）与 `headers`。
+本地服务器为最小 stdio 服务器，只响应初始化、工具列表与一个返回标记文本的工具，启动时把工作
+目录、参数与环境变量追加到日志。安装后运行一次打印模式会话，结束后卸载。
+
+| 项目 | 结果 |
+|---|---|
+| 安装 | `agy plugin install` 报告处理了 2 个 agents 与 3 个 mcpServers；`agy plugin list --json` 按文件名列出 agents，按配置名列出服务器 |
+| 相对路径的服务器 | 以 `<插件名>_relative` 连接，模型调用工具后读到标记文本；服务器的工作目录为安装后的插件目录，`env` 的相对路径未展开 |
+| `${extensionPath}` | 日志中只有 `relative` 一次启动记录，该服务器未能启动；据此推断变量未展开（未核实） |
+| 子代理 | 会话列出两个子代理，名称为 frontmatter 的 `name` |
+
 ## 来源
 
 - [A1] Plugins：<https://antigravity.google/docs/plugins/>
 - [A2] Hooks：<https://antigravity.google/docs/hooks/>
-- [A3] Antigravity CLI CHANGELOG（1.2.2、1.2.11、1.3.2、1.3.3）：
+- [A3] Antigravity CLI CHANGELOG（1.1.28、1.2.2、1.2.11、1.3.2、1.3.3）：
   <https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md>
 - [A4] MCP：<https://antigravity.google/docs/mcp/>

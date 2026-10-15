@@ -1,5 +1,6 @@
 // claude-code:in-process 的能力数据（F-05-14）。取值依据 hooks 适配第 4、6、8 节、
-// 跨平台对比「工具名差异」与 Mods 指南（「常用事件与返回值」「失败处理与 .catch」）；
+// 跨平台对比「工具名差异」与 Mods 指南（「常用事件与返回值」「失败处理与 .catch」）；执行后
+// 检查与组件依据 claude-code-local-tests.md「执行后检查」「MCP 服务器与 agents」（2.1.296 实测）；
 // 宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
 
@@ -22,8 +23,9 @@ export const claudeCodeInProcess: TargetCapabilities = {
   },
   capabilities: {
     rewriteInput: true, // next({ ...e, command })，只对 Bash（F-05-05）
-    replaceOutput: true, // next 之后返回 { result }
-    withholdOutput: true, // next 之后返回 { deny }
+    // next 之后返回改动 stdout（Bash）或 file.content（Read）的 { result }；其他形状按扣留写出
+    replaceOutput: true,
+    withholdOutput: true, // next 之后返回 { deny }，对全部工具与报错的结果生效
     stopGate: true, // classic.Stop 返回 { block }
     promptGate: true, // prompt.submit 返回 { drop }
   },

@@ -18,4 +18,4 @@
 | F-04-05 | v0.1.0 | 子进程入口 | 按会话保存停机门禁计数 | `beforeStop` 返回 `continue` 时计数加 1，返回 `stop` 时清零；计数文件为宿主实现的 `dataDir` 所返回目录下的 `uapa-stop-<encodeURIComponent(会话 id)>.json`，内容为 `{"continuations":<n>}` 加换行，先写临时文件再重命名；`dataDir` 为 `null` 或目录不可写时 `continuations` 按 0 传入，并在 stderr 写原因；目录不存在时先递归创建（agy 的目录位于系统临时目录，见 SD-06） | F-04-03 |
 | F-04-06 | v0.1.0 | 打包 | 打包入口 | `bundle` 按入口与打包接口第 1 节把守卫逻辑（`uapa:guard`）、目标数据（`uapa:target-data`）、`runtime/core` 与请求的入口打包为 ES2022 ESM 单文件，替换 `__UAPA_PLUGIN_NAME__`、`__UAPA_MODULE_SESSION_ENV__`；`external` 为 `'node'` 时只保留 `node:` 内置模块，出现其他外部导入时打包失败；按 `import.meta.url` 相对自身定位入口，定位方式对源码目录与 `dist/` 目录结构都成立；入口源码用到的打包时名称在 `src/runtime/entries/bundle-names.d.ts` 中声明 | F-02-01, F-02-02 |
 | F-04-07 | v0.1.0 | 打包 | hooks 模块形态的打包 | `external` 为 `'claude-code'` 时，打包结果只导入 `'claude-code'`，出现 `node:` 或其他外部导入时打包失败 | F-04-06 |
-| F-04-08 | v0.2.0 | 子进程入口 | 执行后检查的异常收口 | 执行后检查出错时按扣留输出，以说明文字替换原输出 | F-04-04, F-02-04 |
+| F-04-08 | v0.2.0 | 子进程入口 | 执行后检查的异常收口 | 执行后检查的输入无法解析、守卫出错或返回值无效时按扣留输出，以说明文字替换原输出（SD-29） | F-04-04, F-02-04 |

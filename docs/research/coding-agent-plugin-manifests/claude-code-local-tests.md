@@ -2,8 +2,8 @@
 
 本文记录调研中依赖本地实测的 Claude Code 行为，供复现。环境：Claude Code 2.1.296，macOS；
 「命令 hooks」与「实测会话的工具权限」两节于 2026-10-14 实测，其余各节于 2026-10-13 实测。
-「hooks 模块的静态校验」与「双形态去重的会话实测」两节于 2026-10-14 在 Linux 测试容器中实测
-（同为 2.1.296）。测试插件均为最小示例，不含业务逻辑。
+「hooks 模块的静态校验」「双形态去重的会话实测」「执行后检查」「MCP 服务器与 agents」四节于
+2026-10-14 在 Linux 测试容器中实测（同为 2.1.296）。测试插件均为最小示例，不含业务逻辑。
 
 ## hooks 模块（mod）
 
@@ -95,6 +95,67 @@ matcher，`timeout` 为 3）、`PostToolUse`、`UserPromptSubmit`、`Stop`、`Se
 需要限制实测会话可用的工具时，同时写 `--permission-mode default` 与 `--allowedTools`；
 只读命令仍会执行。
 
+## 执行后检查
+
+会话以 `claude -p --plugin-dir <插件目录> --permission-mode default --allowedTools <规则>
+--output-format stream-json --verbose` 运行。提示只要求模型运行 `echo uapa-after-tool-probe`
+（或 `echo uapa-after-tool-probe; false`），或读取工作目录中内容为 `uapa-read-probe` 的文件；
+“模型读到”指输出流中该次调用的 `tool_result`。
+
+### 命令 hooks 的 `PostToolUse`
+
+插件在 `PostToolUse` 上挂一个不写 matcher 的脚本，按环境变量选择输出方式。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| stdin 字段 | 记录 stdin | 公共字段之外有 `tool_name`、`tool_input`、`tool_response`、`tool_use_id`、`duration_ms`，另有 `prompt_id`、`permission_mode`、`effort` |
+| Bash 的 `tool_response` | 运行 echo 命令 | 对象：`stdout`、`stderr`、`interrupted`、`isImage`、`noOutputExpected` |
+| Read 的 `tool_response` | 读取文件 | 对象：`type` 为 `text`，`file` 含 `filePath`、`content`、`numLines`、`startLine`、`totalLines` |
+| 替换 Bash 输出 | `hookSpecificOutput` 含 `hookEventName: "PostToolUse"` 与 `updatedToolOutput`：复制原 `tool_response`，只改 `stdout` | 模型读到改后的 `stdout` |
+| 替换 Read 输出 | 同上，只改 `file.content` | 模型读到改后的内容，带行号前缀（`1\t…`） |
+| `updatedToolOutput` 为字符串 | Bash 上返回字符串 | 被忽略，模型读到原输出 |
+| `updatedToolOutput` 只含 `stdout` | Bash 上返回 `{ "stdout": ... }` | 被忽略，模型读到原输出 |
+| `decision: "block"` | stdout 为 `{"decision":"block","reason":...}` | 原输出保留，另把 `reason` 交给模型 |
+| 退出码 2 | stderr 写原因后以 2 结束 | 原输出保留，另把原因作为 blocking error 交给模型 |
+| 退出码 1 | 以 1 结束 | 原输出保留 |
+| 超时 | 条目写 `"timeout": 3`，脚本等待 10 秒 | 原输出保留 |
+| 命令以非零退出码结束 | 运行 `echo uapa-after-tool-probe; false`，另在 `PostToolUseFailure` 上挂记录脚本 | 不触发 `PostToolUse`；触发 `PostToolUseFailure`，stdin 没有 `tool_response`，`error` 为 `Exit code 1` 加命令输出，另有 `is_interrupt`；模型读到的结果标为错误 |
+| `PostToolUseFailure` 的输出 | 分别返回 `updatedToolOutput`、`decision: "block"` 与退出码 2 | 三者都不改变模型读到的结果；后两者另把原因交给模型 |
+| 宿主拦下的命令 | 要求模型读取工作目录之外的文件，宿主以安全规则拦下 | `PostToolUse` 与 `PostToolUseFailure` 都不触发 |
+
+### hooks 模块的 `tool.call`
+
+插件的 `hooks/hooks.json` 只含 `modules`；模块在 `tool.call` 上注册一个不带 matcher 的处理
+函数，先 `await next(e)`，再按入参中的标记返回不同的值。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 两个不带 matcher 的处理函数 | 同一插件在 `tool.call` 上注册两次 | 模块校验失败（registered twice without a matcher），插件的模块不加载 |
+| `e` 的字段 | 记录 Bash 调用的 `e` | `command`、`description`、`tool`、`tool_use_id` |
+| `next` 的结果 | 记录 Bash 与 Read 的结果 | `{ ref, result, text, isReadOnly }`：`result` 的形状同命令 hooks 的 `tool_response`，`text` 为模型读到的文本，Read 的 `text` 带行号前缀 |
+| 报错的结果 | 运行 `echo uapa-after-tool-probe; false`；另运行被宿主拦下的命令 | `{ ref, result, text, isError: true }`（前者另有 `isReadOnly`），`result` 为以 `Error: ` 开头的字符串 |
+| 替换 Bash 输出 | 返回 `{ ...ran, result: { ...ran.result, stdout } }`，或只返回 `{ result }` | 模型读到改后的 `stdout` |
+| 替换 Read 输出 | 返回 `{ ...ran, result: { ...ran.result, file: { ...ran.result.file, content } } }` | 模型读到改后的内容，带行号前缀；`validate --strict` 通过 |
+| 只改 `text` | 返回 `{ ...ran, text }` | 无效果，模型读到原输出 |
+| 只返回 `{ text }` | — | 返回形状不符，转入 `.catch` |
+| 扣留 | `next` 之后返回 `{ deny: reason }` | 对 Bash、Read 与报错的结果都生效：模型读到 `<工具名> ran, and a plugin withheld its result: <reason>`，报错的结果为以 `<tool_use_error>` 包裹的原因 |
+| `next` 之后抛错 | 处理函数在 `next` 之后抛错，`.catch` 返回 `{ deny }` | `.catch` 中 `next.called` 为 `true`；扣留生效 |
+| `next` 之前拒绝 | 返回 `{ deny: reason }` | 工具不运行；模型读到以 `<tool_use_error>` 包裹的原因 |
+
+## MCP 服务器与 agents
+
+插件根有 `.mcp.json` 与 `agents/` 下的两个 agent。`.mcp.json` 含一个本地服务器与一个远程
+服务器：本地服务器为最小 stdio 服务器，只响应初始化、工具列表与一个返回标记文本的工具，
+启动时把工作目录、参数与一个环境变量追加到日志；远程服务器指向不存在的本地地址。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 插件根变量 | 本地服务器的 `args` 与 `env` 含 `${CLAUDE_PLUGIN_ROOT}`；另一次运行中 `command` 为 `${CLAUDE_PLUGIN_ROOT}/mcp/run.sh`（启动该服务器的 shell 脚本） | 三处都展开为插件目录 |
+| 服务器的工作目录 | 服务器日志 | 会话的工作目录 |
+| 远程服务器 | `{ "type": "http", "url": ..., "headers": {...} }` | 列在会话初始化信息中，状态为 `failed`（地址不可达），即配置被读取 |
+| 服务器与工具名 | 会话初始化信息；让模型调用该工具 | 服务器为 `plugin:<插件名>:<服务器名>`，工具为 `mcp__plugin_<插件名>_<服务器名>__<工具名>`；模型读到标记文本 |
+| agent 的 frontmatter | 一个 agent 含 `targets` 键，另一个的 `name` 与文件名不同；`validate --strict` | 通过；会话初始化信息按 frontmatter 的 `name` 列出 `<插件名>:<name>` |
+
 ## 使用的命令
 
 ```bash
@@ -111,4 +172,8 @@ claude -p --plugin-dir ./dualtrack-probe "hello"
 
 ```bash
 echo "<提示>" | claude -p --model haiku --plugin-dir ./command-probe --allowedTools Bash Read
+```
+
+```bash
+claude -p "<提示>" --plugin-dir ./after-tool-probe --permission-mode default --allowedTools Read --output-format stream-json --verbose
 ```

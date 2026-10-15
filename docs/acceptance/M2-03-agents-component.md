@@ -41,9 +41,9 @@
 
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
-| `F-01-07` | 读取 agents | 读取 `agents/*.md` 与 frontmatter，校验 `name` 与 `description`；支持 `targets` 筛选 | ⏳ | |
-| `F-05-11` | 放置 agents | 适用的 agents 写入产物 `agents/*.md` | ⏳ | |
-| `F-11-07` | 放置 agents | 适用的 agents 写入产物 `agents/<name>.md` | ⏳ | |
+| `F-01-07` | 读取 agents | 读取 `agents/` 下一层的 `.md` 文件与 frontmatter，校验 `name`（与文件名去掉 `.md` 相同）与 `description`；支持 `targets` 筛选（SD-30） | ⏳ | |
+| `F-05-11` | 放置 agents | 适用的 agents 由构建编排原样写入产物 `agents/<name>.md`（SD-30） | ⏳ | |
+| `F-11-07` | 放置 agents | 适用的 agents 由构建编排原样写入产物 `agents/<name>.md`（SD-30） | ⏳ | |
 
 ## 3. 自动化验证汇总（可复跑）
 

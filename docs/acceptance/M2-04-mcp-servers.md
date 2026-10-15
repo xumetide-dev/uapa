@@ -32,7 +32,7 @@
 | # | 判定条目 | 预期 | 实际 | 证据 | 状态 |
 |---|---|---|---|---|---|
 | 1 | 硬约束：确定性输出 | `components` 夹具：MCP 配置的键序为固定插入顺序、两空格缩进、结尾换行，服务器按名称排序，逐字节比对 | | | ⏳ |
-| 2 | 硬约束：不越权写入 | `components` 夹具：MCP 配置只写入各插件目录；含 `{pluginRoot}` 的服务器在不展开变量的宿主上不写入并列为跳过 | | | ⏳ |
+| 2 | 硬约束：不越权写入 | `components` 夹具：MCP 配置只写入各插件目录；`command` 含 `{pluginRoot}` 的服务器在 Codex 与 agy 上不写入并列为跳过 | | | ⏳ |
 
 ## 2. 功能点逐条验收
 
@@ -41,10 +41,10 @@
 
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
-| `F-01-08` | 读取 MCP 服务器 | 读取 `mcp/servers.json`：本地服务器只含 `command`、`args`、`env`，远程服务器只含 `url`、`headers`，插件根写作 `{pluginRoot}`；其他字段失败 | ⏳ | |
-| `F-05-12` | 生成 `.mcp.json` | 由规范形式生成服务器配置，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}` | ⏳ | |
-| `F-06-06` | 生成 `mcp.json` | 由规范形式生成服务器配置，每个服务器写明传输 `type` | ⏳ | |
-| `F-11-08` | 生成 `mcp_config.json` | 由规范形式生成 `mcpServers`：本地服务器写 `command`、`args`、`env`，远程服务器的 `url` 写为 `serverUrl`；宿主未说明插件 MCP 配置中的变量是否展开，含 `{pluginRoot}` 的服务器列为跳过 | ⏳ | |
+| `F-01-08` | 读取 MCP 服务器 | 读取 `mcp/servers.json` 的 `mcpServers`：服务器名只含字母、数字、`_`、`-`；本地服务器只含 `command`、`args`、`env`，远程服务器只含 `url`、`headers`，插件根写作 `{pluginRoot}`，只用于本地服务器；其他字段、类型不符或两类字段混用时失败（SD-30） | ⏳ | |
+| `F-05-12` | 生成 `.mcp.json` | 由规范形式生成 `.mcp.json`：`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}`，远程服务器写 `type: "http"`（SD-30） | ⏳ | |
+| `F-06-06` | 生成 `mcp.json` | 由规范形式生成 `mcp.json`，manifest 的 `mcpServers` 指向它：每个服务器写明传输 `type`，请求头写为 `http_headers`；`{pluginRoot}` 在 `args` 与 `env` 中换为 `.` 并写 `"cwd": "."`，在 `command` 中出现时列为跳过；没有服务器而共用插件目录时 manifest 写 `"mcpServers": {}`（SD-30） | ⏳ | |
+| `F-11-08` | 生成 `mcp_config.json` | 由规范形式生成 `mcpServers`：本地服务器写 `command`、`args`、`env`，`{pluginRoot}` 在 `args` 与 `env` 中换为 `.`（服务器以插件目录为工作目录），在 `command` 中出现时列为跳过；远程服务器的 `url` 写为 `serverUrl`（SD-30） | ⏳ | |
 
 ## 3. 自动化验证汇总（可复跑）
 

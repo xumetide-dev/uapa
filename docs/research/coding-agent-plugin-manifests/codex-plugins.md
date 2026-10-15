@@ -39,7 +39,8 @@ plugin-root/
 
 布局依据 [X2]；路径相对插件根目录、以 `./` 开头、不得越出根目录。
 `mcp.json` 要求每个服务器声明传输 `type`；旧脚手架生成的 `.mcp.json`
-不能直接改名沿用 [X2]。安装后的插件缓存在
+不能直接改名沿用 [X2]。兼容 manifest `.codex-plugin/plugin.json` 未写 `mcpServers` 时读取
+`.mcp.json`，不读取 `mcp.json`（rust-v0.162.1 源码核对）。安装后的插件缓存在
 `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`，本地插件版本记为 `local` [X2]。
 
 ## plugin.json 字段
@@ -118,7 +119,7 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
 | 执行前阻断 | 支持：退出码 2（stderr 为原因）或 `permissionDecision: "deny"` | [X7] |
 | 失败时的默认行为 | 放行（fail-open）：退出码非 0 非 2、超时、进程启动失败、输出形似 JSON 但不合法时，该 hook 记为失败，工具照常执行；退出码 2 而 stderr 为空也记为失败，不阻断 | [X7][X8] |
 | 执行前改写工具入参 | 支持：`permissionDecision: "allow"` 时返回 `updatedInput` | [X7] |
-| 执行后替换工具输出 | 部分：`PostToolUse` 返回 `decision: "block"` 时以反馈替换工具结果，不撤销已执行的命令；`updatedMCPToolOutput` 只解析、尚未生效 | [X7] |
+| 执行后替换工具输出 | 部分：`PostToolUse` 返回 `decision: "block"` 与非空 `reason` 时以 `reason` 替换工具结果，模型读到的是一次失败的调用，不撤销已执行的命令；`updatedMCPToolOutput` 只解析、尚未生效；只对执行成功的调用触发 | [X7]；源码核对 |
 | 停机门禁 | `Stop` 返回 `decision: "block"` 时以 `reason` 作为续写提示继续本轮；任一 hook 返回 `continue: false` 时优先结束 | [X7] |
 | 进程内扩展 | 不支持，只有子进程与 MCP 工具两类处理器 | [X7] |
 
@@ -138,6 +139,13 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   `hookEventName`、`permissionDecision: "allow"` 与 `updatedInput`；`Stop` 返回
   `decision: "block"` 与 `reason` 时继续本轮。其余失败一律放行。
 - 未信任的插件 hooks 被静默跳过；安装插件不自动信任其 hooks。
+- `PostToolUse` 的 `tool_response` 在执行命令与 `apply_patch` 上为交给模型的输出字符串，在
+  MCP 工具上为 `CallToolResult` 对象；`decision: "block"` 与非空 `reason` 以 `reason` 替换输出，
+  其余失败保留原输出。
+- 兼容 manifest 的 `mcpServers` 可指向 `./mcp.json`；文件中的字段为 snake_case（远程服务器的
+  请求头为 `http_headers`），未知字段被忽略，不展开 `${PLUGIN_ROOT}` 等占位符；相对的 `cwd`
+  拼到插件目录下。
+- 插件不承载 agents。
 
 ## marketplace.json
 

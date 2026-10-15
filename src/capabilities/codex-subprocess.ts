@@ -1,6 +1,6 @@
 // codex:subprocess 的能力数据（F-06-01）。取值依据 hooks 适配第 4、6、7、8 节、
-// 跨平台对比「工具名差异」与 Codex「源码核对（rust-v0.162.1）」（TA-15）；
-// 宿主升级后只改本文件。
+// 跨平台对比「工具名差异」与 Codex「源码核对（rust-v0.162.1）」（TA-15）；执行后检查、MCP
+// 服务器与 agents 依据 codex-source-review.md 的同名各节；宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
 
 const allow = { error: 'allow', timeout: 'allow' } as const
@@ -13,7 +13,7 @@ export const codexSubprocess: TargetCapabilities = {
     checked: '2026-10-14',
     source: 'codex-plugins.md', // TA-15 结论见其「源码核对（rust-v0.162.1）」
   },
-  // skills/、mcp.json 与 hooks 配置都是插件包内的文件；Codex 插件没有 agents 组件
+  // skills/、mcp.json 与 hooks 配置都是插件包内的文件；插件清单没有 agents 字段（源码核对）
   components: {
     skills: 'package',
     agents: 'none',
@@ -22,8 +22,9 @@ export const codexSubprocess: TargetCapabilities = {
   },
   capabilities: {
     rewriteInput: true, // permissionDecision: "allow" 与 updatedInput
-    replaceOutput: false, // updatedMCPToolOutput 只解析、尚未生效
-    withholdOutput: true, // PostToolUse 返回 decision: "block" 时以反馈替换工具结果
+    replaceOutput: false, // updatedMCPToolOutput 只解析、尚未生效；没有替换为任意文本的字段
+    // PostToolUse 返回 decision: "block" 与非空 reason 时以 reason 替换工具结果，只对成功的调用触发
+    withholdOutput: true,
     stopGate: true, // Stop 返回 decision: "block" 与 reason
     promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15）
   },

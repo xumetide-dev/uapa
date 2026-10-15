@@ -45,9 +45,9 @@
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
 | `F-02-04` | 执行后检查接口 | `GuardPlugin` 增加 `afterTool`，包入口导出 `AfterTool`；`GuardCheck` 增加 `'afterTool'`；F-02-03 不再拒绝 `afterTool` 与 `replaceOutput`、`withholdOutput`，这两项能力参与构建时能力检查 | ⏳ | |
-| `F-04-08` | 执行后检查的异常收口 | 执行后检查出错时按扣留输出，以说明文字替换原输出 | ⏳ | |
-| `F-05-13` | 执行后检查的决策输出 | 命令 hooks 以 `updatedToolOutput` 替换输出；hooks 模块在 `next` 之后返回 `{ result }`，扣留返回 `{ deny }` | ⏳ | |
-| `F-06-07` | 执行后检查的决策输出 | 扣留以 `PostToolUse` 返回 `decision: "block"` 输出；声明需要 `replaceOutput` 时构建失败 | ⏳ | |
+| `F-04-08` | 执行后检查的异常收口 | 执行后检查的输入无法解析、守卫出错或返回值无效时按扣留输出，以说明文字替换原输出（SD-29） | ⏳ | |
+| `F-05-13` | 执行后检查的决策输出 | 命令 hooks 以 `updatedToolOutput` 替换与扣留可替换形状的输出，其他形状以 `decision: "block"` 附加原因并记为残余风险；hooks 模块在 `next` 之后返回 `{ result }` 替换，扣留与不可替换形状的替换返回 `{ deny }`（SD-29） | ⏳ | |
+| `F-06-07` | 执行后检查的决策输出 | 扣留以 `PostToolUse` 返回 `decision: "block"` 与非空 `reason` 输出；`replace` 按扣留写出并在构建报告中记为降级；声明需要 `replaceOutput` 时构建失败（SD-29） | ⏳ | |
 
 ## 3. 自动化验证汇总（可复跑）
 

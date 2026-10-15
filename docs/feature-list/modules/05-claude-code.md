@@ -23,6 +23,6 @@
 | F-05-09 | v0.1.0 | 产物校验 | 调用宿主校验命令 | 宿主模块实现 `verify`：运行 `claude plugin validate --strict <插件目录>`，退出码 0 为 `passed`，非零为 `failed` 并带命令输出；PATH 中没有 `claude` 时为 `skipped`；调用时机与失败处理见 F-03-14 | F-05-02, F-03-14 |
 | F-05-10 | v0.1.0 | 双形态去重 | 两种形态合为一个插件包 | 同时配置两个目标时写入同一目录：`hooks/hooks.json` 同时含 `hooks` 与 `modules` 键，`plugin.json` 只生成一份；只配置其中一个目标，或其中一个目标未通过能力检查时，只含对应的键；插件包中只有 `claude-code:in-process` 的 hooks 时（只配置了该目标，或 `claude-code:subprocess` 未通过能力检查），残余风险写明 Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效 | F-05-02, F-05-03, F-05-05, F-03-05 |
 | F-05-15 | v0.1.0 | 命令 hooks | 写入声明的命令 hooks | 两个目标的能力数据按[命令 hooks 声明](../../architecture/command-hooks.md)第 2 节填写 `commandHookEvents`（`claude-code:in-process` 全部为 `null`，`claude-code:subprocess` 的六个事件均为同名宿主事件）；`hooks/hooks.json` 的 `hooks` 键按 `claude-code:subprocess` 的 `TargetPlan.commandHooks` 写入条目，结构与 F-05-03 的守卫条目相同，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}`，同一事件下排在守卫条目之后；未配置守卫时只生成 `hooks/hooks.json`，不生成入口；去重（F-05-08）不作用于这些条目 | F-05-03, F-03-15 |
-| F-05-11 | v0.2.0 | 组件 | 放置 agents | 适用的 agents 写入产物 `agents/*.md` | F-01-07 |
-| F-05-12 | v0.2.0 | 组件 | 生成 `.mcp.json` | 由规范形式生成服务器配置，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}` | F-01-08 |
-| F-05-13 | v0.2.0 | 命令 hooks | 执行后检查的决策输出 | 命令 hooks 以 `updatedToolOutput` 替换输出；hooks 模块在 `next` 之后返回 `{ result }`，扣留返回 `{ deny }` | F-02-04, F-04-08, F-05-04 |
+| F-05-11 | v0.2.0 | 组件 | 放置 agents | 适用的 agents 由构建编排原样写入产物 `agents/<name>.md`（SD-30） | F-01-07 |
+| F-05-12 | v0.2.0 | 组件 | 生成 `.mcp.json` | 由规范形式生成 `.mcp.json`：`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}`，远程服务器写 `type: "http"`（SD-30） | F-01-08 |
+| F-05-13 | v0.2.0 | 命令 hooks | 执行后检查的决策输出 | 命令 hooks 以 `updatedToolOutput` 替换与扣留可替换形状的输出，其他形状以 `decision: "block"` 附加原因并记为残余风险；hooks 模块在 `next` 之后返回 `{ result }` 替换，扣留与不可替换形状的替换返回 `{ deny }`（SD-29） | F-02-04, F-04-08, F-05-04 |

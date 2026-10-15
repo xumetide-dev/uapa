@@ -1,5 +1,6 @@
 // agy:subprocess 的能力数据（F-11-01）。取值依据 hooks 适配第 4、6、7、8 节、
-// 跨平台对比「工具名差异」与 agy「本地实测」（1.3.4）；宿主升级后只改本文件。
+// 跨平台对比「工具名差异」与 agy「本地实测」（1.3.4）；agents 与 MCP 服务器另于 1.3.5 实测，
+// 见其「agents 与 MCP 服务器（1.3.5，容器）」；宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
 
 export const agySubprocess: TargetCapabilities = {
@@ -20,7 +21,7 @@ export const agySubprocess: TargetCapabilities = {
   capabilities: {
     rewriteInput: true, // PreToolUse 的 overwrite，按键浅合并进 toolCall.args
     replaceOutput: false, // PostToolUse 只能返回 {}，不能替换输出
-    withholdOutput: false,
+    withholdOutput: false, // PostToolUse 的 stdin 不含输出，不能扣留
     stopGate: true, // Stop 返回 decision: "continue" 与 reason（本地实测）
     promptGate: false, // 宿主没有提示提交事件
   },

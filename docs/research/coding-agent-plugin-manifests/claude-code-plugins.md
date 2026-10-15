@@ -143,8 +143,9 @@
   `decision: "approve" | "block"` 已标为 deprecated。
 - `PostToolUse`：工具已执行。stdin 中工具输出字段为 `tool_response`。
   `hookSpecificOutput.updatedToolOutput` 可替换任意工具的输出（v2.1.121+，此前仅
-  `updatedMCPToolOutput` 支持 MCP 工具）；退出码 2 与 `decision: "block"` 只把原因附加给
-  Claude，不阻止其读到原始输出。
+  `updatedMCPToolOutput` 支持 MCP 工具），取值须符合该工具的输出 schema，不符时被静默忽略；
+  退出码 2 与 `decision: "block"` 只把原因附加给 Claude，不阻止其读到原始输出。工具报错时
+  触发 `PostToolUseFailure` 而不是 `PostToolUse`。
 - `Stop`：退出码 2 或 `decision: "block"` + `reason` 使 Claude 继续工作；连续阻断 8 次后
   强制结束，上限可由 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` 调整。
 - 默认超时 600 秒（v2.1.3 起由 60 秒调整），`UserPromptSubmit` 等少数事件更短。
@@ -163,6 +164,13 @@
 - `UserPromptSubmit` 以退出码 2 或 `decision: "block"` 拦下提示，不调用模型。
 - 条目的 `timeout` 字段以秒为单位；超时后 hook 进程被结束，工具照常运行。
 - `SessionEnd` 在 `-p` 模式下也触发。
+- `PostToolUse` 的 `updatedToolOutput` 为复制原 `tool_response` 后改动的对象时生效（Bash 改
+  `stdout`，Read 改 `file.content`）；字符串或缺字段的对象被忽略。出错、超时与
+  `decision: "block"` 都保留原输出。命令以非零退出码结束时只触发 `PostToolUseFailure`，它的
+  输出不能替换结果。做法见[执行后检查](claude-code-local-tests.md#执行后检查)。
+- `.mcp.json` 中 `command`、`args` 与 `env` 的 `${CLAUDE_PLUGIN_ROOT}` 展开为插件目录，服务器的
+  工作目录为会话的工作目录；agent 的 frontmatter 含 `targets` 等其他键时 `validate --strict`
+  通过。做法见 [MCP 服务器与 agents](claude-code-local-tests.md#mcp-服务器与-agents)。
 
 ### hooks 模块与命令 hooks 并存
 

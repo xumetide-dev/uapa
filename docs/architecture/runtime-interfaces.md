@@ -81,8 +81,16 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 `com.github.copilot/hooks/uapa-copilot-cli.mjs`（命令见 F-07-03），`kimi:subprocess` 为
 `hooks/uapa-kimi.mjs`（命令见 F-08-03）。
 
-- `<检查名>` 为 `before-tool`、`before-prompt` 或 `before-stop`。每个目标只有一个入口文件，各检查
-  的 hook 命令只在该参数上不同；入口不读取宿主的事件名字段。
+- `<检查名>` 为 `before-tool`、`before-prompt`、`before-stop` 或 `after-tool`（v0.2.0）。每个目标
+  只有一个入口文件，各检查的 hook 命令只在该参数上不同；入口不读取宿主的事件名字段。
+- `after-tool` 写在 `PostToolUse` 上，不写 matcher，只在 `TargetPlan.checks` 含 `afterTool` 时生成
+  （SD-29：`withholdOutput` 为不支持的目标省略该检查，v0.2.0 中为 agy）。
+- hooks 模块入口在 `tool.call` 上只注册一个不带 matcher 的处理函数：同一插件注册两个时模块校验
+  失败（[本地实测](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#hooks-模块的-toolcall)）。
+  执行前与执行后检查都在这一个处理函数中，任一检查在 `checks` 中时注册：先做执行前检查，放行
+  或改写后 `await next(...)`，再做执行后检查；守卫抛错与返回值无效在处理函数内按第 4 节收口。
+  `.catch` 中 `next.called` 为真且计划了执行后检查时返回 `{ deny }`（原因同 F-05-06 的固定原因），
+  不以 `next(e)` 重放原输出；其余情况沿用 F-05-06。
 - 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
   其他宿主的根 `plugin.json` 合并（F-11-02）。
 
@@ -90,7 +98,7 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 
 ```ts
 // src/runtime/entries/subprocess.ts（公共部分）；各目标在 <宿主>-subprocess.ts 中实现协议
-export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop'
+export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop' | 'after-tool'
 export interface HostEvent {
   readonly sessionId: string
   readonly tool?: {
@@ -100,6 +108,9 @@ export interface HostEvent {
     readonly command?: string
   }
   readonly prompt?: string
+  // check 为 'after-tool' 时必填：宿主 stdin 中的工具输出原值（Claude Code 与 Codex 为
+  // tool_response），原样保留，文本由 outputText 取出（第 4 节）
+  readonly toolOutput?: unknown
 }
 export interface ProcessOutput {
   readonly exitCode: 0 | 2; readonly stdout?: string; readonly stderr?: string
@@ -117,6 +128,10 @@ export interface SubprocessProtocol {
     hostInput: Readonly<Record<string, unknown>>, command: string,
   ): ProcessOutput
   continueStop(reason: string): ProcessOutput
+  // v0.2.0：只在能力数据 replaceOutput 为 true 的目标上实现；output 为 replacedOutput 的结果
+  replaceOutput?(output: unknown): ProcessOutput
+  // v0.2.0：只在 withholdOutput 为 true 的目标上实现；以宿主的阻断写法交出 text，text 非空
+  blockOutput?(text: string): ProcessOutput
   dataDir(env: Env): string | null // 插件数据目录
 }
 export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
@@ -127,13 +142,25 @@ export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
 - 第一个参数缺失或不是 `CheckArg` 时，不读取 stdin，以退出码 1 结束并在 stderr 写原因，由宿主
   按能力数据中的 `failureDefault` 处理。
 - `parse`：`sessionId` 必填；`check` 为 `before-tool` 时 `tool` 必填，为 `before-prompt` 时
-  `prompt` 必填。缺失或类型不符时抛出 `Error`，`message` 为宿主字段路径（如 `tool_name`）。
+  `prompt` 必填，为 `after-tool` 时 `tool` 与 `toolOutput` 必填（宿主字段缺失时抛错，值可为任意
+  JSON）。缺失或类型不符时抛出 `Error`，`message` 为宿主字段路径（如 `tool_name`）。
   工具名换算为 `shell` 而 `tool.command` 缺失时，公共部分同样按输入无法解析处理，字段写
   `tool.command`。
 - 以下情况执行前与提示提交前检查调用 `deny`，停机前检查调用 `allow` 并在 stderr 写同一原因：
   输入无法解析，原因为 `uapa: 无法解析宿主输入: <字段>`；守卫抛错或返回值无效，原因按第 4 节。
 - 守卫未实现该检查，或检查为 `before-prompt` 而 `TargetRuntimeData.capabilities.promptGate`
-  为 `false` 时，调用 `allow` 结束，不调用守卫。
+  为 `false`、为 `after-tool` 而 `withholdOutput` 为 `false` 时，调用 `allow` 结束，不调用守卫。
+- 执行后检查（v0.2.0，SD-29）：以 `outputText(event.toolOutput)` 调用 `afterTool`。`keep` 调用
+  `allow`；`replace` 与 `withhold` 交出的文本分别为 `text` 与 `reason`。交出文本时，`replaceOutput`
+  为 `true` 且 `replacedOutput(event.toolOutput, 文本)` 不为 `null` 时调用 `replaceOutput`，否则调用
+  `blockOutput`。目标缺 `replaceOutput` 时 `replace` 因此按扣留写出（构建报告的降级）。输入无法
+  解析、守卫抛错或返回值无效时，以第 4 节的原因按扣留写出；输入无法解析时没有原值，调用
+  `blockOutput`。
+- 各目标的写法：Claude Code 的 `replaceOutput` 为 stdout
+  `{"hookSpecificOutput":{"hookEventName":"PostToolUse","updatedToolOutput":<output>}}`，
+  `blockOutput` 为 `{"decision":"block","reason":<text>}`（只附加原因，模型仍读到原输出，由
+  宿主模块记为残余风险）；Codex 只实现 `blockOutput`，写法相同，宿主以 `reason` 替换输出；
+  agy 两者都不实现。退出码均为 0。
 - `skip` 在 `parse` 之后、调用守卫之前执行。v0.1.0 只有 `claude-code-subprocess.ts` 实现它：
   `__UAPA_MODULE_SESSION_ENV__` 不为 `null` 且 `env` 中该变量等于 `event.sessionId` 时返回 `true`。
 - `rewrite` 只在规范名为 `shell` 且 `TargetRuntimeData.capabilities.rewriteInput` 为 `true` 时
@@ -148,7 +175,7 @@ export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
   `agy-subprocess.ts` 的 `dataDir` 返回 `<os.tmpdir()>/uapa-<encodeURIComponent(插件名)>`
   （SD-06）。
 
-## 4. 守卫返回值检查
+## 4. 守卫返回值与执行后输出
 
 ```ts
 // src/runtime/core/decisions.ts（F-04-04）：子进程入口与 hooks 模块入口共用，不做 I/O
@@ -159,10 +186,31 @@ export type Checked<T> =
 export function checkBeforeTool(value: unknown, tool: string): Checked<BeforeTool>
 export function checkBeforePrompt(value: unknown): Checked<BeforePrompt>
 export function checkBeforeStop(value: unknown): Checked<BeforeStop>
+export function checkAfterTool(value: unknown): Checked<AfterTool> // v0.2.0（F-04-08）
 export function guardErrorReason(error: unknown): string // 'uapa: 守卫出错: <消息>'
+
+// src/runtime/core/output.ts（F-04-08）：两种形态共用，不做 I/O，按输出的形状判断，不按工具名
+export function outputText(output: unknown): string
+// 返回替换后的宿主输出；形状不在下表之列时返回 null
+export function replacedOutput(output: unknown, text: string): unknown
 ```
 
 - 未知 `kind`、缺字段、`reason` 或 `fallbackReason` 为空白、shell 的 `rewrite.input.command`
-  不是非空字符串时返回 `ok: false`，`reason` 为 `uapa: 守卫返回值无效`。
+  不是非空字符串、`replace.text` 不是字符串或为空白时返回 `ok: false`，`reason` 为
+  `uapa: 守卫返回值无效`。
 - 两种形态的入口先以这些函数检查守卫的返回值或异常，再输出决策；抛错与无效返回值的处理见
-  第 3 节（子进程）与 F-05-06（hooks 模块）。
+  第 3 节（子进程）与 F-05-06（hooks 模块）。执行后检查的这两种情况都按扣留写出（F-04-08）。
+
+工具输出的形状（SD-29）：
+
+| 输出 | `outputText` | `replacedOutput` |
+|---|---|---|
+| 字符串（Codex 的执行命令与 `apply_patch`，Claude Code hooks 模块报错的 `result`） | 原值 | `null` |
+| 对象，`stdout` 为字符串（Claude Code 的 Bash） | `stdout`；`stderr` 为非空字符串时另接一个换行与 `stderr` | 复制对象，`stdout` 换为文本；有 `stderr` 字段时置为 `''` |
+| 对象，`file.content` 为字符串（Claude Code 的 Read） | `file.content` | 复制对象与 `file`，`file.content` 换为文本 |
+| 其他 | `JSON.stringify` 的结果 | `null` |
+
+hooks 模块入口的执行后检查（F-05-13）：`next` 的结果含 `deny` 时原样返回，不调用 `afterTool`；
+否则以 `outputText(ran.result)` 调用，报错的结果（`isError` 为真）同样检查。`keep` 返回 `ran`；
+交出文本时，`replacedOutput(ran.result, 文本)` 不为 `null` 且为替换则返回 `{ ...ran, result }`，
+其余情况返回 `{ deny: 文本 }`。

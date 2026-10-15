@@ -1,7 +1,7 @@
 # 施工单 M2-04：MCP 服务器
 
 > 读取源项目的 `mcp/servers.json`（规范形式），由三个宿主模块各自生成 MCP 配置：Claude Code
-> 的 `.mcp.json`、Codex 的 `mcp.json`、agy 的 `mcp_config.json`；插件根无法换算为宿主变量的
+> 的 `.mcp.json`、Codex 的 `mcp.json`、agy 的 `mcp_config.json`；插件根按 SD-30 换算，无法换算的
 > 服务器列为跳过。`components` 夹具加入 MCP 服务器。
 
 | 项 | 内容 |
@@ -36,8 +36,9 @@
 ## ⚠️ 关键落地约束（必须先验证）
 
 - **源格式与跳过规则按 SD-30**：`mcp/servers.json` 的顶层结构、服务器名的字符规则、本地与远程
-  服务器的判别，以及含 `{pluginRoot}` 的服务器在不展开变量的宿主上列为跳过（`component` 的
-  写法），以 M2-01 定下的 SD-30 与模块接口 §3 为准。
+  服务器的判别、`{pluginRoot}` 的换算，以及 `command` 含 `{pluginRoot}` 的服务器在 Codex 与 agy
+  上列为跳过（`component` 为 `mcpServers.<名称>`，由宿主模块经 `HostResult.skipped` 返回），以
+  M2-01 定下的 SD-30 与模块接口 §3、§5 为准。
 - **Codex 的 MCP 文件位置与 `type` 取值**：以 M2-01 的 rust-v0.162.1 源码核对为准；manifest 是否
   需要写 `mcpServers` 字段指向该文件同样以源码为准。得不出结论时 `codex:subprocess` 的
   `components.mcp` 记为 `none`，服务器列为跳过。
@@ -58,7 +59,7 @@
 | 产物零依赖 | 否 | |
 | 不在运行时推断宿主 | 否 | |
 | 确定性输出 | 是 | `components` 夹具：MCP 配置的键序为固定插入顺序、两空格缩进、结尾换行，服务器按名称排序，逐字节比对 |
-| 不越权写入 | 是 | `components` 夹具：MCP 配置只写入各插件目录；含 `{pluginRoot}` 的服务器在不展开变量的宿主上不写入并列为跳过 |
+| 不越权写入 | 是 | `components` 夹具：MCP 配置只写入各插件目录；`command` 含 `{pluginRoot}` 的服务器在 Codex 与 agy 上不写入并列为跳过 |
 | 安装不运行脚本 | 否 | |
 | 能力数据有出处 | 否 | |
 
@@ -77,17 +78,19 @@
 ### 3. 宿主模块（`src/targets/claude-code/`、`src/targets/codex/`、`src/targets/agy/`）
 
 - Claude Code：`.mcp.json`，`{pluginRoot}` 换为 `${CLAUDE_PLUGIN_ROOT}`（F-05-12）。
-- Codex：`mcp.json`，每个服务器写明传输 `type`；manifest 字段与插件根的处理按 M2-01 的结论；
+- Codex：`mcp.json`，每个服务器写明传输 `type`；manifest 的 `mcpServers` 与插件根的处理按 SD-30；
   字段白名单检查覆盖该文件（F-06-06、F-06-05）。
 - agy：`mcp_config.json` 的 `mcpServers`，本地服务器写 `command`、`args`、`env`，远程服务器的
-  `url` 写为 `serverUrl`；含 `{pluginRoot}` 的服务器列为跳过；字段白名单检查覆盖该文件
+  `url` 写为 `serverUrl`；`{pluginRoot}` 按 SD-30 换算，`command` 含它的服务器列为跳过；字段白名单
+  检查覆盖该文件
   （F-11-08、F-11-05）。
 - 没有服务器的目标不生成 MCP 配置，manifest 中不写指向它的字段。
 
 ### 4. 夹具（`test/fixtures/components/`）
 
-- 加入三个服务器：本地服务器 `args` 含 `{pluginRoot}`；本地服务器不含 `{pluginRoot}`；远程
-  服务器带 `headers`。期望产物按各宿主的写法手写；agy 的报告中第一个服务器列为跳过。
+- 加入四个服务器：本地服务器 `args` 含 `{pluginRoot}`；本地服务器 `command` 含 `{pluginRoot}`；
+  本地服务器不含 `{pluginRoot}`；远程服务器带 `headers`。期望产物按各宿主的写法手写；Codex 与
+  agy 的报告中第二个服务器列为跳过。
 
 ### 不改的地方（红线）
 

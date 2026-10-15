@@ -1,5 +1,6 @@
 // claude-code:subprocess 的能力数据（F-05-01）。取值依据 hooks 适配第 4、6、7、8 节、
-// 跨平台对比「工具名差异」与 Claude Code「命令 hooks 的本地实测」（TA-15）；
+// 跨平台对比「工具名差异」与 Claude Code「命令 hooks 的本地实测」（TA-15）；执行后检查与组件
+// 依据 claude-code-local-tests.md「执行后检查」「MCP 服务器与 agents」（2.1.296 实测）；
 // 宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
 
@@ -22,8 +23,10 @@ export const claudeCodeSubprocess: TargetCapabilities = {
   },
   capabilities: {
     rewriteInput: true, // hookSpecificOutput.updatedInput
-    replaceOutput: true, // updatedToolOutput（v2.1.121+）
-    withholdOutput: true, // 以 updatedToolOutput 的说明文字替换原输出
+    // updatedToolOutput（v2.1.121+）：复制 tool_response 后改 stdout 或 file.content，须与
+    // 工具的输出同形；工具报错时只触发 PostToolUseFailure，不能替换
+    replaceOutput: true,
+    withholdOutput: true, // 以 updatedToolOutput 的说明文字替换原输出；其他形状只能附加原因
     stopGate: true, // Stop 返回 decision: "block" 与 reason
     promptGate: true, // UserPromptSubmit 以退出码 2 阻断（TA-15）
   },

@@ -53,3 +53,5 @@ stdout、stderr 分别与期望文件比对。入口用例以 `process.execPath`
 | `merged-conflict` | 同 `merged`，但 Codex 不设 `hooksFile`，Claude Code 与 Codex 都生成 `hooks/hooks.json` | M4、M5 之后 | F-03-06、TA-07 |
 | `targets-filter` | 四个目标，默认布局；一个 skill 的 frontmatter 只限定 `claude-code:in-process`，另一个只限定 `codex:subprocess`；`overrides/codex/` 中的 `.codex-plugin/plugin.json` 覆盖生成文件，另有一个 `README.md` 为新增文件 | M4、M5 之后 | F-01-05、F-03-04、F-03-12、US-04 |
 | `command-hooks` | 守卫只实现 `beforeTool`；`commandHooks` 声明一条 `SessionStart`（命令为 `node "{pluginRoot}/scripts/session.mjs"`）与一条 `SessionEnd`；四个目标，默认布局 | M4、M5 之后 | F-01-09、F-03-15、F-05-15、F-06-08、F-11-06、TA-18 |
+| `after-tool` | 守卫实现 `beforeTool`（放行）与 `afterTool`，后者按输出中的标记返回 `keep`、`replace`、`withhold`、抛错或无效返回值；四个目标，默认布局；入口用例覆盖 `claude-code:subprocess` 与 `codex:subprocess` | M2-02 | F-02-04、F-04-08、F-05-13、F-06-07、TA-19 |
+| `components` | 不配守卫；两个 agent，一个不写 `targets`，一个只限定 `agy:subprocess`；`mcp/servers.json` 中四个服务器：`args` 含 `{pluginRoot}` 的本地服务器、`command` 含 `{pluginRoot}` 的本地服务器、不含 `{pluginRoot}` 的本地服务器与带 `headers` 的远程服务器；四个目标，默认布局 | M2-03（agents）、M2-04（MCP 服务器） | F-01-07、F-01-08、F-05-11、F-05-12、F-06-06、F-11-07、F-11-08、TA-20 |

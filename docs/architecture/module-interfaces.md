@@ -1,7 +1,7 @@
 # UAPA 模块接口
 
-本文定义 v0.1.0 各模块之间交换的数据与规则：名称、构建配置、源项目与守卫声明、目标能力数据、
-宿主模块接口，以及写出、比对、退出码与命令行调用构建的契约；打包与入口见
+本文定义各模块之间交换的数据与规则（v0.2.0 增加的部分逐项注明）：名称、构建配置、源项目与
+守卫声明、目标能力数据、宿主模块接口，以及写出、比对、退出码与命令行调用构建的契约；打包与入口见
 [入口与打包接口](runtime-interfaces.md)，构建报告见[构建报告](build-report.md)，
 原样声明的命令 hooks 见[命令 hooks 声明](command-hooks.md)。模块职责与依赖方向见
 [架构 §1](architecture.md#1-组成与模块)，守卫公共类型见
@@ -89,9 +89,23 @@ export interface Skill {
   readonly files: readonly string[] // 相对 dir，递归列出全部文件（含 SKILL.md），按字典序
   readonly targets: readonly TargetName[] | null // frontmatter 的 targets；未写为 null
 }
+// v0.2.0（F-01-07，SD-30）：agents/ 下一层的 <name>.md
+export interface Agent {
+  readonly name: string // frontmatter 的 name，与文件名去掉 .md 相同
+  readonly path: string // 相对源项目根，如 'agents/reviewer.md'
+  readonly targets: readonly TargetName[] | null // 同 Skill.targets
+}
+// v0.2.0（F-01-08，SD-30）：mcp/servers.json 的 mcpServers；未写的字段不出现
+export type McpServer =
+  | { readonly name: string; readonly kind: 'local'; readonly command: string
+      readonly args?: readonly string[]; readonly env?: Readonly<Record<string, string>> }
+  | { readonly name: string; readonly kind: 'remote'; readonly url: string
+      readonly headers?: Readonly<Record<string, string>> }
 export interface SourceProject {
   readonly root: string // 配置文件所在目录的绝对路径
   readonly skills: readonly Skill[] // 按 name 排序
+  readonly agents: readonly Agent[] // v0.2.0；按 name 排序，没有 agents/ 时为空
+  readonly mcpServers: readonly McpServer[] // v0.2.0；按 name 排序，没有 mcp/servers.json 时为空
   // overrides/<宿主>/ 下的文件，相对该目录，按字典序
   readonly overrides: Readonly<Partial<Record<HostName, readonly string[]>>>
 }
@@ -104,12 +118,21 @@ export interface GuardDeclaration {
   readonly modulePath: string // 守卫逻辑的绝对路径，供打包使用
   readonly name: string // 只用于错误信息，不写入构建报告
   readonly requires: readonly Capability[]
-  readonly checks: readonly GuardCheck[] // 默认导出上存在的方法；afterTool 见 F-02-03
+  readonly checks: readonly GuardCheck[] // 默认导出上存在的方法；afterTool 自 v0.2.0（F-02-04）
 }
 ```
 
 - 守卫逻辑以 `export default` 导出 `GuardPlugin`。
 - 状态文件名与去重变量名由配置的 `name` 派生，不使用守卫的 `name`。
+- agents 只读 `agents/` 下一层的 `.md` 文件，其他项忽略（与 skills 忽略非目录项相同）；frontmatter
+  的 `name`、`description` 为非空字符串，`name` 与文件名不同时返回 `InputIssue`，`targets` 的规则
+  同 skills（F-01-05）。
+- `mcp/servers.json` 的顶层只有 `mcpServers`，值为服务器名到配置的映射；服务器名只含字母、数字、
+  `_`、`-`。本地服务器的 `command` 为非空字符串，`args` 为字符串数组，`env` 为字符串到字符串的
+  映射；远程服务器的 `url` 为非空字符串，`headers` 为字符串到字符串的映射。插件根写作
+  `{pluginRoot}`，只出现在本地服务器的这三个字段中。其他字段、类型不符、两类字段混用、远程服务器
+  含 `{pluginRoot}` 时返回 `InputIssue`，`field` 写到服务器名与字段，如
+  `mcpServers.docs.args[0]`。
 
 ## 4. 目标能力数据
 
@@ -159,6 +182,8 @@ export interface TargetPlan { // 构建编排按能力数据算出（F-03-02、F
   readonly target: TargetName
   readonly capabilities: TargetCapabilities
   readonly skills: readonly Skill[] // 已按 frontmatter 与承载能力筛选
+  readonly agents: readonly Agent[] // v0.2.0；规则同 skills
+  readonly mcpServers: readonly McpServer[] // v0.2.0；目标不承载 MCP 时为空
   readonly checks: readonly GuardCheck[] // 本目标要生成 hook 的检查；已去掉省略的检查
   readonly commandHooks: readonly CommandHookDecl[] // 本目标承载的命令 hooks 声明（F-03-15）
 }
@@ -179,9 +204,13 @@ export interface OutputFile {
   readonly conflictHint?: string
 }
 export interface TargetNote { readonly target: TargetName; readonly message: string }
+// v0.2.0：宿主模块按宿主格式判定的跳过项，如 SD-30 中不能换算插件根的 MCP 服务器
+export interface TargetSkip {
+  readonly target: TargetName; readonly component: string; readonly reason: string
+}
 export type HostResult =
   | { readonly ok: true; readonly files: readonly OutputFile[];
-      readonly residualRisks: readonly TargetNote[] }
+      readonly skipped: readonly TargetSkip[]; readonly residualRisks: readonly TargetNote[] }
   | { readonly ok: false; readonly errors: readonly TargetNote[] }
 export type VerifyResult =
   | { readonly status: 'passed' }
@@ -209,6 +238,13 @@ export interface HostModule {
   的并集。宿主按目录加载 skills，因此某 skill 被复制（或合并布局的插件目录就是源项目根目录）
   而不在同目录某目标的 `skills` 中时，该目标的残余风险写明“skill <name> 不适用于本目标，但
   与其他目标共用插件目录，宿主仍会加载”。宿主模块不返回 skill 文件。
+- agents（v0.2.0，SD-30）同样由构建编排按插件目录放置：把写入该目录的成功目标 `TargetPlan.agents`
+  的并集原样复制为 `agents/<name>.md`，不适用于同目录某目标的 agent 按上一条写残余风险；宿主
+  模块不返回 agent 文件。
+- MCP 服务器（v0.2.0，SD-30）由宿主模块按 `TargetPlan.mcpServers` 生成：Claude Code 为
+  `.mcp.json`，Codex 为 `mcp.json`，agy 为 `mcp_config.json`，顶层都为 `mcpServers`，服务器按名称
+  排序；不能换算的服务器不写入，返回 `TargetSkip`。没有要写入的服务器时不生成该文件，manifest
+  不写指向它的字段（Codex 的例外见下文）。
 - 宿主模块只按 `TargetPlan.checks` 决定生成哪些 hook，不读取 `guard.checks` 或能力数据推导。
   `TargetPlan.checks` 为空（未配置守卫，或检查全部被省略）时，宿主模块不为该目标生成入口；
   `checks` 与 `commandHooks` 都为空时，也不生成 hooks 配置，manifest 中不写指向它们的字段
@@ -219,8 +255,10 @@ export interface HostModule {
 - 预留（F-03-07）：标为 `json-extensions` 的文件合并时，以宿主标识在 `src/config/targets.ts` 中排在最前的宿主
   的文件为基准，保留其键序；`extensions` 中各命名空间按字典序写出；按上一条的格式序列化。
 - Codex 的 `.codex-plugin/plugin.json` 依次写 `name`、`version`、`description`，配置有值时写
-  `keywords`，再按需写 `hooks`、`interface`（F-06-02）。没有 hooks 配置而 `sharedWith` 非空时，
-  `hooks` 写 `{"hooks": {}}`，使 Codex 不读取其他宿主写出的 `hooks/hooks.json`。
+  `keywords`，再按需写 `hooks`、`mcpServers`、`interface`（F-06-02、F-06-06）。没有 hooks 配置而
+  `sharedWith` 非空时，`hooks` 写 `{"hooks": {}}`，使 Codex 不读取其他宿主写出的
+  `hooks/hooks.json`；同理，生成了 `mcp.json` 时 `mcpServers` 写 `"./mcp.json"`，没有而
+  `sharedWith` 非空时写 `{}`，使 Codex 不读取 Claude Code 写出的 `.mcp.json`。
 - `sharedWith` 由构建编排按 `resolvePluginDirs` 得出，与目标是否成功无关；宿主模块只用它决定
   manifest 的写法与残余风险（F-06-02、F-06-03、F-11-03），不据此读取其他宿主的文件。
 - `$schema` 格式的根 `plugin.json`（预留的 Copilot CLI）顶层依次写 `$schema`

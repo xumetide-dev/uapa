@@ -150,7 +150,7 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 | 平台 | 文件 | 根键 | 本地命令写法 |
 |---|---|---|---|
 | Claude Code 插件 | `.mcp.json` 或 `plugin.json` 的 `mcpServers` | `mcpServers` | `command` + `args`，`env` |
-| Codex | `config.toml`；插件内 `mcp.json` | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env` |
+| Codex | `config.toml`；插件内 `mcp.json`（兼容 manifest 默认读 `.mcp.json`） | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env`；字段为 snake_case，远程服务器的请求头为 `http_headers` |
 | OpenCode | `opencode.json` | `mcp` | `command` 数组，`environment` |
 | DSH | Cordis 配置中的 `@deepseek-ai/dsh-mcp-client` 行 | 不适用 | 见 mcp-client README |
 | Kimi Code | `~/.kimi-code/mcp.json`、`.kimi-code/mcp.json` | 未逐字核实 | 未逐字核实 |
@@ -162,10 +162,11 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 |---|---|
 | Claude Code | `${CLAUDE_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_DATA}` |
 | CodeBuddy | `${CODEBUDDY_PLUGIN_ROOT}`、`${CODEBUDDY_PLUGIN_DATA}`，兼容 `CLAUDE_*` |
-| Codex | hook 环境变量 `PLUGIN_ROOT`、`PLUGIN_DATA`，兼容 `CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA` |
+| Codex | hook 环境变量 `PLUGIN_ROOT`、`PLUGIN_DATA`，兼容 `CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA`；兼容 manifest 的 MCP 配置不展开占位符，相对的 `cwd` 拼到插件目录（rust-v0.162.1 源码核对） |
 | GitHub Copilot | 带 `$schema` 的根 `plugin.json` 用 `${PLUGIN_ROOT}`、`${PLUGIN_DATA}`；Claude 与 Copilot 旧格式用 `${CLAUDE_PLUGIN_ROOT}` |
 | Cursor | MCP 配置中展开 `${CURSOR_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_ROOT}`；不展开 `${PLUGIN_ROOT}`、`${PLUGIN_DATA}` |
 | Kimi Code | hook 环境变量 `KIMI_PLUGIN_ROOT`、`KIMI_CODE_HOME` |
+| agy | 没有插件根目录变量；MCP 服务器以插件目录为工作目录，进程环境有 `PLUGIN_ROOT`、`PLUGIN_DATA`（1.3.5 实测） |
 
 插件数据目录：Claude Code、CodeBuddy、Codex、Copilot CLI 为插件 hook 提供可写的数据目录变量；
 Cursor、Kimi Code、Kiro 没有文档化的插件数据目录。

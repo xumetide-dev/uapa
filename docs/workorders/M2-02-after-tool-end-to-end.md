@@ -41,9 +41,9 @@
   生成执行后 hook，夹具与报告按能力缺失写；不按官方文档的未实测描述实现。
 - **不写会被宿主静默忽略的输出**：Claude Code 命令 hooks 只对 M2-01 实测确认了输出形状的工具
   写 `updatedToolOutput`；其余工具的处理按 SD-29，并在报告中写明。
-- **hooks 模块不依赖处理函数的调用顺序**：执行前与执行后检查优先写在同一个 `tool.call` 处理
-  函数中（先执行前检查，`next` 之后执行后检查）；M2-01 已实测同一插件多个处理函数的顺序时
-  可分开注册。
+- **hooks 模块只注册一个 `tool.call` 处理函数**：同一插件注册两个不带 matcher 的处理函数时
+  模块校验失败（M2-01 实测），执行前与执行后检查写在同一个处理函数中（先执行前检查，`next`
+  之后执行后检查），写法见入口与打包接口第 2、4 节。
 - **执行后检查出错不放出原输出**：hooks 模块在 `next` 之后出错时，`.catch` 返回 `{ deny }`，
   不以 `next(e)` 重放；`next` 之前出错仍按执行前检查拒绝。
 - **测试只用标记文本**：入口用例的工具输出与替换文本为 `uapa-keep-probe`、
@@ -109,8 +109,8 @@
 ### 7. 夹具（`test/fixtures/after-tool/`）
 
 - 守卫实现 `beforeTool`（放行）与 `afterTool`：输出含 `uapa-replace-probe` 时返回 `replace`，
-  含 `uapa-withhold-probe` 时返回 `withhold`，含 `uapa-throw-probe` 时抛错，其余返回 `keep`；
-  四个目标，默认布局。
+  含 `uapa-withhold-probe` 时返回 `withhold`，含 `uapa-throw-probe` 时抛错，含
+  `uapa-invalid-probe` 时返回无效值，其余返回 `keep`；四个目标，默认布局。
 - 入口用例覆盖两个子进程目标的保留、替换、扣留、抛错与缺少输出字段；hooks 模块的对应分支写进
   `test/runtime/in-process.test.ts`。
 
