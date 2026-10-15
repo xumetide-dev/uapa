@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M3-02](M3-02-agy-agents-json-stop-timeout.md) | agy 根 `agents.json` 与停机前检查的超时 | 通过 | 2026-10-15 | `a5a9a81` |
 | [M3-01](M3-01-claude-code-nested-session.md) | Claude Code 嵌套会话 | 通过 | 2026-10-15 | `c0672e8` |
 | [M2-00](M2-00-v0-2-0-three-host-completion.md) | Sprint 收口：v0.2.0 三个宿主的组件补全与稳定 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy 根 `agents.json` 的格式未能确定） | 2026-10-15 | `f014728` |
 | [M2-06](M2-06-release-v0-2-0.md) | 发布 v0.2.0 | 通过 | 2026-10-15 | `632242c` |

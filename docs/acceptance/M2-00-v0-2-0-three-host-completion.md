@@ -70,7 +70,7 @@
 | # | 债 | 出自 | 去向 |
 |---|---|---|---|
 | 1 | TA-11 的嵌套会话在会话的 Bash 中启动：容器中 Bash 工具启动的 `claude -p` 没有以环境变量提供的令牌，未登录；其他继承的环境变量对命令 hooks 的影响未覆盖 | M2-05 §7 第 1 行 | 已关闭：2026-10-15 [M3-01](M3-01-claude-code-nested-session.md) 在维护者机器上实测，命令 hooks 不被误跳过，同一事件只处理一次 |
-| 2 | agy 根 `agents.json` 的格式未能确定：与 `agents/*.md` 并存时后者照常加载，三种写法都未使其声明的子代理出现 | M2-01 §7 第 1 行、M2-05 §7 第 2 行 | 转入 Sprint M3 的 [M3-02](../workorders/M3-02-agy-agents-json-stop-timeout.md)：agy 1.3.5 内嵌文档给出的 `entries` 格式未测过 |
+| 2 | agy 根 `agents.json` 的格式未能确定：与 `agents/*.md` 并存时后者照常加载，三种写法都未使其声明的子代理出现 | M2-01 §7 第 1 行、M2-05 §7 第 2 行 | 已关闭：2026-10-15 [M3-02](M3-02-agy-agents-json-stop-timeout.md) 实测 `entries` 格式，`agents.json` 声明的子代理与 `agents/*.md` 一起加载 |
 
 ## 5. 回流
 
