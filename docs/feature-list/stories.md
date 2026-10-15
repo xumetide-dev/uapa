@@ -35,12 +35,15 @@
 | US-16 | P-04 | v0.1.0 | Claude Code | 在支持 hooks 模块与只支持命令 hooks 的 Claude Code 版本上使用同一个插件包 | 新版本由模块执行守卫，命令 hooks 提前退出；旧版本由命令 hooks 执行 | F-05-03, F-05-05, F-05-08, F-05-10 |
 | US-17 | P-04 | v0.1.0 | 宿主的安装命令 | 在三个宿主中安装插件 | Claude Code 产物通过 `claude plugin validate --strict`，其余宿主的产物通过字段白名单检查；在宿主中安装为宿主实测 | F-05-02, F-05-09, F-03-14, F-06-02, F-06-05, F-11-02, F-11-05 |
 | US-18 | P-01 | v0.1.0 | `uapa.config.ts` 的 `commandHooks` | 声明会话开始时运行的命令，构建到三个宿主 | 各子进程目标的 hooks 配置按宿主事件名写入该命令，插件根目录按宿主写法替换；不承载该事件的目标列为跳过，显式限定的目标不承载时该目标失败 | F-01-09, F-03-15, F-05-15, F-06-08, F-11-06 |
+| US-19 | P-01 | v0.3.0 | `rules/`、`commands/` | 在源项目中加入 rules 与 commands，构建到三个宿主 | 承载的目标按自身格式写出（agy 写 rules，Claude Code 与 Codex 写 commands）；不承载的目标列为跳过，frontmatter 显式限定该目标时该目标失败 | F-01-10, F-01-11, F-03-16, F-05-16, F-06-09, F-11-09 |
+| US-20 | P-01 | v0.3.0 | 守卫逻辑 | 在守卫中声明可配置的选项（如阈值），在检查中读取取值 | Claude Code 产物把选项写为 `userConfig`；Codex 与 agy 取默认值，构建报告写明 | F-02-05, F-04-09, F-05-17, F-05-18, F-06-10, F-11-10 |
+| US-21 | P-04 | v0.3.0 | Claude Code 的插件设置 | 在 Claude Code 中设置插件选项后继续使用 | 守卫按设置的取值判断；取值无效时执行前检查按拒绝处理 | F-04-09, F-05-17, F-05-18 |
 
 ## 角色审计
 
 | 角色 | 结论 | 路径 | 发现 | 修复建议 | 关闭条件 |
 |---|---|---|---|---|---|
-| P-01 | PASS | US-01～US-08、US-18 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04） | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败 | [TA-15](technical-acceptance.md) 通过 |
+| P-01 | PASS | US-01～US-08、US-18～US-20 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04） | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败 | [TA-15](technical-acceptance.md) 通过 |
 | P-02 | PASS | US-09～US-11 | 安装、门禁比对与升级路径闭合；npm 12 默认禁止 git 依赖，README「安装」一节已写明 `allow-git=root`（M1-08） | 发布 v0.1.0 时在 README 写明安装方式与 npm 的 `allow-git` 设置 | README 的安装一节含 `github:xumetide-dev/uapa#vX.Y.Z` 写法、npm 12 的 `allow-git` 设置与 pnpm 安装命令 |
 | P-03 | PASS | US-12～US-13 | 能力数据更新与发布路径闭合；夹具比对与安装冒烟承接回归 | — | — |
-| P-04 | RISK | US-14～US-17 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测 | 完成 TA-15 实测 | TA-15 通过 |
+| P-04 | RISK | US-14～US-17、US-21 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测 | 完成 TA-15 实测 | TA-15 通过 |

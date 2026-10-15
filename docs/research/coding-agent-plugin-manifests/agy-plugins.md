@@ -34,7 +34,7 @@
 |---|---|---|
 | skills | `skills/<name>/SKILL.md` | [A1] |
 | 子代理 | `agents/<name>.md`，frontmatter 必填 `name` 与 `description`；1.3.3 起另可用根 `agents.json` 声明 | [A1][A3] |
-| rules | `rules/<name>.md` | [A1] |
+| rules | `rules/<name>.md`；frontmatter 的 `trigger` 决定是否进入上下文，见下文「rules（1.3.5，容器）」 | [A1] |
 | MCP 服务器 | 根 `mcp_config.json` | [A1] |
 | hooks | 根 `hooks.json` | [A1] |
 | 命令行工具 | `bin/`，代理可按名称运行 | [A3] |
@@ -239,6 +239,33 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | 超时 | hook 开始后约 4.7 秒 agy 退出，回复 `ok`，`Stop` 只被调用一次：本轮照常结束，10 秒后的 `continue` 未被采用。agy 退出后 hook 进程仍在运行，按时写出结束记录 |
 | stdout 不是 JSON | `Stop` 只被调用一次，本轮照常结束，stderr 无输出 |
 
+### rules（1.3.5，容器）
+
+2026-10-15，测试容器中的 agy 1.3.5；模型 `gemini-3.8-flash-high`。探测插件只含 `plugin.json` 与
+`rules/` 下的若干规则，每条规则的正文要求“被问到探测词时包含 `uapa-rule-<标记>`”。以
+`agy plugin install` 安装后用打印模式提问“列出规则要求包含的探测词”，结束后卸载。需要读文件的
+用例先在工作目录放置匹配的文件，并在提示中要求先读取它们。
+
+| 规则的 frontmatter | 结果 |
+|---|---|
+| `trigger: always_on` | 探测词出现在回复中：规则正文进入上下文 |
+| `trigger: always_on`，另有 `description` 与文档未列的 `targets` | 同上，额外的键不影响加载 |
+| 没有 frontmatter | 探测词不出现 |
+| `trigger: model_decision` 与 `description` | 不允许调用工具时，模型报告能看到该规则但未应用；允许读文件且 `description` 与提示相关时，模型读取规则并给出探测词 |
+| `trigger: glob`，`globs: "*.uapaprobe"` | 读取匹配的文件之后探测词出现；没有读取匹配文件的对照会话中不出现 |
+| `trigger: glob`，`globs` 为逗号分隔的字符串（`"*.a,*.b"` 与 `"*.a, *.b"`） | 读取匹配其中一个模式的文件后，两种写法的探测词都出现 |
+| `trigger: glob`，`globs` 为 YAML 列表 | 读取匹配的文件后探测词仍不出现 |
+| `trigger: manual` 与 `description` | 打印模式的提示以 `@<规则文件名>` 开头时探测词不出现；交互式会话中的引用方式未测 |
+
+- `agy plugin install` 与 `agy plugin validate` 的输出只列 skills、agents、commands、mcpServers、
+  hooks，不报告 rules；`agy plugin list --json` 的 `rules` 列出 `rules/` 下的全部文件名。
+- agy 内嵌的说明文字写明 `model_decision` 规则与 skill 类似，只有 `always_on` 的规则始终进入上下文。
+- 文档 [A5]：`trigger` 取 `always_on`、`model_decision`、`glob`、`manual`，缺少 frontmatter 或取值
+  无法识别的规则被忽略；`globs` 为逗号分隔的字符串；单个规则文件上限 24,000 字节，超出部分截断；
+  全局规则与 `always_on` 规则共用 20,000 token 的预算，超出时较大的文件只保留路径与 `description`。
+- 1.3.2 的更新日志记载以 `/plugin` 安装插件时可以“在表单中填写插件需要的设置” [A3]；文档没有
+  说明这些设置的声明方式，也没有说明取值是否传给 hook 进程，未实测。
+
 ## 来源
 
 - [A1] Plugins：<https://antigravity.google/docs/plugins/>
@@ -246,3 +273,4 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 - [A3] Antigravity CLI CHANGELOG（1.1.28、1.2.2、1.2.11、1.3.2、1.3.3）：
   <https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md>
 - [A4] MCP：<https://antigravity.google/docs/mcp/>
+- [A5] Rules：<https://antigravity.google/docs/rules>

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('../docs/feature-list/', import.meta.url))
 // 预留：设计保留、尚未排期的功能，对应宿主恢复排期时改为具体版本
-const PHASES = ['v0.1.0', 'v0.2.0', '预留']
+const PHASES = ['v0.1.0', 'v0.2.0', 'v0.3.0', '预留']
 const RESERVED = '预留'
 const FEATURE_ID = /^F-(\d{2})-\d{2}$/
 const problems = []

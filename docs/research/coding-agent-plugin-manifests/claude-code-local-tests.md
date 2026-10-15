@@ -4,7 +4,8 @@
 「命令 hooks」与「实测会话的工具权限」两节于 2026-10-14 实测，其余各节于 2026-10-13 实测。
 「hooks 模块的静态校验」「双形态去重的会话实测」「执行后检查」「MCP 服务器与 agents」四节于
 2026-10-14 在 Linux 测试容器中实测（同为 2.1.296），其中标注 2026-10-15 的条目为 UAPA 夹具产物的
-实测。测试插件均为最小示例，不含业务逻辑。
+实测；「commands 与 userConfig」一节于 2026-10-15 在同一容器中实测。测试插件均为最小示例，不含
+业务逻辑。
 
 ## hooks 模块（mod）
 
@@ -180,6 +181,29 @@ matcher，`timeout` 为 3）、`PostToolUse`、`UserPromptSubmit`、`Stop`、`Se
 | 远程服务器 | `{ "type": "http", "url": ..., "headers": {...} }` | 列在会话初始化信息中，状态为 `failed`（地址不可达），即配置被读取 |
 | 服务器与工具名 | 会话初始化信息；让模型调用该工具 | 服务器为 `plugin:<插件名>:<服务器名>`，工具为 `mcp__plugin_<插件名>_<服务器名>__<工具名>`；模型读到标记文本 |
 | agent 的 frontmatter | 一个 agent 含 `targets` 键，另一个的 `name` 与文件名不同；`validate --strict` | 通过；会话初始化信息按 frontmatter 的 `name` 列出 `<插件名>:<name>` |
+
+## commands 与 userConfig
+
+2026-10-15，Linux 测试容器，Claude Code 2.1.296。探测插件 `uapa-opt-probe` 含 `commands/` 下的
+两个命令（`hello.md` 的 frontmatter 为 `description` 与 `targets`，`plain.md` 只有 `description`，
+正文都要求只回复一个探测词）、四个 `userConfig` 选项（`maxRetries` 为 number，默认 3；
+`strict_mode` 为 boolean，默认 `true`；`label` 为 string，默认 `alpha beta`；`noDefault` 为
+string，没有默认值），以及同一 `hooks/hooks.json` 中的 hooks 模块与命令 hook：模块在
+`session.start` 中以 `$.env.set('UAPA_MOD_OPTS', JSON.stringify(options))` 写出 `register` 收到的
+`options`，`UserPromptSubmit` 命令 hook 把以 `CLAUDE_PLUGIN_OPTION` 或 `UAPA_MOD_OPTS` 开头的
+环境变量追加到文件。会话为 `claude -p --model haiku`，提示只要求回复 `OK`。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 命令的 frontmatter | `validate --strict` | 通过，输出中不列出命令 |
+| 命令的调用 | `claude -p --plugin-dir <插件>` 分别提交 `/uapa-opt-probe:hello`、`/uapa-opt-probe:plain` | 回复各自正文要求的探测词：命令名为 `<插件名>:<文件名>`，`targets` 键不影响加载 |
+| `--plugin-dir` 加载 | 未配置任何选项 | 命令 hook 的环境中没有 `CLAUDE_PLUGIN_OPTION_*`；模块收到 `{"maxRetries":3,"strict_mode":true,"label":"alpha beta","noDefault":""}`：带类型的默认值，没有默认值的选项为空字符串 |
+| 安装后未配置 | 以本地 marketplace 安装，`claude plugin configure <插件>@<marketplace>` 显示四项均未设置 | 同上 |
+| 设置取值 | `claude plugin configure ... --values-stdin`，输入 `{"maxRetries":"5","strict_mode":"false","label":"x y=z","noDefault":"set-value"}` | 取值以带类型的值写入 `settings.json` 的 `pluginConfigs.<插件>@<marketplace>.options`；命令 hook 的环境为 `CLAUDE_PLUGIN_OPTION_MAXRETRIES=5`、`CLAUDE_PLUGIN_OPTION_STRICT_MODE=false`、`CLAUDE_PLUGIN_OPTION_LABEL=x y=z`、`CLAUDE_PLUGIN_OPTION_NODEFAULT=set-value`：变量名为键的全大写，值为文本形式；模块收到同样的取值，类型为 number、boolean 与 string |
+| 只设置一项 | 再以 `{"maxRetries":"7"}` 设置 | 未列出的选项保持原值；环境与模块都为新值 |
+| 无效取值 | 以 `{"maxRetries":"abc"}` 设置 | 拒绝保存：`Failed to save configuration: Max retries: It takes a number.` |
+| `--values-stdin` 的输入 | 输入值为 number 或 boolean 的 JSON | 拒绝：输入须为字符串值的 JSON 对象 |
+| 已配置的插件以 `--plugin-dir` 加载 | 配置保存后，以 `--plugin-dir` 指向同一插件的副本 | 模块收到默认值：保存的取值按 `<插件>@<marketplace>` 关联，不用于 `--plugin-dir` 加载的插件 |
 
 ## UAPA 夹具产物
 

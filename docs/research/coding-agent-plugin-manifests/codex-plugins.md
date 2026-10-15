@@ -146,6 +146,9 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   请求头为 `http_headers`），未知字段被忽略，不展开 `${PLUGIN_ROOT}` 等占位符；相对的 `cwd`
   拼到插件目录下。
 - 插件不承载 agents。
+- 兼容格式的插件在安装时把 `commands/*.md` 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果
+  超过 4000 字节的命令被跳过；插件不承载 rules 与指令文件，也没有传给 hook 的用户配置（2026-10-15
+  核对，见源码核对记录「commands、rules 与用户配置」）。
 
 ## 容器实测（0.162.1）
 

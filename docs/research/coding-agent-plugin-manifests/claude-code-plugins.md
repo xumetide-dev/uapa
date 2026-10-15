@@ -25,7 +25,7 @@
 |---|---|---|
 | Manifest | `.claude-plugin/plugin.json` | 可选 |
 | Skills | `skills/<name>/SKILL.md` | 根目录直接有 `SKILL.md` 且无 `skills/` 时整体作为单个 skill |
-| Commands | `commands/*.md` | 新插件建议改用 skills |
+| Commands | `commands/*.md` | 新插件建议改用 skills；以 `/<插件名>:<文件名>` 调用，frontmatter 中文档未列的键不影响加载（2.1.296 本地实测） |
 | Agents | `agents/*.md` | 子目录计入 agent 名 |
 | Hooks | `hooks/hooks.json` | 顶层 `"hooks"` 声明命令 hooks，`"modules"` 声明 hooks 模块，二者可并存 |
 | MCP 服务器 | `.mcp.json` | |
@@ -96,6 +96,16 @@
 - `CLAUDE_PLUGIN_OPTION_<KEY>`：作为环境变量导出给 hook 进程。
 - shell 形式的 hook 命令、monitor 命令与 MCP `headersHelper` 拒绝 `${user_config.*}`。
 - hooks 模块通过 `register(on, options)` 的 `options` 读取这些值 [C5]。
+
+2.1.296 的本地实测（[本地实测记录「commands 与 userConfig」](claude-code-local-tests.md#commands-与-userconfig)）：
+
+- 环境变量名为 `CLAUDE_PLUGIN_OPTION_` 加键的全大写（`maxRetries` 为 `MAXRETRIES`），值为文本形式
+  （`5`、`false`）。只有用户设置过的选项才导出，默认值不导出。
+- hooks 模块的 `options` 总是含全部选项：未设置时为 `default`，没有 `default` 时为空字符串；值的
+  类型与选项的 `type` 一致。
+- 取值以 `<插件>@<marketplace>` 为键保存，`--plugin-dir` 加载的插件读不到，只有默认值。
+- `claude plugin configure <插件> --values-stdin` 按 `type` 校验取值，不合格时拒绝保存。
+- 文档写明选项名只含字母、数字与下划线，不以数字开头 [C1]。
 
 ### 路径变量
 

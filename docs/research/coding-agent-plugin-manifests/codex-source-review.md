@@ -1,9 +1,9 @@
 # Codex hooks 源码核对记录（rust-v0.162.1）
 
 本文记录 Codex 插件 manifest 与命令 hooks 的加载、输入、输出与失败处理，以及插件中的 MCP
-服务器与 agents，依据为
+服务器、agents、commands、rules 与用户配置，依据为
 [`openai/codex`](https://github.com/openai/codex) tag `rust-v0.162.1` 的源码与其中的单元测试，
-核对日期 2026-10-14。文件路径相对 `codex-rs/`。官方文档见 [Codex](codex-plugins.md)。
+核对日期 2026-10-14（「commands、rules 与用户配置」为 2026-10-15）。文件路径相对 `codex-rs/`。官方文档见 [Codex](codex-plugins.md)。
 本文不是宿主实测：结论来自源码与上游测试，未在 Codex 中安装插件运行。
 
 ## manifest 的发现与格式
@@ -171,6 +171,18 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
 `onboarding_skill`、`mcp_servers`、`apps`、`hooks`，兼容 manifest 中没有 agents 字段，写了也被
 忽略，`agents/*.md` 不被加载。Codex 自己的自定义 agent 来自 `config.toml` 的
 `[agents.<role>]` 与各配置层的 `agents/**/*.toml`（`agent-roles/src/loader.rs`），不在插件体系内。
+
+## commands、rules 与用户配置
+
+2026-10-15 核对，同一 tag。
+
+| 项目 | 结论 | 依据 |
+|---|---|---|
+| commands | 兼容格式的插件在安装时把 `commands/*.md`（manifest 写了 `commands` 时为其指定的路径）转换为技能，写到插件内的 `.codex-plugin/migrated-command-skills/source-command-<slug>/SKILL.md`；AgentPlugin 格式不转换。命令的 frontmatter 只读取 `description`。以下命令被跳过：没有 `description`；正文含 `$ARGUMENTS`、`$N`、`{{…}}`、`` !`cmd` `` 或 `@file` 一类模板写法；转换结果超过 4000 字节；文件名为 README；生成的名称超过 64 个字符；slug 重复 | `core-plugins/src/command_migration/plugin.rs` 的 `migrate_plugin_commands`；`core-plugins/src/command_migration.rs` 的 `has_unsupported_command_template_features`；`core-plugins/src/store.rs` 中按格式判断的分支；测试 `install_plugin_materializes_default_command_skills`、`agent_plugin_install_does_not_migrate_commands`、`commands_without_description_are_skipped`、`commands_with_provider_runtime_expansion_are_skipped` |
+| rules 与指令文件 | 插件不承载：`PluginManifestPaths` 只有 `skills`、`onboarding_skill`、`mcp_servers`、`apps`、`hooks`，`LoadedPlugin` 没有指令或规则字段，插件代码中没有加载 `AGENTS.md` 或规则文件的路径 | `plugin/src/manifest.rs`；`plugin/src/load_outcome.rs` |
+| 用户配置 | 没有传给 hook 或 MCP 服务器的插件用户配置。`[plugins."<插件>@<marketplace>"]` 只有 `enabled` 与按服务器设置工具策略的 `mcp_servers.<服务器>`；插件 hook 进程只额外收到 `PLUGIN_ROOT`、`CLAUDE_PLUGIN_ROOT`、`PLUGIN_DATA`、`CLAUDE_PLUGIN_DATA` | `config/src/types.rs` 的 `PluginConfig`、`PluginMcpServerConfig`；`hooks/src/engine/discovery.rs` 的 `append_plugin_hook_sources` |
+
+转换后的技能在 TUI 中的调用方式未核对。
 
 ## 信任与加载条件
 
