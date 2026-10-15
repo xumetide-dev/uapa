@@ -64,6 +64,9 @@
 - 写明 MCP 服务器与命令 hooks 经 `{pluginRoot}` 引用的文件不由构建复制，经
   `overrides/<宿主>/` 放入插件目录（承接
   [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 3 行）。
+- 写明在 Codex 中安装后须信任插件的 hooks（TUI 启动时的 hooks 审核对话框或 `/hooks`），信任前
+  hooks 被静默跳过（承接
+  [M2-05 验收 §7](../acceptance/M2-05-three-host-live-tests.md#7-已知限制与技术债) 第 3 行）。
 
 ### 3. 发布与发布后核验
 

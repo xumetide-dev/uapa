@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M2-05](M2-05-three-host-live-tests.md) | 三个宿主的安装与会话实测 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy `agents.json` 的格式未能确定） | 2026-10-15 | `7bff5c2`、`4910146`、`fca0d18` |
 | [M2-04](M2-04-mcp-servers.md) | MCP 服务器 | 有条件通过（`components` 产物中 MCP 服务器的宿主加载与插件根的路径解析由 M2-05 实测） | 2026-10-15 | `0fc93f1` |
 | [M2-03](M2-03-agents-component.md) | agents | 有条件通过（`components` 产物中 agents 的宿主加载由 M2-05 实测） | 2026-10-14 | `a73da25` |
 | [M2-02](M2-02-after-tool-end-to-end.md) | 执行后检查端到端 | 有条件通过（`after-tool` 产物的宿主实测由 M2-05 承接） | 2026-10-14 | `6c8d5c4`、`01e162f` |
