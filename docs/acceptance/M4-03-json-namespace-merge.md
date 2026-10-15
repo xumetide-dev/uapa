@@ -7,10 +7,10 @@
 |---|---|
 | 对应工单 | [M4-03](../workorders/M4-03-json-namespace-merge.md) |
 | 覆盖功能点 | `F-03-07`（取自总览「工单构成」表） |
-| 验收日期 | 待定 |
-| 验收结论 | 待定 |
-| 判断范围 | 待定 |
-| commit | 待回填 |
+| 验收日期 | 2026-10-15 |
+| 验收结论 | 通过 |
+| 判断范围 | 夹具与单元测试 |
+| commit | `61dd481` |
 
 ## 0. 一票否决核对
 
@@ -19,10 +19,10 @@
 
 | # | 一票否决项 | 本单是否发现 | 证据 |
 |---|---|---|---|
-| V1 | 守卫在能力缺失、守卫出错或输入无法解析时放行执行前检查，且构建报告未写明 | 待核对 | |
-| V2 | 插件产物导入 npm 包或依赖 UAPA 运行时 | 待核对 | |
-| V3 | 构建写入插件目录与构建报告之外的文件，或 `--check` 写入文件 | 待核对 | |
-| V4 | 能力数据含无出处的宿主行为 | 待核对 | |
+| V1 | 守卫在能力缺失、守卫出错或输入无法解析时放行执行前检查，且构建报告未写明 | 否 | 不改守卫、入口与打包；`node --test` 273 pass |
+| V2 | 插件产物导入 npm 包或依赖 UAPA 运行时 | 否 | 不改入口；19 个夹具的期望产物不变，TA-01 的导入检查通过 |
+| V3 | 构建写入插件目录与构建报告之外的文件，或 `--check` 写入文件 | 否 | `merge.test.ts`：冲突的 6 种情况都不生成 `shared/`；`--check` 首次比对后 `shared/` 不存在 |
+| V4 | 能力数据含无出处的宿主行为 | 否 | 不改能力数据 |
 
 ## 1. 验收要点逐条
 
@@ -31,8 +31,8 @@
 
 | # | 判定条目 | 预期 | 实际 | 证据 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 硬约束：确定性输出 | 合并结果的键序只由宿主顺序与命名空间名决定：单元测试以不同的宿主模块返回顺序构建两次，结果逐字节一致 | | | ⏳ |
-| 2 | 硬约束：不越权写入 | 冲突时该目录不写入任何文件；`--check` 不写文件：单元测试对写出前后的目录做快照 | | | ⏳ |
+| 1 | 硬约束：确定性输出 | 合并结果的键序只由宿主顺序与命名空间名决定：单元测试以不同的宿主模块返回顺序构建两次，结果逐字节一致 | Codex 文件中命名空间的顺序为 `zeta, claude-code` 与 `claude-code, zeta` 的两次构建结果逐字节相同，命名空间为 `claude-code, zeta`；字段键序与 Claude Code 的文件相同（Codex 的键序相反） | `test/build/merge.test.ts`「合并结果与命名空间在输入中的顺序无关…」「字段相同而键序不同时合并…」 | ✅ |
+| 2 | 硬约束：不越权写入 | 冲突时该目录不写入任何文件；`--check` 不写文件：单元测试对写出前后的目录做快照 | 6 种冲突情况下两个目标都失败、`shared/` 不存在；`--check` 前后 `shared/` 不存在，写出后比对无差异，改动文件后报告 `modified` | `test/build/merge.test.ts`「不能合并时按同名文件冲突处理…」「--check 的比对结果与实际写出一致」 | ✅ |
 
 ## 2. 功能点逐条验收
 
@@ -41,7 +41,7 @@
 
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
-| `F-03-07` | 按命名空间合并共用的 JSON 文件 | 宿主模块标为 `merge: 'json-extensions'` 的 JSON 文件（如根 `plugin.json`），解析后比较 `extensions` 以外的字段，必须一致（与键序无关），`extensions` 按命名空间合并；同一命名空间冲突时按同名文件冲突处理；合并结果的键序与格式按模块接口 §5 | ⏳ | |
+| `F-03-07` | 按命名空间合并共用的 JSON 文件 | 宿主模块标为 `merge: 'json-extensions'` 的 JSON 文件（如根 `plugin.json`），解析后比较 `extensions` 以外的字段，必须一致（与键序无关），`extensions` 按命名空间合并；同一命名空间冲突时按同名文件冲突处理；合并结果的键序与格式按模块接口 §5 | ✅ | `test/build/merge.test.ts` 5 个测试：键序不同时合并且以 Claude Code 的键序、两空格缩进与结尾换行写出；命名空间顺序无关、同名同内容可合并；字段不同、同一命名空间内容不同、只有一方标合并、内容为数组、不是 JSON、`extensions` 为数组时冲突，错误为 `合并布局冲突：shared/plugin.json 由 claude-code、codex 生成，内容不同`；覆盖文件继承标记后参与合并；`--check` 的 `added`、无差异与 `modified` |
 
 ## 3. 自动化验证汇总（可复跑）
 
@@ -58,20 +58,30 @@ test/container/run.sh exec node --test test/build/merge.test.ts
 
 | 命令 | 结果 | 前置条件 |
 |---|---|---|
-| `test/container/run.sh check` | ⏳ | Docker |
-| `test/container/run.sh exec node --test test/build/merge.test.ts` | ⏳ | Docker |
+| `test/container/run.sh check` | 两套 `tsc` 通过，Biome 检查 195 个文件无问题，`node --test` 273 pass / 0 fail，功能清单检查通过 | Docker |
+| `test/container/run.sh exec node --test test/build/merge.test.ts` | 5 pass / 0 fail | Docker |
 
 ## 4. 交付物
 
-待验收时填写。
+- `src/build/merge.ts`（新增）：`mergeJsonExtensions`。
+- `src/build/outputs.ts`：生成文件与覆盖文件保留 `merge`，`mergeViews` 对内容不同的路径尝试合并。
+- `src/targets/types.ts`：`OutputFile.merge`。
+- `test/build/merge.test.ts`（新增，5 个测试）。
+- `docs/architecture/architecture.md` §1 第 5 步。
 
 ## 5. 与计划的偏差
 
-待验收时填写；没有偏差写“无”。
+- 总览与施工单的现状写 `OutputFile.merge` 已定义，实际只在模块接口中有，`src/targets/types.ts`
+  中没有；本单在类型中加入该字段，说明同模块接口 §5。宿主模块未改。
+- 模块接口 §8 已写明覆盖文件继承合并标记（M4-01 之前即有），本单不改其文字。
 
 ## 6. 技术决策
 
-待验收时填写。架构文档或接口文档中还写着“待定”“未核实”而本单定下的，登记回填状态。
+| 决策 | 依据 | 回填状态 |
+|---|---|---|
+| 按值比较使用 `node:util` 的 `isDeepStrictEqual` | 对解析后的 JSON，对象键序不影响结果、数组顺序影响结果，与施工单的约束一致；不另写比较函数 | 实现注释 |
+| 只在同名文件内容逐字节不同时尝试合并 | 逐字节相同的文件不需要解析，与原有比较一致，现有夹具不受影响 | 实现注释 |
+| 基准没有 `extensions` 而其他文件有时，把合并结果追加在末尾；所有文件都没有时按基准重新序列化 | 模块接口 §5 只规定保留基准的键序；`$schema` 格式的 `plugin.json` 把 `extensions` 写在最后 | 实现注释 |
 
 ## 7. 已知限制与技术债
 
@@ -82,4 +92,6 @@ test/container/run.sh exec node --test test/build/merge.test.ts
 
 ## 8. 风险与下一步
 
-待验收时填写。
+- 本单没有限制与技术债。现有宿主模块不使用合并，Copilot CLI 恢复排期时（SD-27）其根
+  `plugin.json` 直接使用。
+- 下一步：M4-04（守卫选项）。
