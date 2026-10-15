@@ -84,15 +84,15 @@ docs/acceptance/
 | [M3-03](M3-03-codex-prompt-gate-hook-failures.md) | Codex 提示阻断与 hook 出错、超时 | 通过 | 2026-10-15 | `671d4f6` |
 | [M3-02](M3-02-agy-agents-json-stop-timeout.md) | agy 根 `agents.json` 与停机前检查的超时 | 通过 | 2026-10-15 | `a5a9a81` |
 | [M3-01](M3-01-claude-code-nested-session.md) | Claude Code 嵌套会话 | 通过 | 2026-10-15 | `c0672e8` |
-| [M2-00](M2-00-v0-2-0-three-host-completion.md) | Sprint 收口：v0.2.0 三个宿主的组件补全与稳定 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy 根 `agents.json` 的格式未能确定） | 2026-10-15 | `f014728` |
+| [M2-00](M2-00-v0-2-0-three-host-completion.md) | Sprint 收口：v0.2.0 三个宿主的组件补全与稳定 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy 根 `agents.json` 的格式未能确定）；两项已由 M3-01、M3-02 关闭 | 2026-10-15 | `f014728` |
 | [M2-06](M2-06-release-v0-2-0.md) | 发布 v0.2.0 | 通过 | 2026-10-15 | `632242c` |
-| [M2-05](M2-05-three-host-live-tests.md) | 三个宿主的安装与会话实测 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy `agents.json` 的格式未能确定） | 2026-10-15 | `7bff5c2`、`4910146`、`fca0d18` |
+| [M2-05](M2-05-three-host-live-tests.md) | 三个宿主的安装与会话实测 | 有条件通过（TA-11 的嵌套会话未在会话的 Bash 中启动；agy `agents.json` 的格式未能确定）；两项已由 M3-01、M3-02 关闭 | 2026-10-15 | `7bff5c2`、`4910146`、`fca0d18` |
 | [M2-04](M2-04-mcp-servers.md) | MCP 服务器 | 有条件通过（`components` 产物中 MCP 服务器的宿主加载与插件根的路径解析由 M2-05 实测） | 2026-10-15 | `0fc93f1` |
 | [M2-03](M2-03-agents-component.md) | agents | 有条件通过（`components` 产物中 agents 的宿主加载由 M2-05 实测） | 2026-10-14 | `a73da25` |
 | [M2-02](M2-02-after-tool-end-to-end.md) | 执行后检查端到端 | 有条件通过（`after-tool` 产物的宿主实测由 M2-05 承接） | 2026-10-14 | `6c8d5c4`、`01e162f` |
-| [M2-01](M2-01-v0-2-0-host-facts.md) | v0.2.0 宿主事实与接口定稿 | 有条件通过（agy 根 `agents.json` 与 `agents/*.md` 并存时的处理未实测） | 2026-10-14 | `22a7b07` |
-| [M1-00](M1-00-v0-1-0-three-host-build.md) | Sprint 收口：v0.1.0 三个宿主的插件构建 | 有条件通过（发布前宿主实测、公共仓库的 tag 与发布后安装核验未完成） | 2026-10-14 | `2b441de` |
-| [M1-08](M1-08-release-v0-1-0.md) | 发布 v0.1.0 | 有条件通过（公共仓库的 tag 与发布前宿主实测待维护者完成） | 2026-10-14 | `e2f51c2`、`7a908f8` |
+| [M2-01](M2-01-v0-2-0-host-facts.md) | v0.2.0 宿主事实与接口定稿 | 有条件通过（agy 根 `agents.json` 与 `agents/*.md` 并存时的处理未实测）；已由 M3-02 关闭 | 2026-10-14 | `22a7b07` |
+| [M1-00](M1-00-v0-1-0-three-host-build.md) | Sprint 收口：v0.1.0 三个宿主的插件构建 | 有条件通过（发布前宿主实测、公共仓库的 tag 与发布后安装核验未完成）；条件已关闭：tag 与 pnpm 安装于 2026-10-14，宿主实测见 M2-05、M3-01，npm 12 安装见 M2-06 | 2026-10-14 | `2b441de` |
+| [M1-08](M1-08-release-v0-1-0.md) | 发布 v0.1.0 | 有条件通过（公共仓库的 tag 与发布前宿主实测待维护者完成）；条件已关闭：tag 于 2026-10-14 推送，宿主实测见 M2-05、M3-01 | 2026-10-14 | `e2f51c2`、`7a908f8` |
 | [M1-07](M1-07-claude-code-hooks-module.md) | Claude Code hooks 模块与四目标夹具 | 有条件通过（§7 两项宿主实测由 M1-08 接手） | 2026-10-14 | `41c4375` |
 | [M1-06](M1-06-layout-overrides-check-command-hooks.md) | 合并布局、覆盖文件、比对与命令 hooks | 有条件通过（§7 两项由 M1-07 接手） | 2026-10-14 | `bb89b1d` |
 | [M1-05](M1-05-codex-target.md) | Codex 目标 | 有条件通过（§7 两项由 M1-06、M1-08 接手） | 2026-10-14 | `6661075` |
