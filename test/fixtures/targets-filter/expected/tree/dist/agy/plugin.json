@@ -1,0 +1,4 @@
+{
+  "name": "filter-demo",
+  "description": "按 frontmatter 限定 skill 的目标并以覆盖文件替换生成文件的夹具"
+}

@@ -13,5 +13,7 @@
     "types": ["node"],
     "paths": { "uapa": ["./src/index.ts"] }
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/*.ts"],
+  // 期望产物中的 hooks/register.ts 与 types/index.d.ts 面向 Claude Code 生成的类型，不在此检查
+  "exclude": ["test/fixtures/*/expected"]
 }

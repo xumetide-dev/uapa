@@ -1,0 +1,4 @@
+{
+  "name": "merged-conflict-guard",
+  "description": "同 merged，但 Codex 不设 hooksFile，与 Claude Code 都生成 hooks/hooks.json 的夹具"
+}

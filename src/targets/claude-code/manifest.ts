@@ -25,8 +25,12 @@ export function manifestErrors(config: UapaConfig): string[] {
   return errors
 }
 
-// 键序固定；未配置的可选字段不写
-export function manifest(config: UapaConfig): Record<string, unknown> {
+// 键序固定；未配置的可选字段不写。types 为 hooks 模块的类型契约路径（F-05-07），
+// 不生成契约时为 null，排在配置给出的字段之后
+export function manifest(
+  config: UapaConfig,
+  types: string | null,
+): Record<string, unknown> {
   const options = config.hosts?.['claude-code'] ?? {}
   const { author } = config
   return {
@@ -49,5 +53,6 @@ export function manifest(config: UapaConfig): Record<string, unknown> {
       ? {}
       : { dependencies: options.dependencies }),
     ...(options.userConfig === undefined ? {} : { userConfig: options.userConfig }),
+    ...(types === null ? {} : { types }),
   }
 }

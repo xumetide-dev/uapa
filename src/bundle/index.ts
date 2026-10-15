@@ -3,9 +3,17 @@
 import { isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type Plugin, rolldown } from 'rolldown'
+import { GUARD_CHECKS } from '../runtime/core/types.ts'
 import type { BundleRequest } from './types.ts'
 
 const TARGET_DATA_ID = '\0uapa:target-data'
+
+// bundle-names.d.ts 中声明、打包时替换的标识符
+const BUNDLE_NAMES = [
+  '__UAPA_PLUGIN_NAME__',
+  '__UAPA_MODULE_SESSION_ENV__',
+  '__UAPA_CHECKS__',
+]
 
 // 源码运行时本文件为 .ts，dist/ 中为编译后的 .js；入口与本文件的扩展名相同
 const EXTENSION = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -39,6 +47,18 @@ function virtualModules(request: BundleRequest): Plugin {
   }
 }
 
+// hooks 模块入口的检查开关（BundleRequest）：常量条件的分支由打包器移除
+function checkDefines(request: BundleRequest): Record<string, string> {
+  if (request.external !== 'claude-code') return {}
+  const checks: readonly string[] = request.checks
+  return Object.fromEntries(
+    GUARD_CHECKS.map(check => [
+      `__UAPA_CHECKS__.${check}`,
+      JSON.stringify(checks.includes(check)),
+    ]),
+  )
+}
+
 export async function bundle(request: BundleRequest): Promise<string> {
   const allowed = ALLOWED[request.external]
   const build = await rolldown({
@@ -52,6 +72,7 @@ export async function bundle(request: BundleRequest): Promise<string> {
       define: {
         __UAPA_PLUGIN_NAME__: JSON.stringify(request.data.pluginName),
         __UAPA_MODULE_SESSION_ENV__: JSON.stringify(request.data.moduleSessionEnv),
+        ...checkDefines(request),
       },
     },
     // 不写 //#region 注释：注释含模块路径，产物须与本机路径无关
@@ -75,6 +96,11 @@ export async function bundle(request: BundleRequest): Promise<string> {
       throw new Error(
         `打包结果含不允许的外部导入：${disallowed.join('、')}（只允许 ${allowed.label}）`,
       )
+    }
+    // 未替换的打包时名称（如 __UAPA_CHECKS__[name] 这类写法）在宿主中是未定义的标识符
+    const left = BUNDLE_NAMES.filter(name => chunk.code.includes(name))
+    if (left.length > 0) {
+      throw new Error(`打包结果含未替换的打包时名称：${left.join('、')}`)
     }
     return chunk.code
   } finally {

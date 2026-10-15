@@ -1,0 +1,290 @@
+// hooks 模块的决策与异常收口（TA-17，F-05-05～F-05-08）：以 node:module 的解析钩子把
+// 'claude-code' 解析到 stubs/claude-code.ts，加载打包后的守卫文件，调用 register 后逐一调用
+// 记录到的处理函数与 .catch 处理器。claude-both 夹具的产物覆盖决策；守卫抛错、返回值无效与
+// 只计划部分检查的情况另以 scripted 守卫打包。
+import assert from 'node:assert/strict'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { registerHooks } from 'node:module'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { after, before, test } from 'node:test'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { bundle } from '../../src/bundle/index.ts'
+import { claudeCodeInProcess } from '../../src/capabilities/claude-code-in-process.ts'
+import type { GuardCheck } from '../../src/runtime/core/types.ts'
+import { readCase, withFixtureRun } from '../fixtures/run.ts'
+import type { StateRef } from './stubs/claude-code.ts'
+
+const STUB = new URL('./stubs/claude-code.ts', import.meta.url).href
+const SCRIPTED = fileURLToPath(new URL('./guards/scripted.ts', import.meta.url))
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === 'claude-code') return { url: STUB, shortCircuit: true }
+    return nextResolve(specifier, context)
+  },
+})
+
+type Handler = (...args: unknown[]) => unknown
+
+interface Registered {
+  readonly event: string
+  readonly matcher: unknown
+  readonly hook: Handler
+  catchHandler: Handler | null
+}
+
+type Register = (on: (...args: unknown[]) => unknown) => void
+
+// 记录 register 注册的处理函数；on 的最后一个参数为处理函数，有三个参数时第二个为 matcher
+function record(register: Register): Registered[] {
+  const registered: Registered[] = []
+  register((event, ...rest) => {
+    const hook = rest.at(-1) as Handler
+    const entry: Registered = {
+      event: String(event),
+      matcher: rest.length > 1 ? rest[0] : null,
+      hook,
+      catchHandler: null,
+    }
+    registered.push(entry)
+    const registration = {
+      catch(handler: Handler) {
+        entry.catchHandler = handler
+        return registration
+      },
+    }
+    return registration
+  })
+  return registered
+}
+
+// 构造的 $：会话 id 固定，记录 $.env.set 的调用，$.state 存于 Map
+function api(sessionId: string) {
+  const state = new Map<string, unknown>()
+  const env: [string, string | undefined][] = []
+  const key = (ref: StateRef) => `${ref.plugin}/${ref.key}`
+  return {
+    session: { id: async () => sessionId },
+    env: {
+      set: async (name: string, value: string | undefined) => {
+        env.push([name, value])
+      },
+    },
+    state: {
+      get: async (ref: StateRef) =>
+        state.has(key(ref)) ? { value: state.get(key(ref)), version: 1 } : undefined,
+      set: async (ref: StateRef, value: unknown) => {
+        state.set(key(ref), value)
+      },
+    },
+    envCalls: env,
+    stateValues: state,
+  }
+}
+
+const ENGINE_RESULT = { text: '引擎结果' }
+
+// next 记录收到的事件并返回固定结果；called 为构造时给定的值
+function nextOf(called = false) {
+  const calls: unknown[] = []
+  const next = Object.assign(
+    async (e: unknown) => {
+      calls.push(e)
+      return ENGINE_RESULT
+    },
+    { called },
+  )
+  return { next, calls }
+}
+
+function only(registered: readonly Registered[], event: string): Registered {
+  const found = registered.filter(r => r.event === event)
+  assert.equal(found.length, 1, `${event} 应恰注册一次`)
+  return found[0] as Registered
+}
+
+let dir = ''
+let both: Registered[] = []
+let bothEnv = ''
+
+before(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'uapa-in-process-'))
+  const name = 'claude-both'
+  both = await withFixtureRun(name, await readCase(name), async run => {
+    assert.equal(run.exitCode, 0, run.stderr)
+    const file = join(run.project, 'dist', 'claude-code', 'hooks', 'uapa-guard.mjs')
+    const loaded = await import(pathToFileURL(file).href)
+    return record(loaded.register)
+  })
+  bothEnv = 'UAPA_MODULE_SESSION_BOTH_GUARD'
+})
+after(() => rm(dir, { recursive: true, force: true }))
+
+// 以 scripted 守卫打包入口并加载；每次写入不同的文件，模块各自独立
+let bundles = 0
+async function scripted(
+  checks: readonly GuardCheck[],
+  moduleSessionEnv: string | null,
+): Promise<Registered[]> {
+  const code = await bundle({
+    entry: 'claude-code-in-process',
+    guardModule: SCRIPTED,
+    data: {
+      pluginName: 'scripted-guard',
+      toolNames: claudeCodeInProcess.toolNames,
+      capabilities: claudeCodeInProcess.capabilities,
+      moduleSessionEnv,
+    },
+    external: 'claude-code',
+    checks,
+  })
+  bundles += 1
+  const file = join(dir, `guard-${bundles}.mjs`)
+  await writeFile(file, code)
+  const loaded = await import(pathToFileURL(file).href)
+  return record(loaded.register)
+}
+
+test('claude-both：按计划的检查注册处理函数，执行前与提示提交前检查带 .catch', () => {
+  assert.deepEqual(
+    both.map(r => [r.event, r.matcher, r.catchHandler !== null]),
+    [
+      ['session.start', null, false],
+      ['classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, false],
+      ['tool.call', null, true],
+      ['prompt.submit', null, true],
+      ['classic.Stop', null, false],
+    ],
+  )
+})
+
+test('session.start 与 classic.SessionStart 以 UAPA_MODULE_SESSION_<插件名> 写入会话 id', async () => {
+  for (const event of ['session.start', 'classic.SessionStart']) {
+    const $ = api('fixture-session')
+    const { next, calls } = nextOf()
+    const e = { source: 'clear' }
+    const result = await only(both, event).hook($, e, next)
+    assert.deepEqual($.envCalls, [[bothEnv, 'fixture-session']])
+    assert.deepEqual([result, calls], [ENGINE_RESULT, [e]])
+  }
+})
+
+test('tool.call：放行调用 next，拒绝返回 { deny }，Bash 改写以 next 写回，非 Bash 改写按 fallbackReason 拒绝', async () => {
+  const hook = only(both, 'tool.call').hook
+  const call = async (e: Record<string, unknown>) => {
+    const { next, calls } = nextOf()
+    return { result: await hook(api('s'), e, next), calls }
+  }
+  const bash = (command: string) => ({
+    tool: 'Bash',
+    tool_use_id: 'toolu_fixture',
+    command,
+    description: '夹具',
+  })
+  const allowed = bash('echo hello')
+  assert.deepEqual(await call(allowed), { result: ENGINE_RESULT, calls: [allowed] })
+  assert.deepEqual(await call(bash('echo uapa-deny-probe')), {
+    result: { deny: '拒绝标记命令 uapa-deny-probe' },
+    calls: [],
+  })
+  const rewrite = bash('echo uapa-rewrite-probe hello')
+  assert.deepEqual(await call(rewrite), {
+    result: ENGINE_RESULT,
+    calls: [{ ...rewrite, command: 'echo uapa-rewritten hello' }],
+  })
+  const powershell = { ...rewrite, tool: 'PowerShell' }
+  assert.deepEqual(await call(powershell), {
+    result: { deny: '请改用 echo uapa-rewritten' },
+    calls: [],
+  })
+  const read = { tool: 'Read', tool_use_id: 't', file_path: 'a.md' }
+  assert.deepEqual(await call(read), { result: ENGINE_RESULT, calls: [read] })
+})
+
+test('prompt.submit：阻断返回 { drop }，放行调用 next', async () => {
+  const hook = only(both, 'prompt.submit').hook
+  const blocked = nextOf()
+  const e = { text: '部署 API_KEY=abc', context: [], attachments: [] }
+  assert.deepEqual(await hook(api('s'), e, blocked.next), { drop: '提示中含疑似密钥' })
+  assert.deepEqual(blocked.calls, [])
+  const allowed = nextOf()
+  const plain = { text: '你好' }
+  assert.equal(await hook(api('s'), plain, allowed.next), ENGINE_RESULT)
+  assert.deepEqual(allowed.calls, [plain])
+})
+
+test('classic.Stop：继续返回 { block } 并加 1，结束调用 next 并清零', async () => {
+  const hook = only(both, 'classic.Stop').hook
+  const $ = api('s')
+  const counts: unknown[] = []
+  const results: unknown[] = []
+  for (let i = 0; i < 4; i++) {
+    const { next } = nextOf()
+    results.push(await hook($, { stop_hook_active: i > 0 }, next))
+    counts.push($.stateValues.get('both-guard/uapaStopContinuations'))
+  }
+  const block = { block: '请先运行测试再结束' }
+  assert.deepEqual(results, [block, block, ENGINE_RESULT, block])
+  assert.deepEqual(counts, [1, 2, 0, 1])
+})
+
+test('.catch：next 未调用时返回 { deny }、{ drop }，已调用时重放 next', async () => {
+  const tool = only(both, 'tool.call').catchHandler
+  const prompt = only(both, 'prompt.submit').catchHandler
+  assert.ok(tool !== null && prompt !== null)
+  const e = { tool: 'Bash', tool_use_id: 't', command: 'echo hello' }
+  const fresh = nextOf(false)
+  assert.deepEqual(await tool(api('s'), e, fresh.next), {
+    deny: 'uapa: hooks 模块出错',
+  })
+  assert.deepEqual(await prompt(api('s'), { text: 'x' }, fresh.next), {
+    drop: 'uapa: hooks 模块出错',
+  })
+  assert.deepEqual(fresh.calls, [])
+  const called = nextOf(true)
+  assert.equal(await tool(api('s'), e, called.next), ENGINE_RESULT)
+  assert.deepEqual(called.calls, [e])
+})
+
+test('守卫抛错或返回值无效：执行前检查拒绝，提示提交前检查丢弃，停机前检查不阻止结束且计数不变', async () => {
+  const registered = await scripted(['beforeTool', 'beforePrompt', 'beforeStop'], null)
+  const tool = only(registered, 'tool.call').hook
+  const shell = (command: string) => ({ tool: 'Bash', tool_use_id: 't', command })
+  assert.deepEqual(await tool(api('s'), shell('throw'), nextOf().next), {
+    deny: 'uapa: 守卫出错: boom',
+  })
+  assert.deepEqual(await tool(api('s'), shell('invalid'), nextOf().next), {
+    deny: 'uapa: 守卫返回值无效',
+  })
+  assert.deepEqual(
+    await tool(api('s'), { tool: 'Bash', tool_use_id: 't' }, nextOf().next),
+    { deny: 'uapa: 无法解析宿主输入: tool.command' },
+  )
+  const prompt = only(registered, 'prompt.submit').hook
+  assert.deepEqual(await prompt(api('s'), { text: 'throw' }, nextOf().next), {
+    drop: 'uapa: 守卫出错: boom',
+  })
+  assert.deepEqual(await prompt(api('s'), { text: 1 }, nextOf().next), {
+    drop: 'uapa: 无法解析宿主输入: text',
+  })
+  const stop = only(registered, 'classic.Stop').hook
+  const $ = api('throw')
+  const { next, calls } = nextOf()
+  assert.equal(await stop($, {}, next), ENGINE_RESULT)
+  assert.equal(calls.length, 1)
+  assert.equal($.stateValues.size, 0)
+})
+
+test('去重变量为 null 时不注册会话事件；只计划的检查才注册处理函数', async () => {
+  const registered = await scripted(['beforeTool'], null)
+  assert.deepEqual(
+    registered.map(r => r.event),
+    ['tool.call'],
+  )
+  const withEnv = await scripted(['beforePrompt'], 'UAPA_MODULE_SESSION_SCRIPTED_GUARD')
+  assert.deepEqual(
+    withEnv.map(r => r.event),
+    ['session.start', 'classic.SessionStart', 'prompt.submit'],
+  )
+})

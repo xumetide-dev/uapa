@@ -4,9 +4,10 @@
 文件布局、常用事件与返回值、失败处理、状态与界面接口，以及验证与测试方法。
 插件 manifest 与命令 hooks 的语义见 [Claude Code 插件](claude-code-plugins.md)。
 
-核对基准：官方 Mods 文档 [M1][M2][M4] 与 Claude Code 2.1.296 的 `claude plugin validate` /
-`claude plugin test` / `claude -p` 本地实测（见 [本地实测记录](claude-code-local-tests.md)），
-核对日期 2026-10-13。Mods 处于 early access，接口可能随版本变化；以所用版本随附的类型声明
+核对基准：官方 Mods 文档 [M1][M2][M4][M5][M6] 与 Claude Code 2.1.296 的
+`claude plugin validate` / `claude plugin test` / `claude -p` 本地实测（见
+[本地实测记录](claude-code-local-tests.md)），核对日期 2026-10-13，静态分析与 `$.state` 用法
+2026-10-14 补充。Mods 处于 early access，接口可能随版本变化；以所用版本随附的类型声明
 （下称“类型声明”）为准。
 
 ## 定位与运行环境
@@ -142,6 +143,13 @@ on('tool.call', { tool: 'Bash' }, guard).catch(($, e, next) =>
 
 - 模块顶层变量在热重载时重置（`register` 重新执行，`session.start` 再次触发），需要保留的
   值放入 `$.state` 或 `$.store`。
+- 用法：模块顶层以 `const a = atom({ plugin: '<插件名>', key: '<键>' }, <默认值>)` 定义，
+  `await read($, a)` 读取，`await update($, a, v => ...)` 写入；`plugin` 与 `key` 须为字符串字面量，
+  `atom` 的结果须由 `const` 持有 [M6]。模块中出现未在契约中声明的 `atom` 时，即使不读写也在
+  `validate` 中报错（本地实测）。
+- `/clear`、`/resume`、`/branch` 把 `$.state` 重置为默认值，`session.start` 不再触发；
+  `classic.SessionStart` 在这三者之后触发，`e.source` 为 `clear`、`resume` 或 `fork`（`/branch`），
+  可用 `{ source: [...] }` 筛选 [M6]。
 - `$.state.get` 只接受字面量引用，传入字符串键（如 `$.state.get('badge')`）在 `validate`
   阶段报错（本地实测）。
 - 绘制钩子读取 `$.state` 即订阅该值，之后的写入只重绘读取者；绘制过程中不得写入。
@@ -178,6 +186,13 @@ claude plugin test ./command-guard
 - `validate` 按引擎加载方式读取 manifest 与模块源码，列出模块注册的事件、调用的 `$` 接口、
   读写的环境变量与状态键、守卫钩子是否带 `.catch`，以及会被引擎拒绝的内容；`--json`
   输出同等信息的结构化报告（含 `gatingHooks[].hasCatch`）。
+- 静态分析的写法要求 [M5]：`$` 的调用写全（`$.store.get(...)`），不把 `$` 或其命名空间赋给
+  变量、解构或以计算属性访问；`$` 只可传给同一文件顶层声明的函数，以及从 `'claude-code'` 引入的
+  `read`、`update`；`on` 的事件名为字符串字面量；只以相对路径引入插件目录内的文件，唯一允许的
+  裸导入是 `'claude-code'`；不用动态 `import()`。
+- `hooks.json` 列出的文件须自己以 const 函数（或函数声明）导出 `register`；从另一文件转导出
+  （`export { register } from`、`export *`）或把引入的函数赋给 `register` 都报错，写成
+  `export const register: Register = on => guard(on)` 时分析跟踪进被引入的文件（本地实测）。
 - `claude plugin test` 运行目录下的 `*.test.ts` / `*.test.tsx`；测试从
   `'claude-code/testing'` 引入 `test`、`expect`、`mock`，测试中以 `on` 注册的钩子位于被测
   插件之下，代替引擎作答 [M4]。
@@ -234,6 +249,8 @@ export const register: Register = on => {
 |---|---|---|
 | `import * as fs from 'node:fs'` | `validate` 报错，模块不加载 | `$.fs.read` / `$.fs.write` |
 | `process.env.X = '1'` | 运行环境没有 `process` | `await $.env.set('X', '1')`（变量名须为字面量） |
+| `const NAME = 'X'; $.env.set(NAME, v)` | `validate` 报错：变量名不是字面量 | 在调用处写字面量 |
+| `export { register } from './impl.mjs'` | `validate` 报错：不跟踪转导出 | `export const register: Register = on => impl(on)` |
 | `on('stop', ...)` | `validate` 报错：不是事件 | `on('classic.Stop', ...)`，返回 `{ block }` |
 | `$.state.get('key')` | `validate` 报错 | 契约中声明，以 `{ plugin, key }` 字面量引用 |
 | 返回 `{ action: 'block', permissionDecision: 'deny' }` | 不是 `tool.call` 的结果形状，钩子被跳过 | 返回 `{ deny: reason }` |
@@ -247,4 +264,6 @@ export const register: Register = on => {
 - [M2] Mods reference：<https://code.claude.com/docs/en/plugins/mods/reference>
 - [M3] Claude Code CHANGELOG（v2.1.287）：<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
 - [M4] Testing mods：<https://code.claude.com/docs/en/plugins/mods/test>
+- [M5] Create a mod：<https://code.claude.com/docs/en/plugins/mods/create>
+- [M6] Draw in the interface（Keep state）：<https://code.claude.com/docs/en/plugins/mods/interface>
 - 本地实测：[Claude Code 本地实测记录](claude-code-local-tests.md)

@@ -1,0 +1,28 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:in-process",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-mods-guide.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": [
+        "Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底"
+      ]
+    }
+  ]
+}

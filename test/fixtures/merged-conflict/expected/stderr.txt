@@ -1,0 +1,3 @@
+uapa: claude-code:in-process: 合并布局冲突：hooks/hooks.json 由 claude-code、codex 生成，内容不同；设置 hosts.codex.hooksFile 改用独立的 hooks 文件
+uapa: claude-code:subprocess: 合并布局冲突：hooks/hooks.json 由 claude-code、codex 生成，内容不同；设置 hosts.codex.hooksFile 改用独立的 hooks 文件
+uapa: codex:subprocess: 合并布局冲突：hooks/hooks.json 由 claude-code、codex 生成，内容不同；设置 hosts.codex.hooksFile 改用独立的 hooks 文件

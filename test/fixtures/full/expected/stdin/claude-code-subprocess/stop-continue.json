@@ -1,0 +1,16 @@
+{
+  "args": [
+    "before-stop"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  "env": {
+    "CLAUDE_PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"block\",\"reason\":\"请先运行测试再结束\"}\n",
+  "stderr": ""
+}

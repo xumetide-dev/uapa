@@ -1,0 +1,21 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "conversationId": "fixture-conversation",
+    "toolCall": {
+      "name": "run_command",
+      "args": {
+        "CommandLine": "git status",
+        "Cwd": "/project"
+      }
+    }
+  },
+  "env": {
+    "TMPDIR": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"allow\"}\n",
+  "stderr": ""
+}

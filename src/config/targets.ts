@@ -6,6 +6,7 @@ export const HOSTS = ['claude-code', 'codex', 'agy'] as const
 export type HostName = (typeof HOSTS)[number]
 
 export const TARGETS = [
+  'claude-code:in-process',
   'claude-code:subprocess',
   'codex:subprocess',
   'agy:subprocess',

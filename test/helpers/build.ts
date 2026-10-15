@@ -2,6 +2,7 @@
 import type { BuildOutcome } from '../../src/build/index.ts'
 import { type BuildDeps, runBuild } from '../../src/build/run.ts'
 import { agySubprocess } from '../../src/capabilities/agy-subprocess.ts'
+import { claudeCodeInProcess } from '../../src/capabilities/claude-code-in-process.ts'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import { codexSubprocess } from '../../src/capabilities/codex-subprocess.ts'
 import type { TargetCapabilities } from '../../src/capabilities/types.ts'
@@ -30,7 +31,8 @@ export const writesManifest = fakeHost(async () => ({
   residualRisks: [{ target: TARGET, message: '宿主模块给出的风险' }],
 }))
 
-// codex 与 agy 为真实宿主模块与能力数据；只配置 claude-code 目标的用例不会调用它们
+// codex 与 agy 为真实宿主模块与能力数据，claude-code:in-process 为真实能力数据；
+// 只配置 claude-code:subprocess 的用例不会用到它们
 export function deps(
   host: HostModule = writesManifest,
   capabilities: TargetCapabilities = claudeCodeSubprocess,
@@ -39,6 +41,7 @@ export function deps(
   return {
     hostModules: { 'claude-code': host, codex, agy: agyHost },
     targetCapabilities: {
+      'claude-code:in-process': claudeCodeInProcess,
       [TARGET]: capabilities,
       'codex:subprocess': codexSubprocess,
       'agy:subprocess': agySubprocess,

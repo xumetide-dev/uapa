@@ -6,6 +6,9 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import type { BuildOutcome } from '../../src/build/index.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
+import { agy } from '../../src/targets/agy/index.ts'
+import { claudeCode } from '../../src/targets/claude-code/index.ts'
+import { codex } from '../../src/targets/codex/index.ts'
 import type { HostModule } from '../../src/targets/types.ts'
 import { readTree } from '../fixtures/run.ts'
 import { buildAt, hostDeps, returning, SKILL } from '../helpers/build.ts'
@@ -291,5 +294,49 @@ test('比对：失败的目标不产生差异，默认布局中目标全部失�
     assert.deepEqual(conflict.changes, [
       { change: 'added', path: 'dist/agy/plugin.json' },
     ])
+  })
+})
+
+// 承接 M1-02 验收 §7 第 3 行（同一宿主有两个目标）。真实的 Claude Code 宿主模块，不调用宿主校验
+test('同一宿主两个目标：skill 只限定 claude-code:subprocess 时 claude-code:in-process 记残余风险；一个目标失败时另一目标照常写出', async () => {
+  const files = {
+    'skills/review/SKILL.md': SKILL('targets: [claude-code:subprocess]\n'),
+  }
+  const modules = {
+    'claude-code': { host: 'claude-code', generate: claudeCode.generate } as const,
+    codex,
+    agy,
+  }
+  const both: Partial<UapaConfig> = {
+    targets: ['claude-code:in-process', 'claude-code:subprocess'],
+  }
+  await inProject(files, async root => {
+    const outcome = await buildAt(root, hostDeps(modules), both)
+    assert.deepEqual(targetOf(outcome, 'claude-code:in-process').residualRisks, [
+      'skill review 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载',
+    ])
+    assert.deepEqual(targetOf(outcome, 'claude-code:subprocess').residualRisks, [])
+    // 显式限定 claude-code:in-process 的 SessionStart 声明使该目标失败
+    const failing: Partial<UapaConfig> = {
+      ...both,
+      commandHooks: [
+        {
+          event: 'SessionStart',
+          command: 'echo uapa-session-probe',
+          targets: ['claude-code:in-process'],
+        },
+      ],
+    }
+    const second = await buildAt(root, hostDeps(modules), failing)
+    const inProcess = targetOf(second, 'claude-code:in-process')
+    assert.deepEqual([inProcess.status, inProcess.units], ['failed', []])
+    const subprocess = targetOf(second, 'claude-code:subprocess')
+    assert.equal(subprocess.status, 'ok')
+    assert.deepEqual(subprocess.units, [{ kind: 'plugin', path: 'dist/claude-code' }])
+    const tree = await readTree(join(root, 'dist', 'claude-code'))
+    assert.deepEqual(
+      [...tree.keys()],
+      ['.claude-plugin/plugin.json', 'skills/review/SKILL.md'],
+    )
   })
 })

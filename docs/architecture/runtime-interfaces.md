@@ -18,14 +18,17 @@ export interface TargetRuntimeData { // 打包时内联为只读常量
 }
 
 // src/bundle/types.ts（F-03-11）：宿主模块与打包共用
-export interface BundleRequest {
+interface BundleBase {
   // src/runtime/entries/ 下的入口名，不含扩展名，如 'codex-subprocess'；测试可传绝对路径
   readonly entry: string
   readonly guardModule: string // GuardDeclaration.modulePath
   readonly data: TargetRuntimeData
-  // 'node'：只保留 node: 内置模块；'claude-code'：只保留 'claude-code'
-  readonly external: 'node' | 'claude-code'
 }
+export type BundleRequest =
+  // 'node'：只保留 node: 内置模块；子进程入口要调用的检查由 hooks 配置列出
+  | (BundleBase & { readonly external: 'node' })
+  // 'claude-code'：只保留 'claude-code'；hooks 模块入口只为 checks 中的检查注册处理函数
+  | (BundleBase & { readonly external: 'claude-code'; readonly checks: readonly GuardCheck[] })
 
 // src/bundle/index.ts（F-04-06）
 export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM 单文件源码
@@ -41,6 +44,7 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   declare module 'uapa:target-data' { const data: TargetRuntimeData; export default data }
   declare const __UAPA_PLUGIN_NAME__: string
   declare const __UAPA_MODULE_SESSION_ENV__: string | null
+  declare const __UAPA_CHECKS__: Readonly<Record<GuardCheck, boolean>> // 只用于 hooks 模块入口
   ```
 
   `'claude-code'` 的类型在 `src/runtime/entries/claude-code-api.d.ts`（F-05-05）中手写，只含
@@ -53,6 +57,13 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   替换为 `data.pluginName`、`data.moduleSessionEnv` 的字面量（`null` 时为 `null`）；入口在
   调用处直接使用这两个标识符，不经变量、对象属性或函数参数转手。`moduleSessionEnv` 为 `null`
   时，打包结果中不保留以它为参数的 `$.env.set` 调用（F-05-08）。
+- `external` 为 `'claude-code'` 时，`bundle` 把 `__UAPA_CHECKS__.<检查名>` 替换为该检查是否在
+  `checks` 中的布尔字面量，常量条件的分支由打包器移除。hooks 模块入口只在对应分支中注册处理函数；
+  未计划停机前检查时，停机计数的 `atom` 声明（以 `/* @__PURE__ */` 标注）随之移除，产物中不留
+  类型契约未声明的状态键（`validate` 对未声明的 `atom` 报错，即使不读写，见
+  [本地实测](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#hooks-模块的静态校验)）。
+- 打包结果中仍含 `bundle-names.d.ts` 声明的标识符（如以计算属性写 `__UAPA_CHECKS__[name]`）时
+  打包失败：这些标识符在宿主中未定义。
 - `bundle` 按 `import.meta.url` 相对自身定位入口与 `runtime/core`，定位方式对源码目录与
   `dist/` 目录结构都成立（从 `dist/` 打包由 F-10-05 验证）；结果只在内存中返回，不写文件。
   产物中的文件名由宿主模块决定。

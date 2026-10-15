@@ -1,0 +1,4 @@
+{
+  "name": "hooks-demo",
+  "description": "守卫只实现执行前检查，声明 SessionStart 与 SessionEnd 命令 hooks 的夹具"
+}

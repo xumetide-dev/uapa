@@ -65,3 +65,23 @@ test('targets 显式列出的目标不承载事件时该目标失败，其他目
   assert.deepEqual(claude.errors, [])
   assert.deepEqual(claude.plan?.commandHooks, hooks)
 })
+
+// 承接 M1-06 验收 §7 第 1 行：同一宿主的另一目标承载该事件时不写 skipped
+test('两个 Claude Code 目标：声明列入 claude-code:subprocess，claude-code:in-process 不承载也不写 skipped', () => {
+  const config = {
+    ...baseConfig,
+    targets: ['claude-code:in-process', 'claude-code:subprocess'],
+    commandHooks: [{ event: 'SessionEnd', command: 'echo uapa-session-probe' }],
+  } as UapaConfig
+  const [inProcess, subprocess] = planTargets(config, SOURCE, null, targetCapabilities)
+  assert.ok(inProcess !== undefined && subprocess !== undefined)
+  assert.deepEqual(subprocess.plan?.commandHooks, config.commandHooks)
+  assert.deepEqual(inProcess.plan?.commandHooks, [])
+  assert.deepEqual([...inProcess.skipped, ...inProcess.errors], [])
+  // 只配置 claude-code:in-process 时没有承载该事件的同宿主目标，写入 skipped
+  const alone = { ...config, targets: ['claude-code:in-process'] } as UapaConfig
+  const [only] = planTargets(alone, SOURCE, null, targetCapabilities)
+  assert.deepEqual(only?.skipped, [
+    { component: 'commandHooks[0]', reason: '本目标不承载 SessionEnd 事件' },
+  ])
+})

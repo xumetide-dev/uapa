@@ -1,0 +1,23 @@
+{
+  "hooks-demo": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node hooks/uapa-agy.mjs before-tool",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node \"./scripts/session.mjs\"",
+        "timeout": 30
+      }
+    ]
+  }
+}

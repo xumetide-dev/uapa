@@ -1,0 +1,8 @@
+{
+  "name": "module-guard",
+  "version": "0.1.0",
+  "description": "只配置 claude-code:in-process、守卫只实现执行前检查的夹具",
+  "author": {
+    "name": "UAPA Fixtures"
+  }
+}

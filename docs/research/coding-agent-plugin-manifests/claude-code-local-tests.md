@@ -2,7 +2,8 @@
 
 本文记录调研中依赖本地实测的 Claude Code 行为，供复现。环境：Claude Code 2.1.296，macOS；
 「命令 hooks」与「实测会话的工具权限」两节于 2026-10-14 实测，其余各节于 2026-10-13 实测。
-测试插件均为最小示例，不含业务逻辑。
+「hooks 模块的静态校验」与「双形态去重的会话实测」两节于 2026-10-14 在 Linux 测试容器中实测
+（同为 2.1.296）。测试插件均为最小示例，不含业务逻辑。
 
 ## hooks 模块（mod）
 
@@ -14,6 +15,36 @@
 | 插件名 | 以 `claude-`、`anthropic-`、`cc-plugin-` 开头及 `@org/foo` 的插件 | 前三者 `validate` 报错；`@org/foo` 在 `validate` 中告警，`--plugin-dir` 加载被拒绝 |
 | 名称中的 `claude` 段 | 2026-10-14，`validate --strict` 名为 `single-claude`、`my-claude`、`demo-claude-plugin`、`tool-anthropic`、`claudebot`、`myclaude` 的插件 | 前四者告警“reads as one of Anthropic's own”，`--strict` 判为失败，不带 `--strict` 时通过；后两者通过 |
 | 守卫示例 | [Mods 指南](claude-code-mods-guide.md) 中的示例模块 | `validate --strict`、`tsc` 通过；3 个 `claude plugin test` 用例（拒绝、放行、扣留）通过 |
+
+## hooks 模块的静态校验
+
+`claude plugin validate --strict` 按模块源码做静态分析。最小插件的 `hooks/hooks.json` 为
+`{"hooks":{},"modules":["./register.ts"]}`，`register.ts` 引入同目录的打包文件 `uapa-guard.mjs`。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 转手导出 `register` | `register.ts` 写 `export const register = guard`（`guard` 为引入的函数） | 报错：register 须以 const 函数导出 |
+| 转导出 | `export { register } from './uapa-guard.mjs'`，或 `export * from './uapa-guard.mjs'` | 均报错：不跟踪从另一文件转导出的 `register` |
+| 调用引入的函数 | `export const register: Register = (on, options) => guard(on, options)`；不写类型、只传 `on` 的写法同样测试 | 通过；分析跟踪进 `uapa-guard.mjs`，列出其中注册的事件、`$` 调用、环境变量与状态键 |
+| `modules` 直接指向打包文件 | `modules` 为 `["./uapa-guard.mjs"]`，文件为 `function register(on) {...}` 加 `export { register }` | 通过 |
+| `$.env.set` 的变量名 | 以 `const NAME = '...'` 转手后传入 | 报错：变量名须为字面量；直接写字符串字面量时通过，`env writes` 列出该名称 |
+| 未声明的状态键 | 模块含 `atom({ plugin, key }, 0)`，没有类型契约；只声明 `atom`、不调用 `read` 与 `update` 时同样测试 | 两者都报错 `<插件>.<键> is not declared` |
+| 声明而不使用 | 有类型契约与 `types` 字段，模块不读写状态 | 通过 |
+| 状态读写 | `read($, a)` 与 `update($, a, fn)`，`a` 为模块顶层 `const` 持有的 `atom` | 通过；`calls` 记为 `$.state.get`、`$.state.set` |
+| 条件中注册 | `on(...)` 写在 `if` 中 | 通过；分析按源码列出，不按条件取舍 |
+| `classic.SessionStart` 的 matcher | `on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, hook)` | 通过；记为 `gating hook without .catch`，不计为告警 |
+
+## 双形态去重的会话实测
+
+插件为 `claude-both` 夹具的产物（两个 Claude Code 目标，守卫在连续继续次数小于 2 时要求继续），
+对照为只含命令 hooks 的 `single-claude` 夹具产物。会话以 `claude -p --plugin-dir <插件目录>
+--permission-mode default --allowedTools Read --output-format json` 运行，提示要求只回复 OK。
+
+| 项目 | 结果 |
+|---|---|
+| 两种形态并存 | 停机门禁生效（`num_turns` 为 7）；插件数据目录中没有命令入口写的停机计数文件，即命令 hook 按会话 id 比对后提前结束，停机由模块处理 |
+| 只有命令 hooks | 停机门禁生效；插件数据目录中出现 `uapa-stop-<会话 id>.json` |
+| 停机原因的副作用 | 夹具的停机原因要求“先运行测试”，模型随即尝试运行仓库的检查命令，被权限模式拦下；实测停机门禁时须限制工具 |
 
 ## hooks 模块与命令 hooks 并存
 

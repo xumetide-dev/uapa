@@ -1,0 +1,9 @@
+{
+  "name": "both-guard",
+  "version": "0.1.0",
+  "description": "与 full 相同的 skills 与守卫，配置两个 Claude Code 目标的夹具",
+  "author": {
+    "name": "UAPA Fixtures"
+  },
+  "types": "./types/index.d.ts"
+}

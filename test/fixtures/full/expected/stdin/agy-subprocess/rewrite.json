@@ -1,0 +1,21 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "conversationId": "fixture-conversation",
+    "toolCall": {
+      "name": "run_command",
+      "args": {
+        "CommandLine": "echo uapa-rewrite-probe hello",
+        "Cwd": "/project"
+      }
+    }
+  },
+  "env": {
+    "TMPDIR": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"allow\",\"overwrite\":{\"CommandLine\":\"echo uapa-rewritten hello\"}}\n",
+  "stderr": ""
+}

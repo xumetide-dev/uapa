@@ -1,0 +1,22 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "session_id": "fixture-session",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git status"
+    },
+    "tool_use_id": "call_fixture",
+    "cwd": "/project",
+    "permission_mode": "default"
+  },
+  "env": {
+    "PLUGIN_DATA": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": ""
+}

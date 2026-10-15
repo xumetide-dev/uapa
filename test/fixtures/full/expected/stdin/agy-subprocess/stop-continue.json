@@ -1,0 +1,14 @@
+{
+  "args": [
+    "before-stop"
+  ],
+  "stdin": {
+    "conversationId": "fixture-conversation"
+  },
+  "env": {
+    "TMPDIR": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"continue\",\"reason\":\"请先运行测试再结束\"}\n",
+  "stderr": ""
+}

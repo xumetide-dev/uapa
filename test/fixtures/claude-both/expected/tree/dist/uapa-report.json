@@ -1,0 +1,52 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:in-process",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-mods-guide.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": []
+    },
+    {
+      "target": "claude-code:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": [
+        "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
+        "缺少 Node ≥ 22 或入口无法启动时，提示提交前检查不生效（宿主在 hook 出错时放行）",
+        "缺少 Node ≥ 22 或入口无法启动时，停机前检查不生效（宿主在 hook 出错时放行）"
+      ]
+    }
+  ]
+}

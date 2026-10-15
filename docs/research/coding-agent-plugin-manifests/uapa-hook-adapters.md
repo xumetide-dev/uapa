@@ -204,11 +204,16 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
 // 以下运行与模块相同的守卫逻辑，按第 4 节输出命令 hooks 协议
 ```
 
-- 生成的 `hooks/register.ts` 只引入打包后的 `hooks/uapa-guard.mjs`（F-05-05）；去重代码位于
-  入口源码中。
+- 生成的 `hooks/register.ts` 只引入打包后的 `hooks/uapa-guard.mjs`（F-05-05），写作
+  `export const register: Register = on => guard(on)`：`validate` 不跟踪转导出的 `register`
+  （[本地实测](claude-code-local-tests.md#hooks-模块的静态校验)）。去重代码位于入口源码中。
+- `/clear`、`/resume`、`/branch` 之后 `session.start` 不再触发（[Mods 指南](claude-code-mods-guide.md#state-与-store)）。
+  会话 id 若随之改变，变量与 stdin 的 `session_id` 不再相等，命令 hook 不被跳过，守卫执行两次；
+  模块因此在 `classic.SessionStart`（`source` 为 `clear`、`resume`、`fork`）上再写一次变量。
+  这三个命令之后的会话 id 与去重效果未实测。
 - 比较会话 id 而不是只判断变量是否存在：在某个会话的 Bash 工具中启动的嵌套 Claude Code
   会话会继承父会话的环境变量，只判断存在会让嵌套会话错误地跳过命令 hook。
-- 实测覆盖的是 `UserPromptSubmit`。`SessionStart` 事件上的命令 hook 能否看到同一会话
+- 实测覆盖的是 `UserPromptSubmit` 与 `Stop`（[双形态去重的会话实测](claude-code-local-tests.md#双形态去重的会话实测)）。`SessionStart` 事件上的命令 hook 能否看到同一会话
   模块写入的变量，取决于调用顺序，未实测；该事件不要依赖去重。
 - hooks 模块运行在没有 Node `process` 的独立环境中，与 hook 子进程不共享内存，不能用
   `globalThis` 标志或进程 id 判断模块是否生效。

@@ -30,13 +30,20 @@ async function compareTree(name: string, run: FixtureRun): Promise<void> {
   }
 }
 
-// 子进程入口只导入 node: 内置模块；hooks 模块的守卫文件只导入 'claude-code'
+// 子进程入口只导入 node: 内置模块；hooks 模块的守卫文件只导入 'claude-code'，
+// hooks/register.ts 只导入 ./uapa-guard.mjs（类型导入不计；rolldown 把外部的相对导入记为去掉
+// ./ 的形式）
 async function checkImports(run: FixtureRun): Promise<void> {
-  for (const path of [...run.tree.keys()].filter(p => p.endsWith('.mjs'))) {
+  const entries = [...run.tree.keys()].filter(
+    p => p.endsWith('.mjs') || p.endsWith('hooks/register.ts'),
+  )
+  for (const path of entries) {
     const imports = await importsOf(join(run.project, ...path.split('/')))
     const allowed = path.endsWith('/uapa-guard.mjs')
       ? (id: string) => id === 'claude-code'
-      : (id: string) => id.startsWith('node:')
+      : path.endsWith('register.ts')
+        ? (id: string) => id.replace(/^\.\//, '') === 'uapa-guard.mjs'
+        : (id: string) => id.startsWith('node:')
     assert.ok(imports.every(allowed), `${path} 的导入：${imports.join(', ')}`)
   }
 }

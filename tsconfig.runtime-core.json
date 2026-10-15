@@ -4,5 +4,10 @@
     "types": [],
     "lib": ["es2022"]
   },
-  "include": ["src/runtime/core/**/*.ts"]
+  "include": [
+    "src/runtime/core/**/*.ts",
+    "src/runtime/entries/claude-code-in-process.ts",
+    "src/runtime/entries/claude-code-api.d.ts",
+    "src/runtime/entries/bundle-names.d.ts"
+  ]
 }

@@ -13,3 +13,7 @@ declare module 'uapa:target-data' {
 
 declare const __UAPA_PLUGIN_NAME__: string
 declare const __UAPA_MODULE_SESSION_ENV__: string | null
+// hooks 模块入口按 BundleRequest.checks 注册处理函数，打包时替换为布尔字面量
+declare const __UAPA_CHECKS__: Readonly<
+  Record<import('../core/types.ts').GuardCheck, boolean>
+>

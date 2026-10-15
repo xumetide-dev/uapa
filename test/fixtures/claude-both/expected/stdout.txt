@@ -1,0 +1,3 @@
+成功 claude-code:in-process：跳过 0，降级 0，残余风险 0
+成功 claude-code:subprocess：跳过 0，降级 0，残余风险 3
+构建报告：dist/uapa-report.json

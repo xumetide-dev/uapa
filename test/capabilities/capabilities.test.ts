@@ -39,3 +39,17 @@ test('能力数据缺字段时 tsc 报错（F-03-01）', () => {
   const missing: TargetCapabilities = withoutToolNames
   assert.ok(missing)
 })
+
+// F-05-14：进程内运行，没有超时字段；钩子失败时被跳过，记为放行；不运行声明的命令
+test('claude-code:in-process 的能力数据', () => {
+  const data = targetCapabilities['claude-code:in-process']
+  assert.equal(data.host.version, '2.1.296')
+  assert.equal(data.host.source, 'claude-code-mods-guide.md')
+  assert.equal(data.capabilities.promptGate, true)
+  assert.deepEqual([data.hookTimeoutSeconds, data.defaultTimeoutSeconds], [null, null])
+  for (const check of ['beforeTool', 'beforePrompt', 'beforeStop'] as const) {
+    assert.deepEqual(data.failureDefault[check], { error: 'allow', timeout: 'allow' })
+  }
+  assert.deepEqual(data.toolNames, claudeCodeSubprocess.toolNames)
+  assert.ok(Object.values(data.commandHookEvents).every(event => event === null))
+})

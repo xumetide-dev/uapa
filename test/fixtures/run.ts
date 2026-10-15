@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
 import { chmod, cp, mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TARGETS, type TargetName } from '../../src/config/targets.ts'
 
@@ -98,6 +98,16 @@ export async function withFixtureRun<T>(
   } finally {
     await rm(temp, { recursive: true, force: true })
   }
+}
+
+// 在 withFixtureRun 的源项目中再运行一次 uapa（TA-08）；PATH 与首次运行相同
+export function runCli(project: string, args: readonly string[]): EntryResult {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd: project,
+    env: { PATH: join(dirname(project), 'path') },
+    encoding: 'utf8',
+  })
+  return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr }
 }
 
 export async function readTree(dir: string): Promise<Map<string, Buffer>> {
