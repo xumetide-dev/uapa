@@ -24,7 +24,7 @@
   },
   "packageManager": "pnpm@12.11.2",
   "scripts": {
-    "check": "tsc -p tsconfig.json && tsc -p tsconfig.runtime-core.json && biome check && node --test \"test/**/*.test.ts\" && node scripts/check-feature-list.mjs"
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.runtime-core.json && biome check && node --test \"test/*.test.ts\" \"test/*/*.test.ts\" && node scripts/check-feature-list.mjs"
   },
   "dependencies": {
     "rolldown": "~1.2.13",

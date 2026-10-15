@@ -18,7 +18,9 @@
       ],
       "skipped": [],
       "degraded": [],
-      "overridden": [],
+      "overridden": [
+        "hooks/guard.test.ts"
+      ],
       "hostValidation": "skipped",
       "residualRisks": []
     },
@@ -40,7 +42,9 @@
       ],
       "skipped": [],
       "degraded": [],
-      "overridden": [],
+      "overridden": [
+        "hooks/guard.test.ts"
+      ],
       "hostValidation": "skipped",
       "residualRisks": [
         "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",

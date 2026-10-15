@@ -14,6 +14,7 @@
     "paths": { "uapa": ["./src/index.ts"] }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "scripts/*.ts"],
-  // 期望产物中的 hooks/register.ts 与 types/index.d.ts 面向 Claude Code 生成的类型，不在此检查
-  "exclude": ["test/fixtures/*/expected"]
+  // 期望产物中的 hooks/register.ts 与 types/index.d.ts 面向 Claude Code 生成的类型，不在此检查；
+  // 夹具覆盖文件（如 claude plugin test 的测试）原样复制进产物，同样面向宿主的类型
+  "exclude": ["test/fixtures/*/expected", "test/fixtures/*/source/overrides"]
 }
