@@ -72,7 +72,8 @@
 - v0.2.0：加载 `after-tool` 产物，确认两种形态的扣留与替换生效（承接
   [M2-02 验收 §7](../acceptance/M2-02-after-tool-end-to-end.md#7-已知限制与技术债) 第 1 行）；加载
   `components` 产物，会话的初始化信息列出 agents 与 MCP 服务器（agents 承接
-  [M2-03 验收 §7](../acceptance/M2-03-agents-component.md#7-已知限制与技术债) 第 1 行）。
+  [M2-03 验收 §7](../acceptance/M2-03-agents-component.md#7-已知限制与技术债) 第 1 行，MCP 服务器
+  承接 [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 1 行）。
 
 ### 2. Codex（`codex-plugins.md`）
 
@@ -80,7 +81,11 @@
   确认拒绝的标记命令不执行且原因可见。
 - v0.2.0：`after-tool` 的扣留生效（承接
   [M2-02 验收 §7](../acceptance/M2-02-after-tool-end-to-end.md#7-已知限制与技术债) 第 1 行）；
-  `components` 的 MCP 服务器被加载。
+  `components` 的 MCP 服务器被加载（承接
+  [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 1 行）；在容器内的副本
+  中经 `overrides/codex/mcp/server.mjs` 放入写标记文件后退出的桩脚本，确认 `docs` 服务器的
+  `./mcp/server.mjs` 与 `"cwd": "."` 按插件目录解析（承接
+  [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 2 行）。
 - 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 2 行：
   manifest 写 `"mcpServers": {}` 且插件目录中另有 `.mcp.json` 时，Codex 不加载其中的服务器。
 
@@ -89,7 +94,10 @@
 - 安装 `full` 的 agy 产物，确认拒绝、改写与停机继续的标记命令按 F-11-04 生效。
 - v0.2.0：`components` 的 agents 与 MCP 服务器被加载（agents 承接
   [M2-03 验收 §7](../acceptance/M2-03-agents-component.md#7-已知限制与技术债) 第 1 行）；被列为
-  跳过的服务器不出现。
+  跳过的服务器不出现（MCP 服务器承接
+  [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 1 行）；同任务 2 经
+  `overrides/agy/mcp/server.mjs` 放入桩脚本，确认 `./mcp/server.mjs` 按插件目录解析（承接
+  [M2-04 验收 §7](../acceptance/M2-04-mcp-servers.md#7-已知限制与技术债) 第 2 行）。
 - 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 1 行：
   根 `agents.json` 与 `agents/*.md` 同时存在时加载哪些子代理。
 
