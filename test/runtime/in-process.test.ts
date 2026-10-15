@@ -170,6 +170,21 @@ test('session.start 与 classic.SessionStart 以 UAPA_MODULE_SESSION_<插件名>
   }
 })
 
+test('classic.SessionStart 优先写事件的 session_id：/branch 与 /resume 之后 $.session.id() 仍为旧会话 id', async () => {
+  const hook = only(both, 'classic.SessionStart').hook
+  for (const [e, written] of [
+    [{ source: 'fork', session_id: 'fixture-branched' }, 'fixture-branched'],
+    [{ source: 'resume', session_id: 'fixture-resumed' }, 'fixture-resumed'],
+    [{ source: 'clear', session_id: '' }, 'fixture-previous'],
+    [{ source: 'clear', session_id: 7 }, 'fixture-previous'],
+  ] as const) {
+    const $ = api('fixture-previous')
+    const { next } = nextOf()
+    await hook($, e, next)
+    assert.deepEqual($.envCalls, [[bothEnv, written]], JSON.stringify(e))
+  }
+})
+
 test('tool.call：放行调用 next，拒绝返回 { deny }，Bash 改写以 next 写回，非 Bash 改写按 fallbackReason 拒绝', async () => {
   const hook = only(both, 'tool.call').hook
   const call = async (e: Record<string, unknown>) => {

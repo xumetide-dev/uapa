@@ -154,7 +154,8 @@ on('tool.call', { tool: 'Bash' }, guard).catch(($, e, next) =>
   `validate` 中报错（本地实测）。
 - `/clear`、`/resume`、`/branch` 把 `$.state` 重置为默认值，`session.start` 不再触发；
   `classic.SessionStart` 在这三者之后触发，`e.source` 为 `clear`、`resume` 或 `fork`（`/branch`），
-  可用 `{ source: [...] }` 筛选 [M6]。
+  可用 `{ source: [...] }` 筛选 [M6]。`/branch` 与 `/resume` 之后，该事件中的 `$.session.id()`
+  仍返回切换前的会话 id，新会话 id 取 `e.session_id`（本地实测）。
 - `$.state.get` 只接受字面量引用，传入字符串键（如 `$.state.get('badge')`）在 `validate`
   阶段报错（本地实测）。
 - 绘制钩子读取 `$.state` 即订阅该值，之后的写入只重绘读取者；绘制过程中不得写入。

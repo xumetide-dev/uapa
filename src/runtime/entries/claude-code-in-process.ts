@@ -67,7 +67,7 @@ export function register(on: On): void {
       'classic.SessionStart',
       { source: ['clear', 'resume', 'fork'] },
       async ($, e, next) => {
-        await $.env.set(__UAPA_MODULE_SESSION_ENV__, await $.session.id())
+        await $.env.set(__UAPA_MODULE_SESSION_ENV__, await startedSessionId($, e))
         return next(e)
       },
     )
@@ -92,6 +92,15 @@ export function register(on: On): void {
   if (__UAPA_CHECKS__.beforeStop) {
     on('classic.Stop', ($, e, next) => beforeStop($, e, next))
   }
+}
+
+// classic.SessionStart 之后的会话 id：/branch 与 /resume 之后，该事件中的 $.session.id() 仍为
+// 切换前的会话 id，事件的 session_id（同命令 hook 的 stdin）为新会话 id；/clear 之后两者相同
+// （本地实测「双形态去重的会话实测」）。事件没有 session_id 时退回 $.session.id()
+async function startedSessionId($: Api, e: ClassicEvent): Promise<string> {
+  const started = e.session_id
+  if (typeof started === 'string' && started !== '') return started
+  return $.session.id()
 }
 
 // 守卫抛错或返回值无效时 ok 为 false，reason 按入口与打包接口第 4 节

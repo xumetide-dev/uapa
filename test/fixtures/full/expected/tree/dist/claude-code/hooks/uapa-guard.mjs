@@ -161,7 +161,7 @@ function register(on) {
 		"resume",
 		"fork"
 	] }, async ($, e, next) => {
-		await $.env.set("UAPA_MODULE_SESSION_FULL_GUARD", await $.session.id());
+		await $.env.set("UAPA_MODULE_SESSION_FULL_GUARD", await startedSessionId($, e));
 		return next(e);
 	});
 	on("tool.call", ($, e, next) => toolCall($, e, next)).catch((_$, e, next) => {
@@ -170,6 +170,11 @@ function register(on) {
 	});
 	on("prompt.submit", ($, e, next) => beforePrompt($, e, next)).catch((_$, e, next) => next.called ? next(e) : { drop: HOOK_FAILED_REASON });
 	on("classic.Stop", ($, e, next) => beforeStop($, e, next));
+}
+async function startedSessionId($, e) {
+	const started = e.session_id;
+	if (typeof started === "string" && started !== "") return started;
+	return $.session.id();
 }
 async function callGuard(call, check) {
 	try {

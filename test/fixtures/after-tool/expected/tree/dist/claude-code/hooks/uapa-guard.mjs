@@ -189,13 +189,18 @@ function register(on) {
 		"resume",
 		"fork"
 	] }, async ($, e, next) => {
-		await $.env.set("UAPA_MODULE_SESSION_AFTER_TOOL_GUARD", await $.session.id());
+		await $.env.set("UAPA_MODULE_SESSION_AFTER_TOOL_GUARD", await startedSessionId($, e));
 		return next(e);
 	});
 	on("tool.call", ($, e, next) => toolCall($, e, next)).catch((_$, e, next) => {
 		if (!next.called) return { deny: HOOK_FAILED_REASON };
 		return { deny: HOOK_FAILED_REASON };
 	});
+}
+async function startedSessionId($, e) {
+	const started = e.session_id;
+	if (typeof started === "string" && started !== "") return started;
+	return $.session.id();
 }
 async function callGuard(call, check) {
 	try {

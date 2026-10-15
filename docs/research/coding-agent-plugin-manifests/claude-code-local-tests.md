@@ -3,7 +3,8 @@
 本文记录调研中依赖本地实测的 Claude Code 行为，供复现。环境：Claude Code 2.1.296，macOS；
 「命令 hooks」与「实测会话的工具权限」两节于 2026-10-14 实测，其余各节于 2026-10-13 实测。
 「hooks 模块的静态校验」「双形态去重的会话实测」「执行后检查」「MCP 服务器与 agents」四节于
-2026-10-14 在 Linux 测试容器中实测（同为 2.1.296）。测试插件均为最小示例，不含业务逻辑。
+2026-10-14 在 Linux 测试容器中实测（同为 2.1.296），其中标注 2026-10-15 的条目为 UAPA 夹具产物的
+实测。测试插件均为最小示例，不含业务逻辑。
 
 ## hooks 模块（mod）
 
@@ -45,6 +46,24 @@
 | 两种形态并存 | 停机门禁生效（`num_turns` 为 7）；插件数据目录中没有命令入口写的停机计数文件，即命令 hook 按会话 id 比对后提前结束，停机由模块处理 |
 | 只有命令 hooks | 停机门禁生效；插件数据目录中出现 `uapa-stop-<会话 id>.json` |
 | 停机原因的副作用 | 夹具的停机原因要求“先运行测试”，模型随即尝试运行仓库的检查命令，被权限模式拦下；实测停机门禁时须限制工具 |
+
+2026-10-15，以 `claude-both` 夹具的产物继续实测会话切换与嵌套会话（TA-11）。插件副本另在
+`SessionStart`、`UserPromptSubmit` 与 `Stop` 上挂记录用的命令 hook，记下 stdin 的 `session_id`、
+`source` 与去重变量 `UAPA_MODULE_SESSION_BOTH_GUARD`；“只由模块执行”指插件数据目录中没有命令
+入口写的 `uapa-stop-<会话 id>.json`。交互会话以 tmux 驱动，权限模式为 `dontAsk`。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| Bash 工具的环境 | 会话中运行 `printenv UAPA_MODULE_SESSION_BOTH_GUARD` | 输出当前会话 id：模块写入的变量传给 Bash 工具启动的进程，嵌套会话因此继承父会话的值 |
+| 嵌套会话的登录 | 在会话的 Bash 中运行 `claude -p` | 嵌套会话显示未登录：以环境变量提供的令牌没有传给 Bash 工具启动的进程 |
+| 嵌套会话的命令 hooks | 以父会话 id 作为该变量的值启动只含命令 hooks 的同名插件的会话，要求运行 `echo uapa-deny-probe` | 命令入口拒绝该命令（`PreToolUse:Bash hook error: [node "…/uapa-claude-code.mjs" before-tool]: 拒绝标记命令 uapa-deny-probe`），并写出本会话的停机计数文件：变量与 stdin 的会话 id 不同，命令 hook 不被跳过 |
+| `claude -p --resume <id>` | 恢复上一个会话 | 会话 id 不变；新进程触发 `session.start`，变量等于该 id，停机只由模块处理 |
+| `claude -p --resume <id> --fork-session` | 分叉上一个会话 | 新会话 id；变量等于新 id，停机只由模块处理 |
+| 交互会话的 `/clear` | 执行后再提交提示 | 新会话 id，`SessionStart` 的 `source` 为 `clear`；变量等于新 id，停机只由模块处理 |
+| 交互会话的 `/branch` | 同上 | 新会话 id，`source` 为 `fork`。模块在 `classic.SessionStart` 中以 `$.session.id()` 写变量时，变量仍为分叉前的 id，命令 hook 不被跳过，停机门禁由两种形态各计一次 |
+| 交互会话的 `/resume <id>` | 回到第一个会话 | 会话 id 为第一个会话的 id，`source` 为 `resume`；以 `$.session.id()` 写入时问题同 `/branch` |
+| `classic.SessionStart` 的会话 id | 诊断副本在该处理函数中另写 `$.session.id()` 与事件 `e` | `/branch` 与 `/resume` 之后 `$.session.id()` 为切换前的会话 id，`e.session_id` 为新会话 id；`e` 的字段同命令 hook 的 stdin（`session_id`、`transcript_path`、`cwd`、`source`、`model` 等）。之后的 `prompt.submit` 中 `$.session.id()` 已为新 id |
+| 改用 `e.session_id` | 入口在 `classic.SessionStart` 中优先写 `e.session_id` 后重新构建 | `/branch` 与 `/resume <id>` 之后变量都等于新会话 id，没有命令入口的停机计数文件 |
 
 ## hooks 模块与命令 hooks 并存
 

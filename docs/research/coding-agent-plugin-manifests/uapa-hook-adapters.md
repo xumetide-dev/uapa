@@ -212,8 +212,9 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
   （[本地实测](claude-code-local-tests.md#hooks-模块的静态校验)）。去重代码位于入口源码中。
 - `/clear`、`/resume`、`/branch` 之后 `session.start` 不再触发（[Mods 指南](claude-code-mods-guide.md#state-与-store)）。
   会话 id 若随之改变，变量与 stdin 的 `session_id` 不再相等，命令 hook 不被跳过，守卫执行两次；
-  模块因此在 `classic.SessionStart`（`source` 为 `clear`、`resume`、`fork`）上再写一次变量。
-  这三个命令之后的会话 id 与去重效果未实测。
+  模块因此在 `classic.SessionStart`（`source` 为 `clear`、`resume`、`fork`）上再写一次变量，
+  值取事件的 `session_id`：`/branch` 与 `/resume` 之后该事件中的 `$.session.id()` 仍为切换前的
+  会话 id（[本地实测](claude-code-local-tests.md#双形态去重的会话实测)）。
 - 比较会话 id 而不是只判断变量是否存在：在某个会话的 Bash 工具中启动的嵌套 Claude Code
   会话会继承父会话的环境变量，只判断存在会让嵌套会话错误地跳过命令 hook。
 - 实测覆盖的是 `UserPromptSubmit` 与 `Stop`（[双形态去重的会话实测](claude-code-local-tests.md#双形态去重的会话实测)）。`SessionStart` 事件上的命令 hook 能否看到同一会话
