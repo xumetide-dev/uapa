@@ -1,0 +1,44 @@
+const allow = { error: 'allow', timeout: 'allow' };
+export const codexSubprocess = {
+    target: 'codex:subprocess',
+    host: {
+        name: 'codex',
+        version: '0.162.1',
+        checked: '2026-10-14',
+        source: 'codex-plugins.md', // TA-15 结论见其「源码核对（rust-v0.162.1）」
+    },
+    // skills/、mcp.json 与 hooks 配置都是插件包内的文件；Codex 插件没有 agents 组件
+    components: {
+        skills: 'package',
+        agents: 'none',
+        mcp: 'package',
+        hooks: 'package',
+    },
+    capabilities: {
+        rewriteInput: true, // permissionDecision: "allow" 与 updatedInput
+        replaceOutput: false, // updatedMCPToolOutput 只解析、尚未生效
+        withholdOutput: true, // PostToolUse 返回 decision: "block" 时以反馈替换工具结果
+        stopGate: true, // Stop 返回 decision: "block" 与 reason
+        promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15）
+    },
+    // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）
+    failureDefault: { beforeTool: allow, beforePrompt: allow, beforeStop: allow },
+    hookTimeoutSeconds: 30, // 处理器的 timeout 字段，单位秒（TA-15）
+    defaultTimeoutSeconds: 600,
+    // 读文件、按模式找文件、内容搜索与抓取网页没有独立工具；网络搜索不触发 hook
+    toolNames: {
+        Bash: 'shell',
+        apply_patch: 'edit_file', // 编辑与新建合为一个工具（hooks 适配第 3 节）
+        spawn_agent: 'subagent',
+        update_plan: 'todo',
+    },
+    // 六个事件均为同名宿主事件（command-hooks.md 第 2 节）
+    commandHookEvents: {
+        SessionStart: 'SessionStart',
+        SessionEnd: 'SessionEnd',
+        UserPromptSubmit: 'UserPromptSubmit',
+        PreToolUse: 'PreToolUse',
+        PostToolUse: 'PostToolUse',
+        Stop: 'Stop',
+    },
+};
