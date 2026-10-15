@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M4-02](M4-02-rules-and-commands.md) | rules 与 commands | 有条件通过（产物在 agy 与 Claude Code 会话中的效果由 M4-05 实测） | 2026-10-15 | `ee66f81` |
 | [M4-01](M4-01-v0-3-0-interfaces.md) | v0.3.0 接口定稿 | 通过 | 2026-10-15 | `25bf526` |
 | [M3-00](M3-00-three-host-live-test-gaps.md) | Sprint 收口：三个宿主的遗留实测 | 通过 | 2026-10-15 | `034019e` |
 | [M3-03](M3-03-codex-prompt-gate-hook-failures.md) | Codex 提示阻断与 hook 出错、超时 | 通过 | 2026-10-15 | `671d4f6` |
