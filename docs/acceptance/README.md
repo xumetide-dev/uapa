@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M4-00](M4-00-v0-3-0-rules-commands-guard-options.md) | Sprint 收口：v0.3.0 的 rules、commands、守卫选项与 JSON 合并 | 有条件通过（M4-02 的 Codex 转换命令调用未实测，待维护者确认使用 Codex CLI） | 2026-10-15 | 待回填 |
 | [M4-05](M4-05-v0-3-0-live-tests.md) | v0.3.0 产物的宿主实测 | 通过 | 2026-10-15 | `0a8438e`、`fca03ad` |
 | [M4-04](M4-04-guard-options.md) | 守卫选项 | 通过 | 2026-10-15 | `2491715` |
 | [M4-03](M4-03-json-namespace-merge.md) | 按命名空间合并共用的 JSON | 通过 | 2026-10-15 | `61dd481` |
