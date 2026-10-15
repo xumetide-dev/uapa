@@ -80,7 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
-| [M3-00](M3-00-three-host-live-test-gaps.md) | Sprint 收口：三个宿主的遗留实测 | 通过 | 2026-10-15 | 待回填 |
+| [M3-00](M3-00-three-host-live-test-gaps.md) | Sprint 收口：三个宿主的遗留实测 | 通过 | 2026-10-15 | `034019e` |
 | [M3-03](M3-03-codex-prompt-gate-hook-failures.md) | Codex 提示阻断与 hook 出错、超时 | 通过 | 2026-10-15 | `671d4f6` |
 | [M3-02](M3-02-agy-agents-json-stop-timeout.md) | agy 根 `agents.json` 与停机前检查的超时 | 通过 | 2026-10-15 | `a5a9a81` |
 | [M3-01](M3-01-claude-code-nested-session.md) | Claude Code 嵌套会话 | 通过 | 2026-10-15 | `c0672e8` |
