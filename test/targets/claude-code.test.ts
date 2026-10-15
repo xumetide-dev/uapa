@@ -14,6 +14,8 @@ const plan: TargetPlan = {
   skills: [],
   agents: [],
   mcpServers: [],
+  rules: [],
+  commands: [],
   checks: [],
   commandHooks: [],
 }

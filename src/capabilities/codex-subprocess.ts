@@ -19,6 +19,11 @@ export const codexSubprocess: TargetCapabilities = {
     agents: 'none',
     mcp: 'package',
     hooks: 'package',
+    // 兼容格式的插件在安装时把 commands/*.md 转换为技能，部分命令被跳过，由宿主模块写残余风险；
+    // 插件不承载规则或指令文件（codex-source-review.md「commands、rules 与用户配置」，
+    // rust-v0.162.1，2026-10-15 核对）
+    commands: 'package',
+    rules: 'none',
   },
   capabilities: {
     rewriteInput: true, // permissionDecision: "allow" 与 updatedInput

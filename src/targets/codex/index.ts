@@ -45,6 +45,11 @@ const AFTER_TOOL_RISK =
 const MCP_NAME_RISK =
   'Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器' +
   '可能不生效'
+// 安装时把 commands/*.md 转换为技能，不支持的命令被跳过、不告警（F-06-09；
+// codex-source-review.md「commands、rules 与用户配置」）
+const COMMANDS_RISK =
+  'Codex 安装时把 commands 转换为技能，正文含 $ARGUMENTS 等模板写法或转换结果超过 4000 字节的' +
+  '命令被跳过，UAPA 不检查'
 // Claude Code 按目录加载 hooks/hooks.json，不经 manifest 指定
 const SHARED_HOOKS_RISK =
   '与 Claude Code 共用插件目录时，Claude Code 也加载 hooks/hooks.json 并运行其中为 Codex ' +
@@ -136,6 +141,10 @@ function mcpRisks(): TargetNote[] {
   return [{ target: TARGET, message: MCP_NAME_RISK }]
 }
 
+function commandsRisks(): TargetNote[] {
+  return [{ target: TARGET, message: COMMANDS_RISK }]
+}
+
 // hooks 配置与入口；hooks 为 null 时不写文件
 async function hooksFiles(
   input: HostInput,
@@ -191,6 +200,7 @@ export const codex: HostModule = {
     const residualRisks = [
       ...(hooks === null ? [] : hooksRisks(input, plan, hooksFile)),
       ...(mcp.config === null ? [] : mcpRisks()),
+      ...(plan.commands.length === 0 ? [] : commandsRisks()),
     ]
     return { ok: true, files, skipped: mcp.skipped, residualRisks }
   },

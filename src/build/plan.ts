@@ -1,6 +1,6 @@
-// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills、agents 与 MCP 服务器（F-03-02），
-// 按守卫的 requires 与目标能力得出要生成 hook 的检查（F-03-13），按事件承载得出命令 hooks
-// 声明（F-03-15），合为 TargetPlan。
+// 能力检查：按 frontmatter 与组件承载为每个目标筛选 skills、agents、rules、commands 与 MCP
+// 服务器（F-03-02、F-03-16），按守卫的 requires 与目标能力得出要生成 hook 的检查（F-03-13），
+// 按事件承载得出命令 hooks 声明（F-03-15），合为 TargetPlan。
 import type { TargetCapabilities } from '../capabilities/types.ts'
 import { hostOf, type TargetName } from '../config/targets.ts'
 import type { CommandHookDecl, UapaConfig } from '../config/types.ts'
@@ -19,6 +19,8 @@ export function planTargets(
     const state = newState(target, capabilities[target])
     const skills = planComponents(state, 'skills', source.skills)
     const agents = planComponents(state, 'agents', source.agents)
+    const rules = planComponents(state, 'rules', source.rules)
+    const commands = planComponents(state, 'commands', source.commands)
     const mcpServers = planMcpServers(state, source.mcpServers)
     const checks = guard === null ? [] : planChecks(state, guard)
     const commandHooks = planCommandHooks(state, config, capabilities)
@@ -29,6 +31,8 @@ export function planTargets(
         skills,
         agents,
         mcpServers,
+        rules,
+        commands,
         checks,
         commandHooks,
       }
@@ -46,6 +50,8 @@ interface Component {
 const COMPONENT_KINDS = {
   skills: { label: 'skill', path: (name: string) => `skills/${name}` },
   agents: { label: 'agent', path: (name: string) => `agents/${name}.md` },
+  rules: { label: 'rule', path: (name: string) => `rules/${name}.md` },
+  commands: { label: 'command', path: (name: string) => `commands/${name}.md` },
 } as const
 
 // 不适用本目标的组件不计；本目标不能承载该类组件时，

@@ -35,6 +35,8 @@ async function generate(
         skills: [],
         agents: [],
         mcpServers: [],
+        rules: [],
+        commands: [],
         checks,
         commandHooks: [],
       },

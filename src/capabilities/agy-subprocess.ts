@@ -17,6 +17,10 @@ export const agySubprocess: TargetCapabilities = {
     agents: 'package',
     mcp: 'package',
     hooks: 'package',
+    // rules/<name>.md 的 trigger 与逗号分隔的 globs 生效（agy-plugins.md「rules（1.3.5，容器）」，
+    // 2026-10-15 实测）；插件没有斜杠命令组件（agy-plugins.md [A1]）
+    rules: 'package',
+    commands: 'none',
   },
   capabilities: {
     rewriteInput: true, // PreToolUse 的 overwrite，按键浅合并进 toolCall.args

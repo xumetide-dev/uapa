@@ -1,7 +1,27 @@
-// 源项目读取共用的文件列举：skills（F-01-04）与覆盖目录（F-01-06）。
-import { readdir } from 'node:fs/promises'
+// 源项目读取共用的文件列举：skills（F-01-04）、覆盖目录（F-01-06）与单文件组件 agents、rules、
+// commands（F-01-07、F-01-10、F-01-11）。
+import { readdir, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
-import type { InputIssue } from '../config/issues.ts'
+import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
+
+// 单文件组件目录下一层的 .md 文件名，按字典序；目录不存在时为空列表，不是目录时失败。子目录与
+// 其他文件忽略：Claude Code 把子目录计入组件名，agy 不计，只读一层使两者一致
+export async function listMarkdownFiles(
+  root: string,
+  dirName: string,
+): Promise<Loaded<string[]>> {
+  const dir = join(root, dirName)
+  const info = await orMissing(stat(dir))
+  if (info === null) return loaded([])
+  if (!info.isDirectory()) {
+    return failed([{ file: dirName, field: null, message: `${dirName} 应为目录` }])
+  }
+  const entries = await readdir(dir, { withFileTypes: true })
+  const names = entries
+    .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+    .map(entry => entry.name)
+  return loaded(names.sort(compare))
+}
 
 // 递归列出目录下的全部文件，相对该目录、POSIX 分隔、按字典序；符号链接等不支持，
 // 每个记一条错误，file 为错误所属的文件

@@ -1,5 +1,6 @@
 // agy 宿主模块（agy:subprocess）。agy plugin validate 对结构错误也报通过，本宿主不实现
-// verify，由字段白名单检查（F-11-05）在生成时代替。MCP 服务器写入 mcp_config.json（F-11-08）。
+// verify，由字段白名单检查（F-11-05）在生成时代替。MCP 服务器写入 mcp_config.json（F-11-08），
+// rules 写入 rules/（F-11-09）。
 import type { GuardDeclaration } from '../../source/guard.ts'
 import type {
   HostInput,
@@ -18,6 +19,7 @@ import {
   manifestErrors,
 } from './manifest.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
+import { ruleFiles } from './rules.ts'
 
 const TARGET = 'agy:subprocess'
 
@@ -94,17 +96,24 @@ export const agy: HostModule = {
     if (hooks !== null) files.push({ path: HOOKS_FILE, content: json(hooks) })
     if (withEntry) files.push(await entryFile(input, plan, guard))
     if (mcp.config !== null) files.push({ path: MCP_FILE, content: json(mcp.config) })
-    const residualRisks = plan === undefined ? [] : risks(input, plan)
+    const rules = ruleFiles(plan?.rules ?? [])
+    files.push(...rules.files)
+    const residualRisks = plan === undefined ? [] : risks(input, plan, rules.risks)
     return { ok: true, files, skipped: mcp.skipped, residualRisks }
   },
 }
 
-function risks(input: HostInput, plan: TargetPlan): TargetNote[] {
+function risks(
+  input: HostInput,
+  plan: TargetPlan,
+  ruleRisks: readonly string[],
+): TargetNote[] {
   const messages: string[] = []
   if (plan.checks.includes('beforeStop')) messages.push(STOP_COUNTER_RISK)
   if (plan.commandHooks.some(hook => hook.event === 'PreToolUse')) {
     messages.push(PRE_TOOL_USE_RISK)
   }
   if (input.sharedWith.includes('claude-code')) messages.push(SHARED_CLAUDE_CODE_RISK)
+  messages.push(...ruleRisks)
   return messages.map(message => ({ target: TARGET, message }))
 }

@@ -48,6 +48,8 @@ function generate(c: Case): Promise<HostResult> {
         skills: [],
         agents: [],
         mcpServers: [],
+        rules: [],
+        commands: [],
         checks: c.checks,
         commandHooks: c.commandHooks,
       },

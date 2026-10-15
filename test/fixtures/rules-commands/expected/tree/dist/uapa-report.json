@@ -1,0 +1,128 @@
+{
+  "targets": [
+    {
+      "target": "claude-code:in-process",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-mods-guide.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [
+        {
+          "component": "rules/answer-in-chinese.md",
+          "reason": "本目标不能承载 rules"
+        },
+        {
+          "component": "rules/typescript.md",
+          "reason": "本目标不能承载 rules"
+        }
+      ],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": [
+        "command claude-only 不适用于本目标，但与其他目标共用插件目录，宿主仍会加载"
+      ]
+    },
+    {
+      "target": "claude-code:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "claude-code",
+        "version": "2.1.296",
+        "checked": "2026-10-14",
+        "source": "claude-code-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/claude-code"
+        }
+      ],
+      "skipped": [
+        {
+          "component": "rules/answer-in-chinese.md",
+          "reason": "本目标不能承载 rules"
+        },
+        {
+          "component": "rules/typescript.md",
+          "reason": "本目标不能承载 rules"
+        }
+      ],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "skipped",
+      "residualRisks": []
+    },
+    {
+      "target": "codex:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "codex",
+        "version": "0.162.1",
+        "checked": "2026-10-14",
+        "source": "codex-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/codex"
+        }
+      ],
+      "skipped": [
+        {
+          "component": "rules/answer-in-chinese.md",
+          "reason": "本目标不能承载 rules"
+        },
+        {
+          "component": "rules/typescript.md",
+          "reason": "本目标不能承载 rules"
+        }
+      ],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "none",
+      "residualRisks": [
+        "Codex 安装时把 commands 转换为技能，正文含 $ARGUMENTS 等模板写法或转换结果超过 4000 字节的命令被跳过，UAPA 不检查"
+      ]
+    },
+    {
+      "target": "agy:subprocess",
+      "status": "ok",
+      "errors": [],
+      "host": {
+        "name": "agy",
+        "version": "1.3.4",
+        "checked": "2026-10-14",
+        "source": "agy-plugins.md"
+      },
+      "units": [
+        {
+          "kind": "plugin",
+          "path": "dist/agy"
+        }
+      ],
+      "skipped": [
+        {
+          "component": "commands/review.md",
+          "reason": "本目标不能承载 commands"
+        }
+      ],
+      "degraded": [],
+      "overridden": [],
+      "hostValidation": "none",
+      "residualRisks": []
+    }
+  ]
+}

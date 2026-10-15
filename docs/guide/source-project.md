@@ -3,7 +3,7 @@
 本文说明源项目中各组件放在哪里、怎样写，以及构建后它们在各宿主插件目录中的位置。配置字段见
 [构建配置](configuration.md)，守卫文件的写法见[编写守卫](guards.md)。组件的读取规则与验收标准
 以[功能清单「源项目与配置」](../feature-list/modules/01-source-config.md)与
-[范围决策 SD-30](../feature-list/scope-decisions.md) 为准。
+[范围决策 SD-30、SD-32、SD-33](../feature-list/scope-decisions.md) 为准。
 
 ## 概述
 
@@ -15,17 +15,21 @@
 ├── guard.ts                守卫逻辑（文件名由配置的 guard 指定）
 ├── skills/<name>/SKILL.md  skills
 ├── agents/<name>.md        agents
+├── rules/<name>.md         rules（规则与指令）
+├── commands/<name>.md      commands（斜杠命令）
 ├── mcp/servers.json        MCP 服务器
 └── overrides/<宿主>/       覆盖或新增到某个宿主插件目录中的文件
 ```
 
-各目录都是可选的。构建只复制 skills、agents 与覆盖文件，MCP 配置与 hooks 配置由 UAPA 生成；
-源项目中的其他文件（README、测试、脚本）不进入插件目录。
+各目录都是可选的。构建只复制 skills、agents、commands 与覆盖文件，rules、MCP 配置与 hooks 配置
+由 UAPA 按宿主格式生成；源项目中的其他文件（README、测试、脚本）不进入插件目录。
 
 | 组件 | Claude Code | Codex | agy |
 |---|---|---|---|
 | skills | `skills/<name>/` | `skills/<name>/` | `skills/<name>/` |
 | agents | `agents/<name>.md` | 不承载，记为跳过 | `agents/<name>.md` |
+| rules | 不承载，记为跳过 | 不承载，记为跳过 | `rules/<name>.md`，frontmatter 换为 agy 的写法 |
+| commands | `commands/<name>.md` | `commands/<name>.md`，安装时转换为技能 | 不承载，记为跳过 |
 | MCP 服务器 | `.mcp.json` | `mcp.json`，manifest 的 `mcpServers` 指向它 | `mcp_config.json` |
 | 守卫 hooks | `hooks/hooks.json` 与入口 | `hooks/hooks.json`（可由 `hooksFile` 改）与入口 | `hooks.json` 与入口 |
 
@@ -63,9 +67,56 @@ description: 审查改动并按严重程度列出问题，不修改文件
 - Claude Code 与 agy 加载插件目录的 `agents/`。Codex 的插件不承载 agents：该目标的构建报告
   `skipped` 中写 `agents/<name>.md`，其余组件照常生成。
 
+## rules
+
+每条规则是 `rules/` 下一层的 `<name>.md`，`<name>` 只含字母、数字、`_`、`-`。frontmatter 用宿主
+无关的写法描述规则何时进入上下文，正文原样保留：
+
+```markdown
+---
+activation: glob
+description: 编辑 TypeScript 文件时
+globs: ["*.ts", "src/**/*.tsx"]
+---
+
+不使用 any；导出的函数写明返回类型。
+```
+
+- `activation` 必填：`always` 始终进入上下文；`model` 由模型按 `description` 决定是否读取，
+  `description` 必填；`glob` 在读取匹配 `globs` 中任一模式的文件后进入上下文。
+- `description` 可选（`model` 时必填），为非空单行字符串。
+- `globs` 只在 `activation` 为 `glob` 时写，为非空的字符串列表；每个模式不含 `,` 与换行，因为
+  agy 以逗号连接多个模式。
+- frontmatter 中这三个键与 `targets` 以外的键一律拒绝：生成时 frontmatter 被重写，其他键会被
+  丢弃。
+- 只有 agy 承载 rules：`activation` 依次换为 `trigger: always_on`、`model_decision`、`glob`，
+  `globs` 写为以 `,` 连接的一个字符串。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
+  的规则在它们的构建报告 `skipped` 中写为 `rules/<name>.md`。
+
+## commands
+
+每个命令是 `commands/` 下一层的 `<name>.md`，`<name>` 只含字母、数字、`_`、`-`。整个文件原样
+复制：
+
+```markdown
+---
+description: 审查当前改动并列出问题
+argument-hint: <文件>
+---
+
+审查当前工作区的改动，按严重程度列出问题。
+```
+
+- `description` 必填，为非空字符串；除 `targets` 外的其他键不校验，留给宿主解释。
+- Claude Code 以 `/<插件名>:<name>` 调用命令。
+- Codex 在安装插件时把命令转换为技能；正文含 `$ARGUMENTS`、`$1` 等模板写法或转换结果超过
+  4000 字节的命令被 Codex 跳过，UAPA 不检查这些条件，在构建报告的残余风险中提示。
+- agy 的插件没有斜杠命令组件，未写 `targets` 的命令在其构建报告 `skipped` 中写为
+  `commands/<name>.md`。
+
 ## 限定目标的 frontmatter
 
-skill 与 agent 的 frontmatter 可写 `targets`，只放进列出的目标：
+skill、agent、rule 与 command 的 frontmatter 可写 `targets`，只放进列出的目标：
 
 ```markdown
 ---
@@ -76,7 +127,8 @@ targets: [agy:subprocess]
 ```
 
 - 未写 `targets` 时适用于全部已配置目标；写了就必须是非空的已登记目标名列表。
-- 列出的目标不能承载该组件时（如 agent 写 `targets: [codex:subprocess]`），该目标构建失败。
+- 列出的目标不能承载该组件时（如 agent 写 `targets: [codex:subprocess]`、rule 写
+  `targets: [claude-code:subprocess]`），该目标构建失败。
 - 宿主按目录加载组件。两个目标共用一个插件目录时（Claude Code 的两个目标，或合并布局），只适用
   于其中一个目标的组件仍会被另一个目标的宿主加载，构建报告把这种情况写为残余风险。
 

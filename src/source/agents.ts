@@ -1,27 +1,20 @@
 // 读取 agents（F-01-07，SD-30）：agents/ 下一层的 <name>.md 与 frontmatter。
-// 子目录与其他文件忽略：Claude Code 把子目录计入 agent 名，agy 不计，只读一层使两者一致。
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
-import { compare, orMissing } from './files.ts'
+import { compare, listMarkdownFiles } from './files.ts'
 import { readFrontmatter, readTargets } from './frontmatter.ts'
 import type { Agent } from './types.ts'
 
 const EXTENSION = '.md'
 
 export async function readAgents(root: string): Promise<Loaded<readonly Agent[]>> {
-  const agentsDir = join(root, 'agents')
-  const info = await orMissing(stat(agentsDir))
-  if (info === null) return loaded([])
-  if (!info.isDirectory()) {
-    return failed([{ file: 'agents', field: null, message: 'agents 应为目录' }])
-  }
-  const entries = await readdir(agentsDir, { withFileTypes: true })
+  const fileNames = await listMarkdownFiles(root, 'agents')
+  if (!fileNames.ok) return fileNames
   const agents: Agent[] = []
   const issues: InputIssue[] = []
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(EXTENSION)) continue
-    const result = await readAgent(root, entry.name)
+  for (const fileName of fileNames.value) {
+    const result = await readAgent(root, fileName)
     if (result.ok) agents.push(result.value)
     else issues.push(...result.issues)
   }

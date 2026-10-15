@@ -5,7 +5,8 @@ import type { Capability, GuardCheck, ToolNameMap } from '../runtime/core/types.
 
 export type Carrier = 'package' | 'manifest' | 'none' // 包内、manifest 字段、不承载
 export type FailMode = 'allow' | 'deny'
-export type Component = 'skills' | 'agents' | 'mcp' | 'hooks'
+// rules、commands 自 v0.3.0（F-03-16）
+export type Component = 'skills' | 'agents' | 'mcp' | 'hooks' | 'rules' | 'commands'
 
 export interface TargetCapabilities {
   readonly target: TargetName

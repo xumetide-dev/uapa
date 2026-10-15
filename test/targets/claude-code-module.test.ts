@@ -29,6 +29,8 @@ function plan(target: TargetPlan['target'], checks: readonly GuardCheck[]): Targ
     skills: [],
     agents: [],
     mcpServers: [],
+    rules: [],
+    commands: [],
     checks,
     commandHooks: [],
   }
