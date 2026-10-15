@@ -69,14 +69,17 @@
 - TA-12：`claude-both` 夹具加入 `overrides/claude-code/hooks/` 下的 `*.test.ts`（拒绝、放行、
   停机继续与提示阻断各一例）；对 Claude Code 夹具产物运行 `claude plugin validate --strict` 与
   `claude plugin test`，容器与维护者机器各一次。
-- v0.2.0：加载 `after-tool` 产物，确认两种形态的扣留与替换生效；加载 `components` 产物，会话的
-  初始化信息列出 agents 与 MCP 服务器。
+- v0.2.0：加载 `after-tool` 产物，确认两种形态的扣留与替换生效（承接
+  [M2-02 验收 §7](../acceptance/M2-02-after-tool-end-to-end.md#7-已知限制与技术债) 第 1 行）；加载
+  `components` 产物，会话的初始化信息列出 agents 与 MCP 服务器。
 
 ### 2. Codex（`codex-plugins.md`）
 
 - 承接 Sprint M1 收口 §4 第 3 行：安装 `full` 的 Codex 产物，在 `/hooks` 中信任后运行最小会话，
   确认拒绝的标记命令不执行且原因可见。
-- v0.2.0：`after-tool` 的扣留生效；`components` 的 MCP 服务器被加载。
+- v0.2.0：`after-tool` 的扣留生效（承接
+  [M2-02 验收 §7](../acceptance/M2-02-after-tool-end-to-end.md#7-已知限制与技术债) 第 1 行）；
+  `components` 的 MCP 服务器被加载。
 - 承接 [M2-01 验收 §7](../acceptance/M2-01-v0-2-0-host-facts.md#7-已知限制与技术债) 第 2 行：
   manifest 写 `"mcpServers": {}` 且插件目录中另有 `.mcp.json` 时，Codex 不加载其中的服务器。
 
