@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | v0.1.0 尚未实现；§1、§2 描述实现时应有的模块与目录 |
+| 状态 | v0.1.0 以 tag 发布，v0.2.0 按 Sprint M2 实现；§1、§2 描述模块与目录 |
 | 选型依据 | [ARCH-001](ARCH-001-agent-plugin-build-tool.md) |
 | 更新日期 | 2026-10-14 |
 | 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06。2026-10-14：v0.1.0 目标改为 Claude Code 两种形态、Codex 与 agy；Copilot CLI 与 Kimi Code 改为预留（SD-25～SD-27） |

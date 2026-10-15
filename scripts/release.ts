@@ -24,7 +24,8 @@ import {
 
 const NODE22_VERSION = 'v22.0.0' // 子进程入口支持的最低版本（F-04-06）
 const RELEASE_NODE_MAJOR = 24
-const TA14_FIXTURES = ['throwing-guard', 'full'] // TA-03 与 full 夹具的入口用例
+// TA-03、full 与 after-tool（v0.2.0 的执行后检查）夹具的入口用例
+const TA14_FIXTURES = ['throwing-guard', 'full', 'after-tool']
 const SMOKE_FIXTURE = 'full'
 const RELEASE_COMMIT_BODY = '含 dist/ 的发布提交，只由 tag 引用；main 不含 dist/。'
 // 安装冒烟的安装命令：任何依赖的构建脚本未获放行即安装失败，不受维护者 pnpm 配置的影响

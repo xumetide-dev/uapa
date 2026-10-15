@@ -1,6 +1,7 @@
 // 命令行（F-09-01～F-09-04）：退出码以构造的 BuildOutcome 与抛出的异常
 // 覆盖模块接口 §8 的每一行
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import type { BuildOutcome, FileChange } from '../../src/build/index.ts'
 import { HELP, parseCommand } from '../../src/cli/args.ts'
@@ -161,7 +162,10 @@ test('--help、--version 输出到 stdout 并以 0 结束；用法错误以 2 �
   const help = await invoke(['--help'], {})
   assert.deepEqual([help.code, help.stdout, help.stderr], [0, HELP, ''])
   const version = await invoke(['--version'], {})
-  assert.deepEqual([version.code, version.stdout], [0, '0.1.0\n'])
+  // 版本取自仓库的 package.json，与 uapa --version 读取的文件相同
+  const manifest = new URL('../../package.json', import.meta.url)
+  const { version: expected } = JSON.parse(readFileSync(manifest, 'utf8'))
+  assert.deepEqual([version.code, version.stdout], [0, `${expected}\n`])
   const usage = await invoke(['build', '--unknown'], {})
   assert.equal(usage.code, 2)
   assert.equal(usage.stderr, 'uapa: 未知选项 --unknown（运行 uapa --help 查看用法）\n')
