@@ -20,6 +20,7 @@ const GUARD = {
   name: 'g',
   requires: [],
   checks: ['beforeTool', 'beforeStop'] as GuardCheck[],
+  options: [],
 }
 
 interface Case {

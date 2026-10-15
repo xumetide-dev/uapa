@@ -51,7 +51,8 @@ var _uapa_target_data_default = {
 		"stopGate": true,
 		"promptGate": true
 	},
-	"moduleSessionEnv": null
+	"moduleSessionEnv": null,
+	"options": []
 };
 const invalid = {
 	ok: false,
@@ -120,6 +121,48 @@ function checkAfterTool(value) {
 }
 function guardErrorReason(error) {
 	return `uapa: 守卫出错: ${error instanceof Error ? error.message : String(error)}`;
+}
+function optionsFromText(declared, text) {
+	return resolve(declared, (option) => {
+		const raw = text(option.name);
+		return raw === void 0 ? option.default : parseText(option, raw);
+	});
+}
+function resolve(declared, pick) {
+	const options = {};
+	for (const option of declared) {
+		const value = pick(option);
+		if (value === null) return {
+			ok: false,
+			name: option.name
+		};
+		options[option.name] = value;
+	}
+	return {
+		ok: true,
+		options
+	};
+}
+function parseText(option, raw) {
+	if (option.type === "string") return raw;
+	if (option.type === "boolean") {
+		if (raw === "true") return true;
+		if (raw === "false") return false;
+		return null;
+	}
+	if (raw.trim() === "") return null;
+	const value = Number(raw);
+	return Number.isFinite(value) ? value : null;
+}
+function guardContext(result) {
+	if (!result.ok) return {
+		ok: false,
+		reason: `uapa: 守卫选项无效: ${result.name}`
+	};
+	return {
+		ok: true,
+		value: { options: result.options }
+	};
 }
 function isRecord$1(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -200,145 +243,6 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 		reason: decision.fallbackReason
 	};
 }
-const CHECKS = {
-	"before-tool": "beforeTool",
-	"before-prompt": "beforePrompt",
-	"before-stop": "beforeStop",
-	"after-tool": "afterTool"
-};
-function isCheckArg(value) {
-	return value !== void 0 && Object.hasOwn(CHECKS, value);
-}
-async function runSubprocessEntry(protocol) {
-	const arg = process.argv[2];
-	if (!isCheckArg(arg)) {
-		const shown = arg === void 0 ? "（缺失）" : arg;
-		process.stderr.write(`uapa: 检查名应为 before-tool、before-prompt、before-stop 或 after-tool，收到 ${shown}\n`);
-		process.exitCode = 1;
-		return;
-	}
-	const output = await decide(protocol, arg, readFileSync(0, "utf8"), process.env);
-	if (output.stdout !== void 0) process.stdout.write(output.stdout);
-	if (output.stderr !== void 0) process.stderr.write(output.stderr);
-	process.exitCode = output.exitCode;
-}
-async function decide(protocol, check, text, env) {
-	const implemented = typeof guard[CHECKS[check]] === "function";
-	const unsupported = check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate || check === "after-tool" && !_uapa_target_data_default.capabilities.withholdOutput;
-	if (!implemented || unsupported) return protocol.allow(check);
-	let event;
-	try {
-		event = protocol.parse(check, parseJson(text));
-	} catch (error) {
-		return unparseable(protocol, check, error instanceof Error ? error.message : "stdin");
-	}
-	if (protocol.skip?.(event, env) === true) return protocol.allow(check);
-	if (check === "before-tool") return beforeTool(protocol, event);
-	if (check === "before-prompt") return beforePrompt(protocol, event);
-	if (check === "after-tool") return afterTool(protocol, event);
-	return beforeStop(protocol, event, env);
-}
-function parseJson(text) {
-	try {
-		return JSON.parse(text);
-	} catch {
-		throw new Error("stdin");
-	}
-}
-function unparseable(protocol, check, field) {
-	const reason = `uapa: 无法解析宿主输入: ${field}`;
-	if (check === "before-stop") return withNote(protocol.allow(check), reason);
-	if (check === "after-tool") return withhold(protocol, reason);
-	return protocol.deny(check, reason);
-}
-function withNote(output, note) {
-	return {
-		...output,
-		stderr: `${output.stderr ?? ""}${note}\n`
-	};
-}
-async function callGuard(call, check) {
-	try {
-		return check(await call());
-	} catch (error) {
-		return {
-			ok: false,
-			reason: guardErrorReason(error)
-		};
-	}
-}
-async function beforeTool(protocol, event) {
-	const check = "before-tool";
-	const tool = event.tool;
-	if (tool === void 0) return unparseable(protocol, check, "tool");
-	const converted = toToolCall(event.sessionId, tool, _uapa_target_data_default.toolNames);
-	if (!converted.ok) return unparseable(protocol, check, converted.field);
-	const { call } = converted;
-	const checked = await callGuard(() => guard.beforeTool?.(call), (value) => checkBeforeTool(value, call.tool));
-	if (!checked.ok) return protocol.deny(check, checked.reason);
-	const rewriteShell = _uapa_target_data_default.capabilities.rewriteInput ? protocol.rewriteShell : void 0;
-	const decision = resolveToolDecision(checked.value, call.tool, rewriteShell !== void 0);
-	if (decision.kind === "allow") return protocol.allow(check);
-	if (decision.kind === "deny") return protocol.deny(check, decision.reason);
-	if (rewriteShell === void 0) return protocol.deny(check, decision.fallbackReason);
-	return rewriteShell.call(protocol, tool.input, decision.command);
-}
-async function beforePrompt(protocol, event) {
-	const check = "before-prompt";
-	const prompt = event.prompt;
-	if (prompt === void 0) return unparseable(protocol, check, "prompt");
-	const checked = await callGuard(() => guard.beforePrompt?.({
-		sessionId: event.sessionId,
-		prompt
-	}), checkBeforePrompt);
-	if (!checked.ok) return protocol.deny(check, checked.reason);
-	if (checked.value.kind === "block") return protocol.deny(check, checked.value.reason);
-	return protocol.allow(check);
-}
-async function afterTool(protocol, event) {
-	const check = "after-tool";
-	const tool = event.tool;
-	if (tool === void 0) return unparseable(protocol, check, "tool");
-	const output = event.toolOutput;
-	if (output === void 0) return unparseable(protocol, check, "toolOutput");
-	const converted = toToolCall(event.sessionId, tool, _uapa_target_data_default.toolNames);
-	if (!converted.ok) return unparseable(protocol, check, converted.field);
-	const { call } = converted;
-	const checked = await callGuard(() => guard.afterTool?.(call, outputText(output)), checkAfterTool);
-	if (!checked.ok) return handOver(protocol, output, checked.reason);
-	const decision = checked.value;
-	if (decision.kind === "keep") return protocol.allow(check);
-	return handOver(protocol, output, decision.kind === "replace" ? decision.text : decision.reason);
-}
-function handOver(protocol, output, text) {
-	const replaceOutput = _uapa_target_data_default.capabilities.replaceOutput ? protocol.replaceOutput : void 0;
-	const replaced = replaceOutput === void 0 ? null : replacedOutput(output, text);
-	if (replaceOutput === void 0 || replaced === null) return withhold(protocol, text);
-	return replaceOutput.call(protocol, replaced);
-}
-function withhold(protocol, text) {
-	return protocol.blockOutput?.(text) ?? protocol.deny("after-tool", text);
-}
-async function beforeStop(protocol, event, env) {
-	const counter = openStopCounter(protocol.dataDir(env), event.sessionId);
-	const continuations = counter.read();
-	const checked = await callGuard(() => guard.beforeStop?.({
-		sessionId: event.sessionId,
-		continuations
-	}), checkBeforeStop);
-	let output;
-	if (!checked.ok) {
-		counter.notes.push(checked.reason);
-		output = protocol.allow("before-stop");
-	} else if (checked.value.kind === "continue") {
-		counter.write(continuations + 1);
-		output = protocol.continueStop(checked.value.reason);
-	} else {
-		counter.write(0);
-		output = protocol.allow("before-stop");
-	}
-	return counter.notes.reduce(withNote, output);
-}
 function openStopCounter(dir, sessionId) {
 	const notes = [];
 	if (dir === null) notes.push("uapa: 没有插件数据目录，停机计数按 0 处理");
@@ -394,6 +298,147 @@ function continuationsOf(text) {
 }
 function messageOf(error) {
 	return error instanceof Error ? error.message : String(error);
+}
+const CHECKS = {
+	"before-tool": "beforeTool",
+	"before-prompt": "beforePrompt",
+	"before-stop": "beforeStop",
+	"after-tool": "afterTool"
+};
+function isCheckArg(value) {
+	return value !== void 0 && Object.hasOwn(CHECKS, value);
+}
+async function runSubprocessEntry(protocol) {
+	const arg = process.argv[2];
+	if (!isCheckArg(arg)) {
+		const shown = arg === void 0 ? "（缺失）" : arg;
+		process.stderr.write(`uapa: 检查名应为 before-tool、before-prompt、before-stop 或 after-tool，收到 ${shown}\n`);
+		process.exitCode = 1;
+		return;
+	}
+	const output = await decide(protocol, arg, readFileSync(0, "utf8"), process.env);
+	if (output.stdout !== void 0) process.stdout.write(output.stdout);
+	if (output.stderr !== void 0) process.stderr.write(output.stderr);
+	process.exitCode = output.exitCode;
+}
+async function decide(protocol, check, text, env) {
+	const implemented = typeof guard[CHECKS[check]] === "function";
+	const unsupported = check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate || check === "after-tool" && !_uapa_target_data_default.capabilities.withholdOutput;
+	if (!implemented || unsupported) return protocol.allow(check);
+	let event;
+	try {
+		event = protocol.parse(check, parseJson(text));
+	} catch (error) {
+		return unparseable(protocol, check, error instanceof Error ? error.message : "stdin");
+	}
+	if (protocol.skip?.(event, env) === true) return protocol.allow(check);
+	const context = guardContext(optionsFromText(_uapa_target_data_default.options, (name) => protocol.optionValue?.(name, env)));
+	if (check === "before-tool") return beforeTool(protocol, event, context);
+	if (check === "before-prompt") return beforePrompt(protocol, event, context);
+	if (check === "after-tool") return afterTool(protocol, event, context);
+	return beforeStop(protocol, event, env, context);
+}
+function parseJson(text) {
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw new Error("stdin");
+	}
+}
+function unparseable(protocol, check, field) {
+	const reason = `uapa: 无法解析宿主输入: ${field}`;
+	if (check === "before-stop") return withNote(protocol.allow(check), reason);
+	if (check === "after-tool") return withhold(protocol, reason);
+	return protocol.deny(check, reason);
+}
+function withNote(output, note) {
+	return {
+		...output,
+		stderr: `${output.stderr ?? ""}${note}\n`
+	};
+}
+async function callGuard(context, call, check) {
+	if (!context.ok) return context;
+	try {
+		return check(await call(context.value));
+	} catch (error) {
+		return {
+			ok: false,
+			reason: guardErrorReason(error)
+		};
+	}
+}
+async function beforeTool(protocol, event, context) {
+	const check = "before-tool";
+	const tool = event.tool;
+	if (tool === void 0) return unparseable(protocol, check, "tool");
+	const converted = toToolCall(event.sessionId, tool, _uapa_target_data_default.toolNames);
+	if (!converted.ok) return unparseable(protocol, check, converted.field);
+	const { call } = converted;
+	const checked = await callGuard(context, (ctx) => guard.beforeTool?.(call, ctx), (value) => checkBeforeTool(value, call.tool));
+	if (!checked.ok) return protocol.deny(check, checked.reason);
+	const rewriteShell = _uapa_target_data_default.capabilities.rewriteInput ? protocol.rewriteShell : void 0;
+	const decision = resolveToolDecision(checked.value, call.tool, rewriteShell !== void 0);
+	if (decision.kind === "allow") return protocol.allow(check);
+	if (decision.kind === "deny") return protocol.deny(check, decision.reason);
+	if (rewriteShell === void 0) return protocol.deny(check, decision.fallbackReason);
+	return rewriteShell.call(protocol, tool.input, decision.command);
+}
+async function beforePrompt(protocol, event, context) {
+	const check = "before-prompt";
+	const prompt = event.prompt;
+	if (prompt === void 0) return unparseable(protocol, check, "prompt");
+	const checked = await callGuard(context, (ctx) => guard.beforePrompt?.({
+		sessionId: event.sessionId,
+		prompt
+	}, ctx), checkBeforePrompt);
+	if (!checked.ok) return protocol.deny(check, checked.reason);
+	if (checked.value.kind === "block") return protocol.deny(check, checked.value.reason);
+	return protocol.allow(check);
+}
+async function afterTool(protocol, event, context) {
+	const check = "after-tool";
+	const tool = event.tool;
+	if (tool === void 0) return unparseable(protocol, check, "tool");
+	const output = event.toolOutput;
+	if (output === void 0) return unparseable(protocol, check, "toolOutput");
+	const converted = toToolCall(event.sessionId, tool, _uapa_target_data_default.toolNames);
+	if (!converted.ok) return unparseable(protocol, check, converted.field);
+	const { call } = converted;
+	const checked = await callGuard(context, (ctx) => guard.afterTool?.(call, outputText(output), ctx), checkAfterTool);
+	if (!checked.ok) return handOver(protocol, output, checked.reason);
+	const decision = checked.value;
+	if (decision.kind === "keep") return protocol.allow(check);
+	return handOver(protocol, output, decision.kind === "replace" ? decision.text : decision.reason);
+}
+function handOver(protocol, output, text) {
+	const replaceOutput = _uapa_target_data_default.capabilities.replaceOutput ? protocol.replaceOutput : void 0;
+	const replaced = replaceOutput === void 0 ? null : replacedOutput(output, text);
+	if (replaceOutput === void 0 || replaced === null) return withhold(protocol, text);
+	return replaceOutput.call(protocol, replaced);
+}
+function withhold(protocol, text) {
+	return protocol.blockOutput?.(text) ?? protocol.deny("after-tool", text);
+}
+async function beforeStop(protocol, event, env, context) {
+	const counter = openStopCounter(protocol.dataDir(env), event.sessionId);
+	const continuations = counter.read();
+	const checked = await callGuard(context, (ctx) => guard.beforeStop?.({
+		sessionId: event.sessionId,
+		continuations
+	}, ctx), checkBeforeStop);
+	let output;
+	if (!checked.ok) {
+		counter.notes.push(checked.reason);
+		output = protocol.allow("before-stop");
+	} else if (checked.value.kind === "continue") {
+		counter.write(continuations + 1);
+		output = protocol.continueStop(checked.value.reason);
+	} else {
+		counter.write(0);
+		output = protocol.allow("before-stop");
+	}
+	return counter.notes.reduce(withNote, output);
 }
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -480,6 +525,7 @@ await runSubprocessEntry({
 	dataDir(env) {
 		const dir = env.CLAUDE_PLUGIN_DATA;
 		return dir === void 0 || dir === "" ? null : dir;
-	}
+	},
+	optionValue: (name, env) => env[`CLAUDE_PLUGIN_OPTION_${name.toUpperCase()}`]
 });
 export {};

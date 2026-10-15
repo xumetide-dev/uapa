@@ -44,19 +44,56 @@ export interface PromptSubmit {
 
 export type BeforePrompt = { kind: 'allow' } | { kind: 'block'; reason: string }
 
+// 守卫选项（F-02-05，SD-35）：default 必填，类型与 type 一致。Claude Code 把选项写为插件的
+// userConfig，用户设置的取值传给守卫；其他宿主取 default
+export type GuardOption =
+  | {
+      readonly type: 'string'
+      readonly title: string
+      readonly description: string
+      readonly default: string
+    }
+  | {
+      readonly type: 'number'
+      readonly title: string
+      readonly description: string
+      readonly default: number
+    }
+  | {
+      readonly type: 'boolean'
+      readonly title: string
+      readonly description: string
+      readonly default: boolean
+    }
+
+export type GuardOptionValue = string | number | boolean
+
+// 各检查方法的最后一个参数：本次调用的选项取值，键为选项名；没有声明选项时为空对象
+export interface GuardContext {
+  readonly options: Readonly<Record<string, GuardOptionValue>>
+}
+
 export interface GuardPlugin {
   readonly name: string
   readonly requires: readonly Capability[]
-  beforeTool?(call: ToolCall): BeforeTool | Promise<BeforeTool>
-  beforePrompt?(p: PromptSubmit): BeforePrompt | Promise<BeforePrompt>
+  readonly options?: Readonly<Record<string, GuardOption>>
+  beforeTool?(call: ToolCall, ctx: GuardContext): BeforeTool | Promise<BeforeTool>
+  beforePrompt?(
+    p: PromptSubmit,
+    ctx: GuardContext,
+  ): BeforePrompt | Promise<BeforePrompt>
   // output 为工具输出的文本形式，取法见入口与打包接口第 4 节（F-02-04）
-  afterTool?(call: ToolCall, output: string): AfterTool | Promise<AfterTool>
+  afterTool?(
+    call: ToolCall,
+    output: string,
+    ctx: GuardContext,
+  ): AfterTool | Promise<AfterTool>
   // continuations 为连续强制继续的次数：返回 continue 时加 1，返回 stop 时清零；
   // 供插件自行设上限
-  beforeStop?(s: {
-    sessionId: string
-    continuations: number
-  }): BeforeStop | Promise<BeforeStop>
+  beforeStop?(
+    s: { sessionId: string; continuations: number },
+    ctx: GuardContext,
+  ): BeforeStop | Promise<BeforeStop>
 }
 
 // 以下类型不由包入口导出
@@ -95,4 +132,13 @@ export interface TargetRuntimeData {
   // Claude Code 双形态去重的会话变量名；
   // 只在两个 Claude Code 目标都进入 plans 时有值（F-05-08）
   readonly moduleSessionEnv: string | null
+  // 守卫声明的选项，按 name 排序；没有时为空（F-04-09）
+  readonly options: readonly RuntimeOption[]
+}
+
+// 入口解析取值所需的部分：title 与 description 只写入 Claude Code 的 userConfig，不进入入口
+export interface RuntimeOption {
+  readonly name: string
+  readonly type: GuardOption['type']
+  readonly default: GuardOptionValue
 }

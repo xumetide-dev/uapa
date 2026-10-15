@@ -1,6 +1,6 @@
 // Codex 宿主模块（codex:subprocess）。不实现 verify：Codex 没有校验插件的命令，由字段白名单
 // 检查（F-06-05）在生成时代替。MCP 服务器写入 mcp.json（F-06-06）。
-import type { GuardDeclaration } from '../../source/guard.ts'
+import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
   HostInput,
   HostModule,
@@ -50,6 +50,8 @@ const MCP_NAME_RISK =
 const COMMANDS_RISK =
   'Codex 安装时把 commands 转换为技能，正文含 $ARGUMENTS 等模板写法或转换结果超过 4000 字节的' +
   '命令被跳过，UAPA 不检查'
+// Codex 的插件没有用户配置（F-06-10；codex-source-review.md「commands、rules 与用户配置」）
+const OPTIONS_RISK = 'Codex 没有插件用户配置，守卫选项取构建时默认值'
 // Claude Code 按目录加载 hooks/hooks.json，不经 manifest 指定
 const SHARED_HOOKS_RISK =
   '与 Claude Code 共用插件目录时，Claude Code 也加载 hooks/hooks.json 并运行其中为 Codex ' +
@@ -111,6 +113,8 @@ function hooksRisks(
   }
   // 没有守卫时 checks 为空
   if (plan.checks.includes('afterTool')) messages.push(AFTER_TOOL_RISK)
+  const optionCount = input.guard?.options.length ?? 0
+  if (plan.checks.length > 0 && optionCount > 0) messages.push(OPTIONS_RISK)
   if (input.sharedWith.includes('claude-code') && hooksFile === DEFAULT_HOOKS_FILE) {
     messages.push(SHARED_HOOKS_RISK)
   }
@@ -131,6 +135,7 @@ async function entryFile(
       toolNames: plan.capabilities.toolNames,
       capabilities: plan.capabilities.capabilities,
       moduleSessionEnv: null,
+      options: runtimeOptions(guard),
     },
     external: 'node',
   })

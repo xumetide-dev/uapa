@@ -14,18 +14,23 @@
 interface GuardPlugin {
   readonly name: string
   readonly requires: readonly Capability[] // 必需的能力，见下文「能力缺失时的处理」
-  beforeTool?(call: ToolCall): BeforeTool | Promise<BeforeTool>
-  beforePrompt?(p: PromptSubmit): BeforePrompt | Promise<BeforePrompt>
-  afterTool?(call: ToolCall, output: string): AfterTool | Promise<AfterTool>
-  beforeStop?(s: { sessionId: string; continuations: number }): BeforeStop | Promise<BeforeStop>
+  readonly options?: Readonly<Record<string, GuardOption>> // 见下文「守卫选项」
+  beforeTool?(call: ToolCall, ctx: GuardContext): BeforeTool | Promise<BeforeTool>
+  beforePrompt?(p: PromptSubmit, ctx: GuardContext): BeforePrompt | Promise<BeforePrompt>
+  afterTool?(call: ToolCall, output: string, ctx: GuardContext): AfterTool | Promise<AfterTool>
+  beforeStop?(
+    s: { sessionId: string; continuations: number },
+    ctx: GuardContext,
+  ): BeforeStop | Promise<BeforeStop>
 }
 ```
 
 - 只为实现了的方法生成 hooks；四个方法都不写时不生成守卫 hooks 与入口。
 - 类型从 `'uapa'` 导入：`GuardPlugin`、`ToolCall`、`BeforeTool`、`PromptSubmit`、
-  `BeforePrompt`、`AfterTool`、`BeforeStop`、`Capability`。
-- 构建时 UAPA 导入守卫文件，读取 `name`、`requires` 与已实现的方法，再把它打包进各目标的入口；
-  模块顶层的代码在构建时也会运行。
+  `BeforePrompt`、`AfterTool`、`BeforeStop`、`Capability`、`GuardOption`、`GuardContext`。
+- 构建时 UAPA 导入守卫文件，读取 `name`、`requires`、`options` 与已实现的方法，再把它打包进
+  各目标的入口；模块顶层的代码在构建时也会运行。
+- 各检查方法的最后一个参数 `ctx` 为本次调用的选项取值；不用选项的守卫可以不写这个参数。
 
 ## 约束
 
@@ -148,6 +153,50 @@ export default guard
 - 宿主自身的上限：Claude Code 为连续 8 次；Codex 与 agy 的文档未写明。
 - agy 没有插件数据目录，计数存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时计数归零。
 
+## 守卫选项
+
+守卫可以在 `options` 中声明可由使用者调整的取值，检查方法从 `ctx.options` 读取：
+
+```ts
+import type { GuardPlugin } from 'uapa'
+
+export default {
+  name: 'length-guard',
+  requires: [],
+  options: {
+    maxLength: {
+      type: 'number',
+      title: '命令长度上限',
+      description: '超过该长度的 shell 命令被拒绝',
+      default: 2000,
+    },
+  },
+  beforeTool(call, ctx) {
+    if (call.tool !== 'shell') return { kind: 'allow' }
+    const limit = Number(ctx.options.maxLength)
+    return String(call.input.command).length > limit
+      ? { kind: 'deny', reason: `命令超过 ${limit} 个字符` }
+      : { kind: 'allow' }
+  },
+} satisfies GuardPlugin
+```
+
+- 选项名以字母开头，只含字母、数字与 `_`，全大写后不得重名。每个选项只有 `type`（`string`、
+  `number`、`boolean`）、`title`、`description`、`default` 四个键：`title` 与 `description` 为
+  非空单行文本，`default` 必填且与 `type` 一致。不合规时构建以退出码 2 结束，不写任何文件。
+- `ctx.options` 的键为选项名，值为 `string | number | boolean`，按声明的 `type` 取用；没有声明
+  选项时为空对象。
+- 取值无效（如数值选项的文本不是有限数）时按守卫出错处理，原因为
+  `uapa: 守卫选项无效: <选项名>`，见[失败处理](#失败处理)。
+
+各宿主的取值来源：
+
+| 宿主 | 取值 |
+|---|---|
+| Claude Code | 选项写入 `plugin.json` 的 `userConfig`。经 marketplace 安装后以 `claude plugin configure` 设置，未设置的选项取 `default`；以 `--plugin-dir` 加载时取 `default` |
+| Codex | 没有插件用户配置，取 `default`；构建报告记为残余风险 |
+| agy | 插件用户配置未核实，取 `default`；构建报告记为残余风险 |
+
 ## 能力缺失时的处理
 
 | 能力 | 含义 | 缺少的目标（v0.2.0） | 未列入 `requires` 时 |
@@ -167,7 +216,8 @@ uapa: agy:subprocess: 守卫的 requires 声明了 promptGate，本目标缺少�
 ## 失败处理
 
 - 守卫抛错或返回无效决策（如 `deny` 的 `reason` 为空）时，入口收口：执行前与提示提交前检查
-  按拒绝处理，停机前检查不阻止结束，执行后检查扣留输出。
+  按拒绝处理，停机前检查不阻止结束，执行后检查扣留输出。守卫选项的取值无效时同样处理，不调用
+  守卫。
 - 入口无法启动（如宿主机器缺少 Node ≥ 22）、崩溃或超时时，由宿主的默认行为决定：Claude Code
   与 Codex 放行；agy 的执行前检查阻断，停机前检查照常结束。构建报告把“放行”的情况列为残余风险。
 
@@ -184,14 +234,16 @@ import { test } from 'node:test'
 import guard from './guard.ts'
 
 const shell = (command: string) => ({ sessionId: 't', tool: 'shell', input: { command } })
+// 检查方法的最后一个参数；守卫声明了选项时在这里给出要测试的取值
+const ctx = { options: {} }
 
 test('拒绝 --no-verify', async () => {
-  const decision = await guard.beforeTool?.(shell('git commit --no-verify -m x'))
+  const decision = await guard.beforeTool?.(shell('git commit --no-verify -m x'), ctx)
   assert.equal(decision?.kind, 'deny')
 })
 
 test('把 npm install 改写为 pnpm install', async () => {
-  const decision = await guard.beforeTool?.(shell('npm install zod'))
+  const decision = await guard.beforeTool?.(shell('npm install zod'), ctx)
   assert.deepEqual(decision, {
     kind: 'rewrite',
     input: { command: 'pnpm install zod' },

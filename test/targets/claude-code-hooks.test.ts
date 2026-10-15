@@ -19,6 +19,7 @@ const GUARD = {
   name: 'g',
   requires: [],
   checks: ['beforeTool', 'beforeStop'] as GuardCheck[],
+  options: [],
 }
 
 async function generate(
@@ -110,6 +111,7 @@ test('子进程入口的打包请求：入口名、守卫、目标数据与外�
         toolNames: claudeCodeSubprocess.toolNames,
         capabilities: claudeCodeSubprocess.capabilities,
         moduleSessionEnv: null,
+        options: [],
       },
       external: 'node',
     },

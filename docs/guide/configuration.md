@@ -66,7 +66,7 @@ Claude Code 缺少 `author` 时 `claude plugin validate --strict` 判为失败�
 | 宿主 | 选项 | 写入位置 |
 |---|---|---|
 | 全部 | `dir` | 该宿主的插件目录，默认 `<outDir>/<宿主>`；见[产物布局](#产物布局) |
-| `claude-code` | `displayName`、`userConfig`、`dependencies`、`$schema` | `.claude-plugin/plugin.json` 的同名字段 |
+| `claude-code` | `displayName`、`userConfig`、`dependencies`、`$schema` | `.claude-plugin/plugin.json` 的同名字段；守卫声明了选项时，`userConfig` 须为对象，守卫选项按名称追加在其后，键全大写后不得与守卫选项重名（见[守卫选项](guards.md#守卫选项)） |
 | `codex` | `interface` | `.codex-plugin/plugin.json` 的 `interface`（展示名、分类等） |
 | `codex` | `hooksFile` | hooks 配置在插件目录中的相对路径，默认 `hooks/hooks.json`；不得为绝对路径或含 `..` |
 | `agy` | 只有 `dir` | agy 的 `plugin.json` 只接受 `name` 与 `description` |

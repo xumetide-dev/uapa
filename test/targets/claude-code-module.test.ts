@@ -7,6 +7,7 @@ import { claudeCodeInProcess } from '../../src/capabilities/claude-code-in-proce
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import type { GuardCheck } from '../../src/runtime/core/types.ts'
+import type { GuardOptionDecl } from '../../src/source/guard.ts'
 import { claudeCode } from '../../src/targets/claude-code/index.ts'
 import type { HostResult, TargetPlan } from '../../src/targets/types.ts'
 import { baseConfig } from '../helpers/project.ts'
@@ -18,6 +19,7 @@ const GUARD = {
   name: 'g',
   requires: [],
   checks: ALL_CHECKS,
+  options: [] as GuardOptionDecl[],
 }
 
 function plan(target: TargetPlan['target'], checks: readonly GuardCheck[]): TargetPlan {
@@ -62,7 +64,7 @@ function files(result: HostResult): Map<string, string> {
 const REGISTER =
   "import type { Register } from 'claude-code'\n" +
   "import { register as guard } from './uapa-guard.mjs'\n\n" +
-  'export const register: Register = on => guard(on)\n'
+  'export const register: Register = (on, options) => guard(on, options)\n'
 
 test('只配置 claude-code:in-process：hooks.json 只含 modules，打包请求只保留 claude-code 并带 checks', async () => {
   const { result, requests } = await generate([
@@ -94,6 +96,7 @@ test('只配置 claude-code:in-process：hooks.json 只含 modules，打包请�
         toolNames: claudeCodeInProcess.toolNames,
         capabilities: claudeCodeInProcess.capabilities,
         moduleSessionEnv: null,
+        options: [],
       },
       external: 'claude-code',
       checks: ['beforeTool'],

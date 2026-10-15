@@ -6,7 +6,9 @@
 // - next 的结果中 result 的形状同命令 hooks 的 tool_response，报错时为字符串；next 之后返回
 //   { ...ran, result } 替换输出，返回 { deny } 扣留；
 // - prompt.submit 的提示文本为 e.text，返回 { drop } 丢弃本次输入；
-// - classic.Stop 返回 { block } 时会话继续。
+// - classic.Stop 返回 { block } 时会话继续；
+// - register 的第二个参数为插件选项的取值，带类型，未设置的为默认值（本地实测
+//   「commands 与 userConfig」）。
 // 本文件不导入 node: 模块与 subprocess.ts，不引用 Node 全局，与 runtime/core 一起由
 // tsconfig.runtime-core.json 检查。claude plugin validate 静态读取产物：$ 的调用写全
 // （$.env.set），$.env.set 的变量名与 $.state 的引用在打包后为字面量，见下方各处说明。
@@ -35,13 +37,14 @@ import {
   checkBeforeTool,
   guardErrorReason,
 } from '../core/decisions.ts'
+import { guardContext, optionsFromValues } from '../core/options.ts'
 import { outputText, replacedOutput } from '../core/output.ts'
 import {
   type ToolCallResult as Converted,
   resolveToolDecision,
   toToolCall,
 } from '../core/tools.ts'
-import type { ToolCall } from '../core/types.ts'
+import type { GuardContext, ToolCall } from '../core/types.ts'
 
 // 处理函数自身出错（如 $.session.id() 失败）时由 .catch 作答
 const HOOK_FAILED_REASON = 'uapa: hooks 模块出错'
@@ -53,8 +56,11 @@ const stopContinuations = /* @__PURE__ */ atom(
   0,
 )
 
-// 处理函数之间共用的 $ 只经顶层函数的参数传递（Mods 指南「验证、测试与调试」）
-export function register(on: On): void {
+// 处理函数之间共用的 $ 只经顶层函数的参数传递（Mods 指南「验证、测试与调试」）。
+// options 为宿主传入的插件选项取值（F-05-18），生成的 register.ts 原样转交
+export function register(on: On, options?: unknown): void {
+  // 取值在注册时检查一次；无效时各检查按守卫出错收口（F-04-09）
+  const context = guardContext(optionsFromValues(data.options, options))
   // 去重（F-05-08）：变量名为 null 时整段不进入打包结果，产物中没有 $.env.set。
   // /clear、/resume、/branch 之后 session.start 不再触发，会话 id 若随之改变，命令 hook 不再被
   // 跳过，因此在 classic.SessionStart 上重写一次（Mods 指南「$.state 与 $.store」）
@@ -78,19 +84,21 @@ export function register(on: On): void {
   // 模块校验失败（入口与打包接口第 2 节）。next 之后出错时，计划了执行后检查就扣留，不以
   // next(e) 重放未经检查的输出（F-04-08）
   if (__UAPA_CHECKS__.beforeTool || __UAPA_CHECKS__.afterTool) {
-    on('tool.call', ($, e, next) => toolCall($, e, next)).catch((_$, e, next) => {
-      if (!next.called) return { deny: HOOK_FAILED_REASON }
-      return __UAPA_CHECKS__.afterTool ? { deny: HOOK_FAILED_REASON } : next(e)
-    })
+    on('tool.call', ($, e, next) => toolCall($, e, next, context)).catch(
+      (_$, e, next) => {
+        if (!next.called) return { deny: HOOK_FAILED_REASON }
+        return __UAPA_CHECKS__.afterTool ? { deny: HOOK_FAILED_REASON } : next(e)
+      },
+    )
   }
   if (__UAPA_CHECKS__.beforePrompt) {
-    on('prompt.submit', ($, e, next) => beforePrompt($, e, next)).catch(
+    on('prompt.submit', ($, e, next) => beforePrompt($, e, next, context)).catch(
       (_$, e, next) => (next.called ? next(e) : { drop: HOOK_FAILED_REASON }),
     )
   }
   // 停机前检查出错时不阻止结束：未写 .catch 的处理函数失败时被跳过
   if (__UAPA_CHECKS__.beforeStop) {
-    on('classic.Stop', ($, e, next) => beforeStop($, e, next))
+    on('classic.Stop', ($, e, next) => beforeStop($, e, next, context))
   }
 }
 
@@ -103,13 +111,16 @@ async function startedSessionId($: Api, e: ClassicEvent): Promise<string> {
   return $.session.id()
 }
 
-// 守卫抛错或返回值无效时 ok 为 false，reason 按入口与打包接口第 4 节
+// 守卫抛错或返回值无效时 ok 为 false，reason 按入口与打包接口第 4 节；
+// 选项取值无效时不调用守卫，按守卫出错处理（F-04-09）
 async function callGuard<T>(
-  call: () => unknown,
+  context: Checked<GuardContext>,
+  call: (ctx: GuardContext) => unknown,
   check: (value: unknown) => Checked<T>,
 ): Promise<Checked<T>> {
+  if (!context.ok) return context
   try {
-    return check(await call())
+    return check(await call(context.value))
   } catch (error) {
     return { ok: false, reason: guardErrorReason(error) }
   }
@@ -125,6 +136,7 @@ async function toolCall(
   $: Api,
   e: ToolCallEvent,
   next: Next<ToolCallEvent, ToolCallResult>,
+  context: Checked<GuardContext>,
 ): Promise<ToolCallResult> {
   const sessionId = await $.session.id()
   const converted = toolCallOf(sessionId, e)
@@ -132,7 +144,7 @@ async function toolCall(
   if (!converted.ok) return { deny: `uapa: 无法解析宿主输入: ${converted.field}` }
   let forwarded = e
   if (__UAPA_CHECKS__.beforeTool) {
-    const before = await beforeTool(converted.call, e)
+    const before = await beforeTool(converted.call, e, context)
     if (before.deny !== undefined) return { deny: before.deny }
     forwarded = before.forward
   }
@@ -141,7 +153,7 @@ async function toolCall(
   // 改写后执行的是新命令，执行后检查看到的调用与命令 hooks 的 tool_input 一致
   const after = forwarded === e ? converted : toolCallOf(sessionId, forwarded)
   if (!after.ok) return { deny: `uapa: 无法解析宿主输入: ${after.field}` }
-  return afterTool(after.call, ran)
+  return afterTool(after.call, ran, context)
 }
 
 // 返回拒绝原因，或交给 next 的事件（原事件或改写后的事件）
@@ -149,9 +161,14 @@ type BeforeOutcome =
   | { readonly deny: string; readonly forward?: undefined }
   | { readonly deny?: undefined; readonly forward: ToolCallEvent }
 
-async function beforeTool(call: ToolCall, e: ToolCallEvent): Promise<BeforeOutcome> {
+async function beforeTool(
+  call: ToolCall,
+  e: ToolCallEvent,
+  context: Checked<GuardContext>,
+): Promise<BeforeOutcome> {
   const checked = await callGuard(
-    () => guard.beforeTool?.(call),
+    context,
+    ctx => guard.beforeTool?.(call, ctx),
     value => checkBeforeTool(value, call.tool),
   )
   if (!checked.ok) return { deny: checked.reason }
@@ -169,10 +186,15 @@ async function beforeTool(call: ToolCall, e: ToolCallEvent): Promise<BeforeOutco
 
 // 执行后检查（F-05-13）：next 的结果含 deny 时原样返回；报错的结果（isError 为真）同样检查。
 // 守卫抛错与返回值无效按扣留处理；形状不能替换的 replace 以 text 为原因扣留
-async function afterTool(call: ToolCall, ran: ToolCallResult): Promise<ToolCallResult> {
+async function afterTool(
+  call: ToolCall,
+  ran: ToolCallResult,
+  context: Checked<GuardContext>,
+): Promise<ToolCallResult> {
   if (ran.deny !== undefined) return ran
   const checked = await callGuard(
-    () => guard.afterTool?.(call, outputText(ran.result)),
+    context,
+    ctx => guard.afterTool?.(call, outputText(ran.result), ctx),
     checkAfterTool,
   )
   if (!checked.ok) return { deny: checked.reason }
@@ -189,12 +211,14 @@ async function beforePrompt(
   $: Api,
   e: PromptSubmitEvent,
   next: Next<PromptSubmitEvent, PromptSubmitResult>,
+  context: Checked<GuardContext>,
 ): Promise<PromptSubmitResult> {
   const prompt = e.text
   if (typeof prompt !== 'string') return { drop: 'uapa: 无法解析宿主输入: text' }
   const sessionId = await $.session.id()
   const checked = await callGuard(
-    () => guard.beforePrompt?.({ sessionId, prompt }),
+    context,
+    ctx => guard.beforePrompt?.({ sessionId, prompt }, ctx),
     checkBeforePrompt,
   )
   if (!checked.ok) return { drop: checked.reason }
@@ -207,11 +231,13 @@ async function beforeStop(
   $: Api,
   e: ClassicEvent,
   next: Next<ClassicEvent, ClassicResult>,
+  context: Checked<GuardContext>,
 ): Promise<ClassicResult> {
   const sessionId = await $.session.id()
   const continuations = await read($, stopContinuations)
   const checked = await callGuard(
-    () => guard.beforeStop?.({ sessionId, continuations }),
+    context,
+    ctx => guard.beforeStop?.({ sessionId, continuations }, ctx),
     checkBeforeStop,
   )
   if (!checked.ok) return next(e)

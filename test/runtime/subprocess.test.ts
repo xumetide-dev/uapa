@@ -38,6 +38,7 @@ function data(
       ...capabilities,
     },
     moduleSessionEnv,
+    options: [],
   }
 }
 

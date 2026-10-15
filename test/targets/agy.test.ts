@@ -10,6 +10,7 @@ import type { BundleRequest } from '../../src/bundle/types.ts'
 import { agySubprocess } from '../../src/capabilities/agy-subprocess.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import type { GuardCheck } from '../../src/runtime/core/types.ts'
+import type { GuardOptionDecl } from '../../src/source/guard.ts'
 import { fieldErrors } from '../../src/targets/agy/fields.ts'
 import { agyHooks } from '../../src/targets/agy/hooks.ts'
 import { agy } from '../../src/targets/agy/index.ts'
@@ -27,6 +28,7 @@ const GUARD = {
   name: 'g',
   requires: [],
   checks: ['beforeTool', 'beforeStop'] as GuardCheck[],
+  options: [] as GuardOptionDecl[],
 }
 
 async function generate(
@@ -157,6 +159,7 @@ test('子进程入口的打包请求：入口名、守卫、目标数据与外�
         toolNames: agySubprocess.toolNames,
         capabilities: agySubprocess.capabilities,
         moduleSessionEnv: null,
+        options: [],
       },
       external: 'node',
     },

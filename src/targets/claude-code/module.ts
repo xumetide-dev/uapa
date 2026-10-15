@@ -1,7 +1,7 @@
 // hooks 模块（F-05-05、F-05-07、F-05-08）：守卫文件 hooks/uapa-guard.mjs、引入它的
 // hooks/register.ts，以及停机门禁计数的类型契约 types/index.d.ts。写法依据 Mods 指南与
 // Claude Code 本地实测记录「hooks 模块的静态校验」（2.1.296）。
-import type { GuardDeclaration } from '../../source/guard.ts'
+import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type { HostInput, OutputFile, TargetPlan } from '../types.ts'
 
 export const MODULE_ENTRY = 'hooks/register.ts'
@@ -12,12 +12,13 @@ export const TYPES_FILE = 'types/index.d.ts'
 export const MODULES = ['./register.ts']
 
 // register 须在 hooks.json 列出的文件中以 const 函数导出：validate 拒绝从另一文件转导出，
-// 但跟踪传给引入函数的 on，因此在这里调用守卫文件的 register
+// 但跟踪传给引入函数的 on，因此在这里调用守卫文件的 register。options 为插件选项的取值
+// （F-05-18）
 const REGISTER_SOURCE =
   "import type { Register } from 'claude-code'\n" +
   "import { register as guard } from './uapa-guard.mjs'\n" +
   '\n' +
-  'export const register: Register = on => guard(on)\n'
+  'export const register: Register = (on, options) => guard(on, options)\n'
 
 // 两个 Claude Code 目标都进入 plans 时的去重变量名（F-05-08）。配置 name 已校验为 kebab-case
 export function moduleSessionEnv(pluginName: string): string {
@@ -71,6 +72,7 @@ async function guardFile(
       toolNames: plan.capabilities.toolNames,
       capabilities: plan.capabilities.capabilities,
       moduleSessionEnv: sessionEnv,
+      options: runtimeOptions(guard),
     },
     external: 'claude-code',
     checks: plan.checks,

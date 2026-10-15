@@ -18,10 +18,13 @@ export interface TargetRuntimeData { // 打包时内联为只读常量
   // v0.3.0（F-04-09）：GuardDeclaration.options 的名称、类型与默认值，按 name 排序；没有时为空
   readonly options: readonly RuntimeOption[]
 }
-export type RuntimeOption =
-  | { readonly name: string; readonly type: 'string'; readonly default: string }
-  | { readonly name: string; readonly type: 'number'; readonly default: number }
-  | { readonly name: string; readonly type: 'boolean'; readonly default: boolean }
+// 入口解析取值所需的部分：title 与 description 只写入 Claude Code 的 userConfig
+export interface RuntimeOption {
+  readonly name: string
+  readonly type: GuardOption['type'] // 'string' | 'number' | 'boolean'
+  readonly default: GuardOptionValue // 与 type 一致，由 readGuard 保证
+}
+export type GuardOptionValue = string | number | boolean // GuardContext.options 的值
 
 // src/bundle/types.ts（F-03-11）：宿主模块与打包共用
 interface BundleBase {
@@ -99,9 +102,9 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   不以 `next(e)` 重放原输出；其余情况沿用 F-05-06。
 - 守卫选项（v0.3.0，F-05-18）：宿主以 `register(on, options)` 传入插件选项的取值（带类型，未设置
   的为默认值，见[本地实测](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)）。
-  生成的 `hooks/register.ts` 写作 `(on, options) => guard(on, options)`；hooks 模块入口在每次
-  调用守卫前以 `optionsFromValues(data.options, options)`（第 3 节）得出取值，无效时与守卫抛错
-  相同处理（F-05-06），原因为 `uapa: 守卫选项无效: <选项名>`。
+  生成的 `hooks/register.ts` 写作 `(on, options) => guard(on, options)`；hooks 模块入口在
+  `register` 中以 `guardContext(optionsFromValues(data.options, options))`（第 3 节）得出各检查
+  共用的取值，无效时与守卫抛错相同处理（F-05-06），原因为 `uapa: 守卫选项无效: <选项名>`。
 - 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
   其他宿主的根 `plugin.json` 合并（F-11-02）。
 
@@ -150,7 +153,6 @@ export interface SubprocessProtocol {
 export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
 
 // src/runtime/core/options.ts（F-04-09）：不做 I/O，子进程入口与 hooks 模块入口共用
-export type GuardOptionValue = string | number | boolean
 export type OptionsResult =
   | { readonly ok: true; readonly options: Readonly<Record<string, GuardOptionValue>> }
   | { readonly ok: false; readonly name: string } // 按 name 顺序第一个无效的选项
@@ -158,14 +160,18 @@ export type OptionsResult =
 export function optionsFromText(
   declared: readonly RuntimeOption[], text: (name: string) => string | undefined,
 ): OptionsResult
-// values 为 hooks 模块收到的取值；缺少该键或为 undefined 时取 default，类型不符时无效
+// values 为 hooks 模块收到的取值；不是对象时视为没有取值；缺少该键或为 undefined 时取
+// default，类型不符或 number 不是有限数时无效
 export function optionsFromValues(
   declared: readonly RuntimeOption[], values: unknown,
 ): OptionsResult
+// 传给检查方法的 GuardContext；无效时 reason 为 `uapa: 守卫选项无效: <选项名>`。两种入口的
+// callGuard 收到 ok 为 false 时不调用守卫，按守卫出错收口
+export function guardContext(result: OptionsResult): Checked<GuardContext>
 ```
 
-- 公共部分负责读取参数与 stdin、工具名换算、调用守卫、异常收口与停机计数；宿主字段名与
-  输出格式只出现在协议实现中。
+- 公共部分负责读取参数与 stdin、工具名换算、选项取值、调用守卫、异常收口与停机计数（计数文件
+  的读写在 `src/runtime/entries/stop-counter.ts`）；宿主字段名与输出格式只出现在协议实现中。
 - 第一个参数缺失或不是 `CheckArg` 时，不读取 stdin，以退出码 1 结束并在 stderr 写原因，由宿主
   按能力数据中的 `failureDefault` 处理。
 - `parse`：`sessionId` 必填；`check` 为 `before-tool` 时 `tool` 必填，为 `before-prompt` 时

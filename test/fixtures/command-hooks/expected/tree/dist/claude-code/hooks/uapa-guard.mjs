@@ -33,7 +33,8 @@ var _uapa_target_data_default = {
 		"stopGate": true,
 		"promptGate": true
 	},
-	"moduleSessionEnv": "UAPA_MODULE_SESSION_HOOKS_DEMO"
+	"moduleSessionEnv": "UAPA_MODULE_SESSION_HOOKS_DEMO",
+	"options": []
 };
 const invalid = {
 	ok: false,
@@ -45,14 +46,14 @@ function valid(value) {
 		value
 	};
 }
-function isRecord(value) {
+function isRecord$1(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isReason(value) {
 	return typeof value === "string" && value.trim() !== "";
 }
 function checkBeforeTool(value, tool) {
-	if (!isRecord(value)) return invalid;
+	if (!isRecord$1(value)) return invalid;
 	if (value.kind === "allow") return valid({ kind: "allow" });
 	if (value.kind === "deny") return isReason(value.reason) ? valid({
 		kind: "deny",
@@ -60,7 +61,7 @@ function checkBeforeTool(value, tool) {
 	}) : invalid;
 	if (value.kind !== "rewrite") return invalid;
 	const { input, fallbackReason } = value;
-	if (!isRecord(input) || !isReason(fallbackReason)) return invalid;
+	if (!isRecord$1(input) || !isReason(fallbackReason)) return invalid;
 	const command = input.command;
 	if (tool === "shell" && (typeof command !== "string" || command === "")) return invalid;
 	return valid({
@@ -71,6 +72,46 @@ function checkBeforeTool(value, tool) {
 }
 function guardErrorReason(error) {
 	return `uapa: 守卫出错: ${error instanceof Error ? error.message : String(error)}`;
+}
+function optionsFromValues(declared, values) {
+	const given = isRecord(values) ? values : {};
+	return resolve(declared, (option) => {
+		const value = Object.hasOwn(given, option.name) ? given[option.name] : void 0;
+		if (value === void 0) return option.default;
+		return isValueOf(option, value) ? value : null;
+	});
+}
+function resolve(declared, pick) {
+	const options = {};
+	for (const option of declared) {
+		const value = pick(option);
+		if (value === null) return {
+			ok: false,
+			name: option.name
+		};
+		options[option.name] = value;
+	}
+	return {
+		ok: true,
+		options
+	};
+}
+function isValueOf(option, value) {
+	if (typeof value !== option.type) return false;
+	return typeof value !== "number" || Number.isFinite(value);
+}
+function isRecord(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function guardContext(result) {
+	if (!result.ok) return {
+		ok: false,
+		reason: `uapa: 守卫选项无效: ${result.name}`
+	};
+	return {
+		ok: true,
+		value: { options: result.options }
+	};
 }
 function canonicalToolName(hostName, toolNames) {
 	return (Object.hasOwn(toolNames, hostName) ? toolNames[hostName] : void 0) ?? `host:${hostName}`;
@@ -112,7 +153,8 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 	};
 }
 const HOOK_FAILED_REASON = "uapa: hooks 模块出错";
-function register(on) {
+function register(on, options) {
+	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options));
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_HOOKS_DEMO", await $.session.id());
 		return next(e);
@@ -125,7 +167,7 @@ function register(on) {
 		await $.env.set("UAPA_MODULE_SESSION_HOOKS_DEMO", await startedSessionId($, e));
 		return next(e);
 	});
-	on("tool.call", ($, e, next) => toolCall($, e, next)).catch((_$, e, next) => {
+	on("tool.call", ($, e, next) => toolCall($, e, next, context)).catch((_$, e, next) => {
 		if (!next.called) return { deny: HOOK_FAILED_REASON };
 		return next(e);
 	});
@@ -135,9 +177,10 @@ async function startedSessionId($, e) {
 	if (typeof started === "string" && started !== "") return started;
 	return $.session.id();
 }
-async function callGuard(call, check) {
+async function callGuard(context, call, check) {
+	if (!context.ok) return context;
 	try {
-		return check(await call());
+		return check(await call(context.value));
 	} catch (error) {
 		return {
 			ok: false,
@@ -153,19 +196,19 @@ function toolCallOf(sessionId, e) {
 		...typeof e.command === "string" ? { command: e.command } : {}
 	}, _uapa_target_data_default.toolNames);
 }
-async function toolCall($, e, next) {
+async function toolCall($, e, next, context) {
 	const converted = toolCallOf(await $.session.id(), e);
 	if (!converted.ok) return { deny: `uapa: 无法解析宿主输入: ${converted.field}` };
 	let forwarded = e;
 	{
-		const before = await beforeTool(converted.call, e);
+		const before = await beforeTool(converted.call, e, context);
 		if (before.deny !== void 0) return { deny: before.deny };
 		forwarded = before.forward;
 	}
 	return await next(forwarded);
 }
-async function beforeTool(call, e) {
-	const checked = await callGuard(() => guard.beforeTool?.(call), (value) => checkBeforeTool(value, call.tool));
+async function beforeTool(call, e, context) {
+	const checked = await callGuard(context, (ctx) => guard.beforeTool?.(call, ctx), (value) => checkBeforeTool(value, call.tool));
 	if (!checked.ok) return { deny: checked.reason };
 	const decision = resolveToolDecision(checked.value, call.tool, _uapa_target_data_default.capabilities.rewriteInput);
 	if (decision.kind === "allow") return { forward: e };

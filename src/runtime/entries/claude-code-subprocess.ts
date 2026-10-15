@@ -9,7 +9,9 @@
 // - Stop 输出 decision: "block" 与 reason 时会话继续；
 // - PostToolUse 的 stdin 另有 tool_response；hookSpecificOutput.updatedToolOutput 为复制后
 //   只改 stdout 或 file.content 的 tool_response 时替换输出，decision: "block" 只附加原因
-//   （本地实测「执行后检查」）。
+//   （本地实测「执行后检查」）；
+// - 插件选项只对用户设置过的选项导出环境变量 CLAUDE_PLUGIN_OPTION_<选项名的全大写>
+//   （本地实测「commands 与 userConfig」）。
 import type { HostTool } from '../core/tools.ts'
 import { runSubprocessEntry } from './subprocess.ts'
 
@@ -86,4 +88,5 @@ await runSubprocessEntry({
     const dir = env.CLAUDE_PLUGIN_DATA
     return dir === undefined || dir === '' ? null : dir
   },
+  optionValue: (name, env) => env[`CLAUDE_PLUGIN_OPTION_${name.toUpperCase()}`],
 })

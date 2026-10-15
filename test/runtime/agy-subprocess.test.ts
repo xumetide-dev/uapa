@@ -25,6 +25,7 @@ before(async () => {
       toolNames: agySubprocess.toolNames,
       capabilities: agySubprocess.capabilities,
       moduleSessionEnv: null,
+      options: [],
     },
     external: 'node',
   })

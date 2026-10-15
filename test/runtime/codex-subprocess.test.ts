@@ -25,6 +25,7 @@ before(async () => {
       toolNames: codexSubprocess.toolNames,
       capabilities: codexSubprocess.capabilities,
       moduleSessionEnv: null,
+      options: [],
     },
     external: 'node',
   })

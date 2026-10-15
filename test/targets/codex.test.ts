@@ -10,6 +10,7 @@ import type { BundleRequest } from '../../src/bundle/types.ts'
 import { codexSubprocess } from '../../src/capabilities/codex-subprocess.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import type { GuardCheck } from '../../src/runtime/core/types.ts'
+import type { GuardOptionDecl } from '../../src/source/guard.ts'
 import { fieldErrors } from '../../src/targets/codex/fields.ts'
 import { codexHooks } from '../../src/targets/codex/hooks.ts'
 import { codex } from '../../src/targets/codex/index.ts'
@@ -28,6 +29,7 @@ const GUARD = {
   name: 'g',
   requires: [],
   checks: ['beforeTool', 'beforePrompt', 'beforeStop'] as GuardCheck[],
+  options: [] as GuardOptionDecl[],
 }
 
 async function generate(
@@ -195,6 +197,7 @@ test('子进程入口的打包请求与残余风险', async () => {
         toolNames: codexSubprocess.toolNames,
         capabilities: codexSubprocess.capabilities,
         moduleSessionEnv: null,
+        options: [],
       },
       external: 'node',
     },

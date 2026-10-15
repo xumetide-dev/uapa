@@ -2,7 +2,7 @@
 // 合为一个插件包（F-05-10）：plugin.json 与 .mcp.json 只生成一份，hooks/hooks.json 按进入 plans
 // 的目标写 hooks 键（命令 hooks）与 modules 键（hooks 模块）。
 import { compare } from '../../source/files.ts'
-import type { GuardDeclaration } from '../../source/guard.ts'
+import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
   HostInput,
   HostModule,
@@ -12,7 +12,7 @@ import type {
   TargetPlan,
 } from '../types.ts'
 import { HOOKS_FILE, hooksKey, SUBPROCESS_ENTRY } from './hooks.ts'
-import { manifest, manifestErrors } from './manifest.ts'
+import { manifest, manifestErrors, userConfig } from './manifest.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { MODULES, type ModuleFiles, moduleFiles, moduleSessionEnv } from './module.ts'
 import { validatePlugin } from './verify.ts'
@@ -80,6 +80,7 @@ async function entryFile(
       toolNames: plan.capabilities.toolNames,
       capabilities: plan.capabilities.capabilities,
       moduleSessionEnv: sessionEnv,
+      options: runtimeOptions(guard),
     },
     external: 'node',
   })
@@ -131,6 +132,11 @@ export const claudeCode: HostModule = {
   async generate(input) {
     const errors = manifestErrors(input.config)
     if (errors.length > 0) return failAll(input.plans, errors)
+    // 没有守卫时 checks 为空；有要检查的事件时守卫选项写入 userConfig（F-05-17）。
+    // 在打包之前检查，生成失败时不打包
+    const checked = input.plans.some(plan => plan.checks.length > 0)
+    const config = userConfig(input.config, checked ? (input.guard?.options ?? []) : [])
+    if (!config.ok) return failAll(input.plans, config.errors)
     const subprocess = input.plans.find(p => p.target === 'claude-code:subprocess')
     const inProcess = input.plans.find(p => p.target === 'claude-code:in-process')
     // 两个目标都进入 plans 时按会话 id 去重（F-05-08）
@@ -144,7 +150,7 @@ export const claudeCode: HostModule = {
         : await subprocessFiles(input, subprocess, sessionEnv)
     const hooksModule =
       inProcess === undefined ? null : await moduleFiles(input, inProcess, sessionEnv)
-    const plugin = manifest(input.config, hooksModule?.types ?? null)
+    const plugin = manifest(input.config, hooksModule?.types ?? null, config.value)
     const files: OutputFile[] = [
       { path: '.claude-plugin/plugin.json', content: json(plugin) },
       ...hooksConfigFile(command, hooksModule),

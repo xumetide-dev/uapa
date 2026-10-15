@@ -1,15 +1,7 @@
-// 子进程入口的公共部分（入口与打包接口第 3 节，F-04-03～F-04-05、F-04-08）：读取参数与
-// stdin、工具名换算、调用守卫、异常收口与停机计数。宿主字段名与输出格式只出现在各目标的
-// <宿主>-subprocess.ts 协议实现中。
-import {
-  accessSync,
-  constants,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs'
-import { join } from 'node:path'
+// 子进程入口的公共部分（入口与打包接口第 3 节，F-04-03～F-04-05、F-04-08、F-04-09）：
+// 读取参数与 stdin、工具名换算、选项取值、调用守卫与异常收口；停机计数见 stop-counter.ts。
+// 宿主字段名与输出格式只出现在各目标的 <宿主>-subprocess.ts 协议实现中。
+import { readFileSync } from 'node:fs'
 import guard from 'uapa:guard'
 import data from 'uapa:target-data'
 import {
@@ -20,9 +12,11 @@ import {
   checkBeforeTool,
   guardErrorReason,
 } from '../core/decisions.ts'
+import { guardContext, optionsFromText } from '../core/options.ts'
 import { outputText, replacedOutput } from '../core/output.ts'
 import { type HostTool, resolveToolDecision, toToolCall } from '../core/tools.ts'
-import type { GuardCheck } from '../core/types.ts'
+import type { GuardCheck, GuardContext } from '../core/types.ts'
+import { openStopCounter } from './stop-counter.ts'
 
 export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop' | 'after-tool'
 
@@ -60,6 +54,8 @@ export interface SubprocessProtocol {
   // 只在能力数据 withholdOutput 为 true 的目标上实现；以宿主的阻断写法交出 text（非空）
   blockOutput?(text: string): ProcessOutput
   dataDir(env: Env): string | null // 插件数据目录
+  // 宿主给出的选项取值文本，没有时为 undefined；未实现时各选项取 default（F-04-09）
+  optionValue?(name: string, env: Env): string | undefined
 }
 
 const CHECKS: Readonly<Record<CheckArg, GuardCheck>> = {
@@ -113,10 +109,13 @@ async function decide(
     )
   }
   if (protocol.skip?.(event, env) === true) return protocol.allow(check)
-  if (check === 'before-tool') return beforeTool(protocol, event)
-  if (check === 'before-prompt') return beforePrompt(protocol, event)
-  if (check === 'after-tool') return afterTool(protocol, event)
-  return beforeStop(protocol, event, env)
+  const context = guardContext(
+    optionsFromText(data.options, name => protocol.optionValue?.(name, env)),
+  )
+  if (check === 'before-tool') return beforeTool(protocol, event, context)
+  if (check === 'before-prompt') return beforePrompt(protocol, event, context)
+  if (check === 'after-tool') return afterTool(protocol, event, context)
+  return beforeStop(protocol, event, env, context)
 }
 
 function parseJson(text: string): unknown {
@@ -144,13 +143,16 @@ function withNote(output: ProcessOutput, note: string): ProcessOutput {
   return { ...output, stderr: `${output.stderr ?? ''}${note}\n` }
 }
 
-// 守卫抛错或返回值无效时 ok 为 false，reason 按入口与打包接口第 4 节
+// 守卫抛错或返回值无效时 ok 为 false，reason 按入口与打包接口第 4 节；
+// 选项取值无效时不调用守卫，按守卫出错处理（F-04-09）
 async function callGuard<T>(
-  call: () => unknown,
+  context: Checked<GuardContext>,
+  call: (ctx: GuardContext) => unknown,
   check: (value: unknown) => Checked<T>,
 ): Promise<Checked<T>> {
+  if (!context.ok) return context
   try {
-    return check(await call())
+    return check(await call(context.value))
   } catch (error) {
     return { ok: false, reason: guardErrorReason(error) }
   }
@@ -159,6 +161,7 @@ async function callGuard<T>(
 async function beforeTool(
   protocol: SubprocessProtocol,
   event: HostEvent,
+  context: Checked<GuardContext>,
 ): Promise<ProcessOutput> {
   const check = 'before-tool'
   const tool = event.tool
@@ -167,7 +170,8 @@ async function beforeTool(
   if (!converted.ok) return unparseable(protocol, check, converted.field)
   const { call } = converted
   const checked = await callGuard(
-    () => guard.beforeTool?.(call),
+    context,
+    ctx => guard.beforeTool?.(call, ctx),
     value => checkBeforeTool(value, call.tool),
   )
   if (!checked.ok) return protocol.deny(check, checked.reason)
@@ -189,12 +193,14 @@ async function beforeTool(
 async function beforePrompt(
   protocol: SubprocessProtocol,
   event: HostEvent,
+  context: Checked<GuardContext>,
 ): Promise<ProcessOutput> {
   const check = 'before-prompt'
   const prompt = event.prompt
   if (prompt === undefined) return unparseable(protocol, check, 'prompt')
   const checked = await callGuard(
-    () => guard.beforePrompt?.({ sessionId: event.sessionId, prompt }),
+    context,
+    ctx => guard.beforePrompt?.({ sessionId: event.sessionId, prompt }, ctx),
     checkBeforePrompt,
   )
   if (!checked.ok) return protocol.deny(check, checked.reason)
@@ -206,6 +212,7 @@ async function beforePrompt(
 async function afterTool(
   protocol: SubprocessProtocol,
   event: HostEvent,
+  context: Checked<GuardContext>,
 ): Promise<ProcessOutput> {
   const check = 'after-tool'
   const tool = event.tool
@@ -217,7 +224,8 @@ async function afterTool(
   if (!converted.ok) return unparseable(protocol, check, converted.field)
   const { call } = converted
   const checked = await callGuard(
-    () => guard.afterTool?.(call, outputText(output)),
+    context,
+    ctx => guard.afterTool?.(call, outputText(output), ctx),
     checkAfterTool,
   )
   if (!checked.ok) return handOver(protocol, output, checked.reason)
@@ -251,11 +259,13 @@ async function beforeStop(
   protocol: SubprocessProtocol,
   event: HostEvent,
   env: Env,
+  context: Checked<GuardContext>,
 ): Promise<ProcessOutput> {
   const counter = openStopCounter(protocol.dataDir(env), event.sessionId)
   const continuations = counter.read()
   const checked = await callGuard(
-    () => guard.beforeStop?.({ sessionId: event.sessionId, continuations }),
+    context,
+    ctx => guard.beforeStop?.({ sessionId: event.sessionId, continuations }, ctx),
     checkBeforeStop,
   )
   let output: ProcessOutput
@@ -271,80 +281,4 @@ async function beforeStop(
     output = protocol.allow('before-stop')
   }
   return counter.notes.reduce(withNote, output)
-}
-
-interface StopCounter {
-  read(): number
-  write(continuations: number): void
-  readonly notes: string[] // 写到 stderr 的原因：计数不可用、读写失败与守卫出错
-}
-
-// 计数文件为 <dataDir>/uapa-stop-<encodeURIComponent(会话 id)>.json；
-// 目录为 null 或不可写时按 0 计，不写文件
-function openStopCounter(dir: string | null, sessionId: string): StopCounter {
-  const notes: string[] = []
-  if (dir === null) notes.push('uapa: 没有插件数据目录，停机计数按 0 处理')
-  const usable = dir !== null && prepareDir(dir, notes)
-  const file = usable
-    ? join(dir, `uapa-stop-${encodeURIComponent(sessionId)}.json`)
-    : null
-  return {
-    notes,
-    read: () => (file === null ? 0 : readCount(file, notes)),
-    write(continuations) {
-      if (file === null) return
-      try {
-        const temp = `${file}.${process.pid}.tmp`
-        writeFileSync(temp, `${JSON.stringify({ continuations })}\n`)
-        renameSync(temp, file)
-      } catch (error) {
-        notes.push(`uapa: 停机计数写入失败: ${messageOf(error)}`)
-      }
-    },
-  }
-}
-
-// 目录不存在时递归创建；不可写时记下原因
-function prepareDir(dir: string, notes: string[]): boolean {
-  try {
-    mkdirSync(dir, { recursive: true })
-    accessSync(dir, constants.W_OK)
-    return true
-  } catch (error) {
-    notes.push(`uapa: 插件数据目录不可写，停机计数按 0 处理: ${messageOf(error)}`)
-    return false
-  }
-}
-
-// 文件不存在时为 0（本会话尚未继续过）；读取失败或内容不是非负整数计数时按 0 计并记下原因
-function readCount(file: string, notes: string[]): number {
-  let text: string
-  try {
-    text = readFileSync(file, 'utf8')
-  } catch (error) {
-    if ((error as { code?: unknown }).code === 'ENOENT') return 0
-    notes.push(`uapa: 停机计数读取失败，按 0 处理: ${messageOf(error)}`)
-    return 0
-  }
-  const count = continuationsOf(text)
-  if (count === null) notes.push(`uapa: 停机计数文件内容无效，按 0 处理: ${file}`)
-  return count ?? 0
-}
-
-function continuationsOf(text: string): number | null {
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch {
-    return null
-  }
-  if (typeof value !== 'object' || value === null) return null
-  const count = (value as Readonly<Record<string, unknown>>).continuations
-  return typeof count === 'number' && Number.isInteger(count) && count >= 0
-    ? count
-    : null
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

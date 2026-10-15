@@ -1,0 +1,21 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "conversationId": "fixture-conversation",
+    "toolCall": {
+      "name": "run_command",
+      "args": {
+        "CommandLine": "echo uapa-deny-probe",
+        "Cwd": "/project"
+      }
+    }
+  },
+  "env": {
+    "TMPDIR": "{dataDir}"
+  },
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"deny\",\"reason\":\"uapa-guard: 拒绝标记命令 uapa-deny-probe（maxLength=200，strict_mode=true）\"}\n",
+  "stderr": ""
+}

@@ -1,0 +1,4 @@
+{
+  "name": "guard-options",
+  "description": "守卫选项：守卫声明 number、boolean、string 各一个选项，配置四个目标、默认布局的夹具"
+}

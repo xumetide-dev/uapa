@@ -24,6 +24,7 @@ async function bundleTo(name: string, moduleSessionEnv: string | null) {
       toolNames: claudeCodeSubprocess.toolNames,
       capabilities: claudeCodeSubprocess.capabilities,
       moduleSessionEnv,
+      options: [],
     },
     external: 'node',
   })

@@ -9,6 +9,7 @@ interface HostDir {
 export interface HostOptions {
   'claude-code': HostDir & {
     displayName?: string
+    // 守卫声明了选项时须为对象，守卫选项按选项名追加在其后（F-05-17）
     userConfig?: unknown
     dependencies?: unknown
     $schema?: string

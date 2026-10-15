@@ -1,7 +1,7 @@
 // agy 宿主模块（agy:subprocess）。agy plugin validate 对结构错误也报通过，本宿主不实现
 // verify，由字段白名单检查（F-11-05）在生成时代替。MCP 服务器写入 mcp_config.json（F-11-08），
 // rules 写入 rules/（F-11-09）。
-import type { GuardDeclaration } from '../../source/guard.ts'
+import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
   HostInput,
   HostModule,
@@ -34,6 +34,9 @@ const SHARED_CLAUDE_CODE_RISK =
   '与 Claude Code 共用插件目录：agy 的安装命令是否把含 .claude-plugin/ 的目录按 Claude Code ' +
   '插件转换未实测'
 
+// 未核实 agy 插件的用户配置（F-11-10）
+const OPTIONS_RISK = 'agy 没有已核实的插件用户配置，守卫选项取构建时默认值'
+
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`
 }
@@ -63,6 +66,7 @@ async function entryFile(
       toolNames: plan.capabilities.toolNames,
       capabilities: plan.capabilities.capabilities,
       moduleSessionEnv: null,
+      options: runtimeOptions(guard),
     },
     external: 'node',
   })
@@ -114,6 +118,8 @@ function risks(
     messages.push(PRE_TOOL_USE_RISK)
   }
   if (input.sharedWith.includes('claude-code')) messages.push(SHARED_CLAUDE_CODE_RISK)
+  const optionCount = input.guard?.options.length ?? 0
+  if (plan.checks.length > 0 && optionCount > 0) messages.push(OPTIONS_RISK)
   messages.push(...ruleRisks)
   return messages.map(message => ({ target: TARGET, message }))
 }

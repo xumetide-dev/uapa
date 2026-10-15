@@ -1,5 +1,6 @@
 // 测试用的最小子进程入口：协议的字段名与输出格式只为测试设定，不对应任何宿主。
-// 工具入参中的命令字段为 cmd，工具输出为 output；数据目录为 TEST_DATA/<插件名>。
+// 工具入参中的命令字段为 cmd，工具输出为 output；数据目录为 TEST_DATA/<插件名>；
+// 选项取值为环境变量 TEST_OPTION_<选项名>。
 import { join } from 'node:path'
 import { runSubprocessEntry } from '../../../src/runtime/entries/subprocess.ts'
 
@@ -50,4 +51,5 @@ await runSubprocessEntry({
   }),
   dataDir: env =>
     env.TEST_DATA === undefined ? null : join(env.TEST_DATA, __UAPA_PLUGIN_NAME__),
+  optionValue: (name, env) => env[`TEST_OPTION_${name}`],
 })

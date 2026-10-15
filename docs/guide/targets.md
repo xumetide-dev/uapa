@@ -25,6 +25,7 @@
 | rules | 不承载，记为跳过 | 不承载，记为跳过 | 承载，frontmatter 换为 agy 的写法 |
 | commands | 承载 | 承载，安装时转换为技能 | 不承载，记为跳过 |
 | MCP 服务器 | 承载 | 承载；`command` 含 `{pluginRoot}` 的跳过 | 承载；`command` 含 `{pluginRoot}` 的跳过 |
+| 守卫选项 | 写入 `userConfig`，取使用者设置的值 | 取 `default`，记为残余风险 | 取 `default`，记为残余风险 |
 | `rewriteInput` | 有 | 有 | 有 |
 | `replaceOutput` | 有 | 无 | 无 |
 | `withholdOutput` | 有 | 有 | 无 |

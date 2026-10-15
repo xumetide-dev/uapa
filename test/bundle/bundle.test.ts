@@ -30,6 +30,7 @@ const DATA: TargetRuntimeData = {
     promptGate: false,
   },
   moduleSessionEnv: null,
+  options: [],
 }
 
 function request(

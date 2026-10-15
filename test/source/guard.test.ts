@@ -1,4 +1,4 @@
-// 构建时读取守卫声明（F-02-03）
+// 构建时读取守卫声明（F-02-03、F-02-05）
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -40,6 +40,7 @@ export default {
     name: 'g',
     requires: ['stopGate'],
     checks: ['beforeTool', 'beforeStop'],
+    options: [],
   })
 })
 
@@ -86,4 +87,89 @@ test('守卫文件不存在时返回 InputIssue', async () => {
   assert.deepEqual(result.issues, [
     { file: 'guard.ts', field: null, message: '文件不存在' },
   ])
+})
+
+test('守卫选项按名称排序得出（F-02-05）', async () => {
+  const { result } = await read(`import type { GuardPlugin } from 'uapa'
+export default {
+  name: 'g',
+  requires: [],
+  options: {
+    strict: { type: 'boolean', title: '严格', description: '是否严格', default: false },
+    Limit_2: { type: 'number', title: '上限', description: '长度上限', default: 0.5 },
+    label: { type: 'string', title: '标签', description: '原因前缀', default: '' },
+  },
+} satisfies GuardPlugin
+`)
+  assert.ok(result.ok)
+  assert.deepEqual(result.value?.options, [
+    {
+      type: 'number',
+      title: '上限',
+      description: '长度上限',
+      default: 0.5,
+      name: 'Limit_2',
+    },
+    {
+      type: 'string',
+      title: '标签',
+      description: '原因前缀',
+      default: '',
+      name: 'label',
+    },
+    {
+      type: 'boolean',
+      title: '严格',
+      description: '是否严格',
+      default: false,
+      name: 'strict',
+    },
+  ])
+})
+
+test('守卫选项不合规时返回 InputIssue（F-02-05）', async () => {
+  const option = (fields: string) =>
+    `{ type: 'number', title: 't', description: 'd', default: 1, ${fields} }`
+  const cases: [string, string, RegExp][] = [
+    ['[]', 'options', /映射/],
+    [`{ '1st': ${option('')} }`, 'options.1st', /以字母开头/],
+    [`{ 'a-b': ${option('')} }`, 'options.a-b', /以字母开头/],
+    [
+      `{ limit: ${option('')}, LIMIT: ${option('')} }`,
+      'options.LIMIT',
+      /全大写后与选项 limit 相同/,
+    ],
+    ['{ limit: 1 }', 'options.limit', /对象/],
+    [
+      `{ limit: ${option('sensitive: true')} }`,
+      'options.limit.sensitive',
+      /不支持的键/,
+    ],
+    [
+      `{ limit: ${option("type: 'directory'")} }`,
+      'options.limit.type',
+      /string、number 或 boolean/,
+    ],
+    [`{ limit: ${option("title: ''")} }`, 'options.limit.title', /非空单行/],
+    [
+      `{ limit: ${option("description: 'a\\nb'")} }`,
+      'options.limit.description',
+      /非空单行/,
+    ],
+    [`{ limit: ${option("default: '1'")} }`, 'options.limit.default', /number/],
+    [`{ limit: ${option('default: Infinity')} }`, 'options.limit.default', /number/],
+    [
+      `{ flag: { type: 'boolean', title: 't', description: 'd' } }`,
+      'options.flag.default',
+      /boolean/,
+    ],
+  ]
+  for (const [options, field, message] of cases) {
+    const { result } = await read(
+      `export default { name: 'g', requires: [], options: ${options} }\n`,
+    )
+    assert.ok(!result.ok, options)
+    assert.equal(result.issues[0]?.field, field, options)
+    assert.match(result.issues[0]?.message ?? '', message, options)
+  }
 })
