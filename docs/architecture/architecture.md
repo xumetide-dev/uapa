@@ -75,7 +75,7 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 | 命令 hooks 入口运行时 | Node.js；入口打包为 ES2022 ESM 单文件，只用 `node:` 内置模块；构建报告写明 Node 要求与解释器缺失时各宿主的默认行为 |
 | 源配置加载 | Node 类型剥离直接导入 `uapa.config.ts`；只能使用可擦除语法，相对导入写明 `.ts` 扩展名 |
 | 目标能力数据 | TypeScript 数据模块，类型为 `TargetCapabilities`，带宿主版本、核对日期与出处 |
-| 产物布局 | 默认每个宿主一个插件目录，同一宿主的多个目标（如 Claude Code 的两种形态）写入同一目录；可选合并布局，多个宿主写入同一插件目录：同名文件内容必须逐字一致，否则构建失败；按命名空间合并 JSON（F-03-07）为预留。ARCH-001 的“每个目标一个目录”已由 SD-13 改为按宿主 |
+| 产物布局 | 默认每个宿主一个插件目录，同一宿主的多个目标（如 Claude Code 的两种形态）写入同一目录；可选合并布局，多个宿主写入同一插件目录：同名文件内容必须逐字一致，否则构建失败；宿主模块标为可合并的 JSON 文件按命名空间合并（v0.3.0，F-03-07）。ARCH-001 的“每个目标一个目录”已由 SD-13 改为按宿主 |
 | 发布形态 | main 不提交 `dist/`；发布提交含 `dist/` 并打 `vX.Y.Z` tag；0.x 期间次版本号可含不兼容变更 |
 | 公共导出面 | 包入口 `uapa` 导出 `defineConfig` 与公共类型；命令 `uapa build` 与 `uapa build --check` |
 
@@ -84,16 +84,18 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用顺序：
 
 1. `cli` 解析命令，调用 `config` 加载并校验 `uapa.config.ts`，再调用 `build`（模块接口 §8）。
-2. `build` 调用 `source` 读取源项目的组件、frontmatter 与 `overrides/<宿主>/`（v0.1.0 的组件
-   只有 skills），并导入守卫逻辑、读取守卫声明；读取失败时返回输入错误，不构建任何目标。
+2. `build` 调用 `source` 读取源项目的组件（skills；v0.2.0 起有 agents 与 MCP 服务器，v0.3.0 起
+   有 rules 与 commands）、frontmatter 与 `overrides/<宿主>/`，并导入守卫逻辑、读取守卫声明与
+   选项；读取失败时返回输入错误，不构建任何目标。
 3. `build` 经 `src/capabilities/index.ts` 取得每个已配置目标的能力数据，检查组件承载、守卫
    能力与命令 hooks 声明的事件承载，得出跳过项、降级项与失败的目标。
 4. `build` 经 `src/targets/index.ts` 按宿主调用 `targets/<host>`，只传入通过检查的目标。
    宿主模块生成 manifest 与 hooks 配置，经 `bundle` 把守卫逻辑、`runtime/core` 与该目标的
    入口源码打包为单文件；没有可靠宿主校验命令的宿主对生成的文件做字段白名单检查；返回文件
    列表，同一宿主的目标合成一套文件。
-5. `build` 放置 skills，用 `overrides/<宿主>/` 覆盖同名文件，再按产物布局写出：合并布局下，
-   同名文件必须逐字一致（按命名空间合并 JSON 为预留，F-03-07）。写出后，对提供宿主
+5. `build` 放置 skills、agents 与 commands，用 `overrides/<宿主>/` 覆盖同名文件，再按产物布局
+   写出：合并布局下，同名文件必须逐字一致，宿主模块标为可合并的 JSON 文件按命名空间合并
+   （F-03-07）。写出后，对提供宿主
    校验命令的宿主调用该命令。`--check` 模式只比对，不写文件，也不调用宿主校验命令。
 6. `build` 按 `src/report/types.ts` 填充构建报告，写出 `<outDir>/uapa-report.json`（`--check`
    不写），并把结果返回 `cli`；`cli` 调用 `report` 的 `formatSummary` 打印摘要，按模块接口 §8
@@ -104,10 +106,10 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 | `cli` | 命令、参数、终端输出与退出码 | `config`、`build`、`report` | 构建器中只有它读取命令行参数、向终端输出与设置退出码；插件产物中的入口不受此限 |
 | `config` | `defineConfig`、配置加载与校验、目标名与宿主标识 | zod | 校验失败给出文件与字段位置 |
 | `source` | 读取源项目组件、覆盖目录与守卫声明 | `config`（类型与目标名列表）、`runtime/core` 的类型、yaml、zod | 只读，不写文件 |
-| `build` | 能力检查、按宿主调用宿主模块、放置 skills 与覆盖文件、产物布局与合并、写出与比对、调用宿主校验、写出构建报告 | `config`、`source`、`runtime/core` 的类型、`capabilities`（只经 `src/capabilities/index.ts` 与 `types.ts`）、`targets`（只经 `src/targets/index.ts` 与 `src/targets/types.ts`）、`bundle`、`report` | 不包含宿主格式知识；守卫 `requires` 中的能力目标不具备时该目标失败，其余缺失按 [hooks 适配 §6](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#6-能力缺失时的处理) 降级或记为残余风险；只写入各宿主的插件目录与 `<outDir>/uapa-report.json`：默认布局写入前清空该宿主的插件目录，合并布局不删除目录中的其他文件；`--check` 模式不写文件 |
+| `build` | 能力检查、按宿主调用宿主模块、放置 skills、agents、commands 与覆盖文件、产物布局与合并、写出与比对、调用宿主校验、写出构建报告 | `config`、`source`、`runtime/core` 的类型、`capabilities`（只经 `src/capabilities/index.ts` 与 `types.ts`）、`targets`（只经 `src/targets/index.ts` 与 `src/targets/types.ts`）、`bundle`、`report` | 不包含宿主格式知识；守卫 `requires` 中的能力目标不具备时该目标失败，其余缺失按 [hooks 适配 §6](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#6-能力缺失时的处理) 降级或记为残余风险；只写入各宿主的插件目录与 `<outDir>/uapa-report.json`：默认布局写入前清空该宿主的插件目录，合并布局不删除目录中的其他文件；`--check` 模式不写文件 |
 | `capabilities` | 各目标的能力数据 | `config` 与 `runtime/core` 的类型 | 只含数据；每个模块写明宿主版本、核对日期与出处 |
 | `targets/<host>` | 生成一个宿主的产物文件；有可靠宿主校验命令的宿主实现 `verify`（v0.1.0 为 Claude Code），其余宿主在生成时做字段白名单检查 | `src/targets/types.ts`；`config`、`source`、`runtime/core`、`capabilities` 与 `bundle` 的类型；yaml | `generate` 不读写磁盘，文件交给 `build` 写出；只为传入的目标生成；能力数据只经 `TargetPlan` 取得；打包经 `build` 传入的函数调用 `bundle`；宿主模块之间互不引用 |
-| `runtime/core` | 公共类型、目标数据类型、工具名换算、守卫返回值检查 | 无 | 不做 I/O，不引用 Node 类型，由 `tsconfig.runtime-core.json` 检查 |
+| `runtime/core` | 公共类型、目标数据类型、工具名换算、守卫返回值检查、守卫选项取值的解析 | 无 | 不做 I/O，不引用 Node 类型，由 `tsconfig.runtime-core.json` 检查 |
 | `runtime/entries` | 各目标的入口源码与决策输出 | `runtime/core`；打包时注入的 `uapa:guard` 与 `uapa:target-data`；子进程入口源码另用 `node:` 内置模块；`claude-code-in-process.ts` 另用 `'claude-code'` | `<宿主>-<形态>.ts` 之间互不导入；`claude-code-in-process.ts` 不导入 `subprocess.ts` 与 `node:` 模块，不引用 Node 全局（如 `process`、`Buffer`），与 `runtime/core` 一起由 `tsconfig.runtime-core.json` 检查；收口全部异常：执行前与提示提交前检查按拒绝输出，停机前检查不阻止结束，执行后检查按扣留输出 |
 | `bundle` | 调用 rolldown；`src/bundle/types.ts` 定义打包请求 | rolldown；`runtime/core` 的类型 | 仓库中唯一调用打包器的模块；在内存中生成单文件，不写文件；产物不导入 npm 包 |
 | `report` | 构建报告的类型与终端摘要文本 | 无 | 不读写文件；由 `build` 填充并写出；报告写入能力数据的核对日期 |

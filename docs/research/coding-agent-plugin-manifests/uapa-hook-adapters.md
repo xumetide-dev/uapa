@@ -60,16 +60,30 @@ export interface PromptSubmit {
 
 export type BeforePrompt = { kind: 'allow' } | { kind: 'block'; reason: string }
 
+// v0.3.0（F-02-05）：守卫选项；default 必填，类型与 type 一致
+export type GuardOption =
+  | { type: 'string'; title: string; description: string; default: string }
+  | { type: 'number'; title: string; description: string; default: number }
+  | { type: 'boolean'; title: string; description: string; default: boolean }
+
+// v0.3.0：本次调用的选项取值，键为选项名；守卫没有声明选项时为空对象
+export interface GuardContext {
+  readonly options: Readonly<Record<string, string | number | boolean>>
+}
+
 export interface GuardPlugin {
   readonly name: string
   readonly requires: readonly Capability[]
-  beforeTool?(call: ToolCall): BeforeTool | Promise<BeforeTool>
-  beforePrompt?(p: PromptSubmit): BeforePrompt | Promise<BeforePrompt>
+  readonly options?: Readonly<Record<string, GuardOption>> // v0.3.0
+  beforeTool?(call: ToolCall, ctx: GuardContext): BeforeTool | Promise<BeforeTool>
+  beforePrompt?(p: PromptSubmit, ctx: GuardContext): BeforePrompt | Promise<BeforePrompt>
   // v0.2.0（F-02-04）
-  afterTool?(call: ToolCall, output: string): AfterTool | Promise<AfterTool>
+  afterTool?(call: ToolCall, output: string, ctx: GuardContext): AfterTool | Promise<AfterTool>
   // continuations 为连续强制继续的次数：返回 continue 时加 1，返回 stop 时清零；
   // 供插件自行设上限
-  beforeStop?(s: { sessionId: string; continuations: number }): BeforeStop | Promise<BeforeStop>
+  beforeStop?(
+    s: { sessionId: string; continuations: number }, ctx: GuardContext,
+  ): BeforeStop | Promise<BeforeStop>
 }
 ```
 
@@ -79,6 +93,12 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 `afterTool` 只接收文本形式的输出。需要结构化输出时，按目标单独设计，不放进公共类型。输出文本
 的取法、`replace` 的 `text` 与 `withhold` 的 `reason` 的检查，以及两者在各目标上的写出，见
 功能清单 SD-29 与[入口与打包接口](../../architecture/runtime-interfaces.md#4-守卫返回值与执行后输出)。
+
+守卫选项（v0.3.0，SD-35）在默认导出中声明，包入口导出 `GuardOption` 与 `GuardContext`。`ctx` 为
+各检查方法的最后一个参数，不使用选项的守卫可以不写，v0.2.0 的守卫逻辑无需修改。取值来源按目标
+不同：Claude Code 为用户在插件设置中保存的取值，未设置时为 `default`；Codex 与 agy 总是
+`default`。取值无效时按守卫出错处理，见
+[入口与打包接口第 3 节](../../architecture/runtime-interfaces.md#3-子进程入口)。
 
 ## 3. 工具名映射
 
@@ -208,7 +228,8 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
 ```
 
 - 生成的 `hooks/register.ts` 只引入打包后的 `hooks/uapa-guard.mjs`（F-05-05），写作
-  `export const register: Register = on => guard(on)`：`validate` 不跟踪转导出的 `register`
+  `export const register: Register = (on, options) => guard(on, options)`（v0.3.0 起传入
+  `options`，F-05-18；v0.2.0 为 `on => guard(on)`）：`validate` 不跟踪转导出的 `register`
   （[本地实测](claude-code-local-tests.md#hooks-模块的静态校验)）。去重代码位于入口源码中。
 - `/clear`、`/resume`、`/branch` 之后 `session.start` 不再触发（[Mods 指南](claude-code-mods-guide.md#state-与-store)）。
   会话 id 若随之改变，变量与 stdin 的 `session_id` 不再相等，命令 hook 不被跳过，守卫执行两次；

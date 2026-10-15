@@ -15,7 +15,13 @@ export interface TargetRuntimeData { // 打包时内联为只读常量
   readonly capabilities: Readonly<Record<Capability, boolean>> // 取自能力数据
   // Claude Code 双形态去重的会话变量名；只在两个 Claude Code 目标都进入 plans 时有值（F-05-08）
   readonly moduleSessionEnv: string | null
+  // v0.3.0（F-04-09）：GuardDeclaration.options 的名称、类型与默认值，按 name 排序；没有时为空
+  readonly options: readonly RuntimeOption[]
 }
+export type RuntimeOption =
+  | { readonly name: string; readonly type: 'string'; readonly default: string }
+  | { readonly name: string; readonly type: 'number'; readonly default: number }
+  | { readonly name: string; readonly type: 'boolean'; readonly default: boolean }
 
 // src/bundle/types.ts（F-03-11）：宿主模块与打包共用
 interface BundleBase {
@@ -91,6 +97,11 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   或改写后 `await next(...)`，再做执行后检查；守卫抛错与返回值无效在处理函数内按第 4 节收口。
   `.catch` 中 `next.called` 为真且计划了执行后检查时返回 `{ deny }`（原因同 F-05-06 的固定原因），
   不以 `next(e)` 重放原输出；其余情况沿用 F-05-06。
+- 守卫选项（v0.3.0，F-05-18）：宿主以 `register(on, options)` 传入插件选项的取值（带类型，未设置
+  的为默认值，见[本地实测](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)）。
+  生成的 `hooks/register.ts` 写作 `(on, options) => guard(on, options)`；hooks 模块入口在每次
+  调用守卫前以 `optionsFromValues(data.options, options)`（第 3 节）得出取值，无效时与守卫抛错
+  相同处理（F-05-06），原因为 `uapa: 守卫选项无效: <选项名>`。
 - 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
   其他宿主的根 `plugin.json` 合并（F-11-02）。
 
@@ -133,8 +144,24 @@ export interface SubprocessProtocol {
   // v0.2.0：只在 withholdOutput 为 true 的目标上实现；以宿主的阻断写法交出 text，text 非空
   blockOutput?(text: string): ProcessOutput
   dataDir(env: Env): string | null // 插件数据目录
+  // v0.3.0：只在有插件用户配置的目标上实现；返回选项取值的文本，未设置时返回 undefined
+  optionValue?(name: string, env: Env): string | undefined
 }
 export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
+
+// src/runtime/core/options.ts（F-04-09）：不做 I/O，子进程入口与 hooks 模块入口共用
+export type GuardOptionValue = string | number | boolean
+export type OptionsResult =
+  | { readonly ok: true; readonly options: Readonly<Record<string, GuardOptionValue>> }
+  | { readonly ok: false; readonly name: string } // 按 name 顺序第一个无效的选项
+// text 返回 undefined 时取 default；其余按 type 解析
+export function optionsFromText(
+  declared: readonly RuntimeOption[], text: (name: string) => string | undefined,
+): OptionsResult
+// values 为 hooks 模块收到的取值；缺少该键或为 undefined 时取 default，类型不符时无效
+export function optionsFromValues(
+  declared: readonly RuntimeOption[], values: unknown,
+): OptionsResult
 ```
 
 - 公共部分负责读取参数与 stdin、工具名换算、调用守卫、异常收口与停机计数；宿主字段名与
@@ -147,15 +174,23 @@ export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
   工具名换算为 `shell` 而 `tool.command` 缺失时，公共部分同样按输入无法解析处理，字段写
   `tool.command`。
 - 以下情况执行前与提示提交前检查调用 `deny`，停机前检查调用 `allow` 并在 stderr 写同一原因：
-  输入无法解析，原因为 `uapa: 无法解析宿主输入: <字段>`；守卫抛错或返回值无效，原因按第 4 节。
+  输入无法解析，原因为 `uapa: 无法解析宿主输入: <字段>`；守卫抛错或返回值无效，原因按第 4 节；
+  守卫选项无效（v0.3.0），原因为 `uapa: 守卫选项无效: <选项名>`。
 - 守卫未实现该检查，或检查为 `before-prompt` 而 `TargetRuntimeData.capabilities.promptGate`
   为 `false`、为 `after-tool` 而 `withholdOutput` 为 `false` 时，调用 `allow` 结束，不调用守卫。
+- 守卫选项（v0.3.0，SD-35）：要调用守卫时，公共部分先以
+  `optionsFromText(data.options, name => protocol.optionValue?.(name, env))` 得出取值，再以
+  `{ options }` 作为最后一个参数调用该检查；没有声明选项时 `options` 为空对象。文本的解析：string
+  原样取用；number 要求去掉首尾空白后非空且 `Number(文本)` 为有限数；boolean 只接受 `true` 与
+  `false`。只有 `claude-code-subprocess.ts` 实现 `optionValue`，返回
+  `env['CLAUDE_PLUGIN_OPTION_' + 选项名的全大写]`（F-05-18）；Codex 与 agy 不实现，取 `default`
+  （F-06-10、F-11-10）。
 - 执行后检查（v0.2.0，SD-29）：以 `outputText(event.toolOutput)` 调用 `afterTool`。`keep` 调用
   `allow`；`replace` 与 `withhold` 交出的文本分别为 `text` 与 `reason`。交出文本时，`replaceOutput`
   为 `true` 且 `replacedOutput(event.toolOutput, 文本)` 不为 `null` 时调用 `replaceOutput`，否则调用
   `blockOutput`。目标缺 `replaceOutput` 时 `replace` 因此按扣留写出（构建报告的降级）。输入无法
   解析、守卫抛错或返回值无效时，以第 4 节的原因按扣留写出；输入无法解析时没有原值，调用
-  `blockOutput`。
+  `blockOutput`。守卫选项无效时，以 `uapa: 守卫选项无效: <选项名>` 按扣留写出。
 - 各目标的写法：Claude Code 的 `replaceOutput` 为 stdout
   `{"hookSpecificOutput":{"hookEventName":"PostToolUse","updatedToolOutput":<output>}}`，
   `blockOutput` 为 `{"decision":"block","reason":<text>}`（只附加原因，模型仍读到原输出，由

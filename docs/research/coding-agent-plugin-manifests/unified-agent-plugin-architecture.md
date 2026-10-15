@@ -105,9 +105,9 @@ my-plugin/
 ├── uapa.config.ts           # 名称、版本、目标列表与各宿主选项
 ├── skills/<name>/SKILL.md   # Agent Skills
 ├── mcp/servers.json         # MCP 服务器（v0.2.0），规范形式见下文
-├── rules/*.md               # 规则与指令（未排期，SD-02）
+├── rules/*.md               # 规则与指令（v0.3.0，SD-32）
 ├── agents/*.md              # 子代理定义（v0.2.0）
-├── commands/*.md            # 斜杠命令（未排期，SD-02）
+├── commands/*.md            # 斜杠命令（v0.3.0，SD-33）
 ├── src/guard.ts             # 守卫逻辑（可选），默认导出 GuardPlugin
 └── overrides/<宿主>/        # 宿主专有文件，复制到该宿主的插件目录并覆盖同名文件
 ```
@@ -163,23 +163,24 @@ export default defineConfig({
 
 ## 6. 组件与目标
 
-| 组件 | Claude Code | Codex | Copilot CLI | Cursor | Kimi Code | Kiro | CodeBuddy | OpenCode | DSH |
-|---|---|---|---|---|---|---|---|---|---|
-| skills | 包内 | 包内 | 包内 | 包内 | 包内 | Power 内 | 包内 | 配置目录 | 插件运行时注册 |
-| MCP | 包内 | 包内 | 包内 | 包内 | manifest 字段 | Power 内 | 包内 | `opencode.json` | Cordis 配置 |
-| rules | 无 | 无 | 包内 | 包内（`.mdc`） | `systemPrompt` | 工作区 steering | 无 | 配置目录 | 无 |
-| agents | 包内 | 无 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
-| commands | 包内 | 无 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
-| 命令 hooks | 包内 | 包内 | 包内 | 包内 | manifest 字段 | 工作区 | 包内 | 无 | 兼容包（实验） |
-| 进程内 hooks | `modules` | 无 | 无 | 无 | 无 | 无 | Mods（Beta） | 插件模块 | Cordis 插件 |
+| 组件 | Claude Code | Codex | agy | Copilot CLI | Cursor | Kimi Code | Kiro | CodeBuddy | OpenCode | DSH |
+|---|---|---|---|---|---|---|---|---|---|---|
+| skills | 包内 | 包内 | 包内 | 包内 | 包内 | 包内 | Power 内 | 包内 | 配置目录 | 插件运行时注册 |
+| MCP | 包内 | 包内 | 包内 | 包内 | 包内 | manifest 字段 | Power 内 | 包内 | `opencode.json` | Cordis 配置 |
+| rules | 无 | 无 | 包内 | 包内 | 包内（`.mdc`） | `systemPrompt` | 工作区 steering | 无 | 配置目录 | 无 |
+| agents | 包内 | 无 | 包内 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
+| commands | 包内 | 包内（安装时转换为技能） | 无 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
+| 命令 hooks | 包内 | 包内 | 包内 | 包内 | 包内 | manifest 字段 | 工作区 | 包内 | 无 | 兼容包（实验） |
+| 进程内 hooks | `modules` | 无 | 无 | 无 | 无 | 无 | 无 | Mods（Beta） | 插件模块 | Cordis 插件 |
 
 - “包内”指插件包可携带该组件；“配置目录”指只能放到项目或用户的配置目录，不经插件分发，
   如 OpenCode 的 `.opencode/skills/`；“工作区”指 Power 之外单独安装到工作区的文件。“无”
   包括平台文档未见对应组件的情况。
 - 目标不能承载的组件不产出，在构建报告中列为跳过；源文件 frontmatter 显式写了该目标时，
   构建失败。
-- 格式换算由宿主模块完成：rules 换成 Cursor 的 `.mdc`（`description`、`globs`、`alwaysApply`）、
-  Kiro steering 的 `inclusion`、Kimi Code 的 `systemPrompt` 片段（单插件上限 32 KB）。
+- 格式换算由宿主模块完成：rules 换成 agy 的 `trigger` 与 `globs`（v0.3.0，F-11-09）、Cursor 的
+  `.mdc`（`description`、`globs`、`alwaysApply`）、Kiro steering 的 `inclusion`、Kimi Code 的
+  `systemPrompt` 片段（单插件上限 32 KB）。
 
 ## 7. 构建流程
 
@@ -273,7 +274,8 @@ dist/
 - **用户提示的检查。** 公共类型增加 `beforePrompt` 与能力 `promptGate`，列入 v0.1.0（功能清单
   SD-03、SD-18）；Claude Code 的提示事件可以阻断（2.1.296 本地实测），Codex 同样可以阻断
   （rust-v0.162.1 源码核对），agy 没有提示提交事件。
-- **守卫配置的传递。** v0.1.0 只透传 Claude Code 的 `userConfig`，统一接口延后（功能清单 SD-10）。
+- **守卫配置的传递。** 已由 v0.3.0 的守卫选项落实（功能清单 SD-35）：守卫在默认导出中声明选项，
+  Claude Code 写为 `userConfig` 并读取用户设置的取值，Codex 与 agy 取默认值。
 - **CodeBuddy Mods。** 是否增设 `codebuddy:in-process` 目标，取决于其 API 与 Claude Code 的
   对照结果与实测。
 - **Kiro IDE。** 命令 hook 收不到 `tool_name`（#7375、#7500），修复前 `kiro:workspace-hook`
