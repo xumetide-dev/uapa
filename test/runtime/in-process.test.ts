@@ -403,3 +403,47 @@ test('.catch：计划了执行后检查时，next 已调用也返回 { deny }，
     }
   }
 })
+
+// TA-19：以桩加载 after-tool 夹具产物中的 hooks/uapa-guard.mjs
+test('after-tool 夹具的 hooks 模块：保留、替换、扣留、出错与 next 结果含 deny（TA-19）', async () => {
+  const name = 'after-tool'
+  const registered = await withFixtureRun(name, await readCase(name), async run => {
+    assert.equal(run.exitCode, 0, run.stderr)
+    const file = join(run.project, 'dist', 'claude-code', 'hooks', 'uapa-guard.mjs')
+    return record((await import(pathToFileURL(file).href)).register)
+  })
+  const entry = only(registered, 'tool.call')
+  const e = { tool: 'Bash', tool_use_id: 't', command: 'echo uapa-after-tool-probe' }
+  const run = async (ran: unknown) => entry.hook(api('s'), e, ranWith(ran).next)
+  const bash = (stdout: string) => ({
+    ref: 'r',
+    result: { stdout, stderr: '' },
+    text: stdout,
+  })
+  const kept = bash('uapa-keep-probe\n')
+  assert.equal(await run(kept), kept)
+  const replaced = bash('uapa-replace-probe\n')
+  assert.deepEqual(await run(replaced), {
+    ...replaced,
+    result: { stdout: 'uapa-replaced\n', stderr: '' },
+  })
+  assert.deepEqual(await run(bash('uapa-withhold-probe')), {
+    deny: '扣留标记输出 uapa-withhold-probe',
+  })
+  assert.deepEqual(await run(bash('uapa-throw-probe')), {
+    deny: 'uapa: 守卫出错: 标记输出 uapa-throw-probe',
+  })
+  assert.deepEqual(await run(bash('uapa-invalid-probe')), {
+    deny: 'uapa: 守卫返回值无效',
+  })
+  const failed = { ref: 'r', result: 'Error: uapa-replace-probe', isError: true }
+  assert.deepEqual(await run(failed), { deny: 'Error: uapa-replaced' })
+  const denied = { deny: '下层拒绝', result: 'uapa-throw-probe' }
+  assert.equal(await run(denied), denied)
+  assert.ok(entry.catchHandler !== null)
+  const called = nextOf(true)
+  assert.deepEqual(await entry.catchHandler(api('s'), e, called.next), {
+    deny: 'uapa: hooks 模块出错',
+  })
+  assert.deepEqual(called.calls, [])
+})
