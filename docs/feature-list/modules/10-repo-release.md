@@ -51,5 +51,5 @@ stdout、stderr 分别与期望文件比对。入口用例以 `process.execPath`
 | `full` | skills 与守卫；守卫实现执行前（含返回 `rewrite` 的分支）、提示提交前与停机前检查，`beforeStop` 在 `continuations < 2` 时返回 `continue`，否则返回 `stop`；四个目标，默认布局 | M4、M5 之后 | US-01、US-02、F-04-02、TA-16 |
 | `merged` | 同 `full`；Claude Code 的两个目标与 Codex 写入源项目根目录（`hosts['claude-code'].dir`、`hosts.codex.dir` 为 `'.'`），Codex 设 `hooksFile`；agy 使用默认目录；源项目中另有一个无关文件 | M4、M5 之后 | US-05、TA-07 |
 | `merged-conflict` | 同 `merged`，但 Codex 不设 `hooksFile`，Claude Code 与 Codex 都生成 `hooks/hooks.json` | M4、M5 之后 | F-03-06、TA-07 |
-| `targets-filter` | 四个目标，默认布局；一个 skill 的 frontmatter 只限定 `claude-code:in-process`，另一个只限定 `codex:subprocess`；`overrides/codex/` 中的 `plugin.json` 覆盖生成文件，另有一个 `README.md` 为新增文件 | M4、M5 之后 | F-01-05、F-03-04、F-03-12、US-04 |
+| `targets-filter` | 四个目标，默认布局；一个 skill 的 frontmatter 只限定 `claude-code:in-process`，另一个只限定 `codex:subprocess`；`overrides/codex/` 中的 `.codex-plugin/plugin.json` 覆盖生成文件，另有一个 `README.md` 为新增文件 | M4、M5 之后 | F-01-05、F-03-04、F-03-12、US-04 |
 | `command-hooks` | 守卫只实现 `beforeTool`；`commandHooks` 声明一条 `SessionStart`（命令为 `node "{pluginRoot}/scripts/session.mjs"`）与一条 `SessionEnd`；四个目标，默认布局 | M4、M5 之后 | F-01-09、F-03-15、F-05-15、F-06-08、F-11-06、TA-18 |

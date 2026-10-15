@@ -13,7 +13,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | 平台 | manifest |
 |---|---|
 | Claude Code | `.claude-plugin/plugin.json`，可选，仅 `name` 必填；`hooks.json` 可含进程内 hooks 模块 |
-| Codex | 根 `plugin.json` + `extensions.com.openai`；`.codex-plugin/plugin.json` 兼容 |
+| Codex | 根 `plugin.json` + `extensions.com.openai`；`.codex-plugin/plugin.json` 兼容；0.162.1 只为兼容格式加载 hooks |
 | GitHub Copilot | 带 `$schema` 的根 `plugin.json`；另识别 Copilot、Claude、OpenPlugin 旧格式 |
 | Cursor | `.cursor-plugin/plugin.json`；根 `plugin.json` 只承载 skills 与 MCP |
 | Kiro | Power 的根 `plugin.json`；旧版 `POWER.md` |
@@ -65,6 +65,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | v0.1.0 目标的部分为实现依据；其余为设计提案 |
 | [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；UAPA v0.1.0 尚未实现 |
 | [claude-code-local-tests.md](claude-code-local-tests.md) | Claude Code 本地实测记录 | 可复现 |
+| [codex-source-review.md](codex-source-review.md) | Codex hooks 源码核对记录（rust-v0.162.1） | 源码与上游测试核对；未在宿主中运行 |
 
 平台文档中未能核实或只有社区来源的内容，在原处标注“未核实”“经搜索摘要核对”或【社区】。
 
@@ -72,7 +73,8 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 
 - 官方文档与官方仓库为主证据；源码结论注明 tag 或提交，DSH 以上游提交 `d743267388` 为准。
 - Claude Code 的部分行为以 2.1.296 本地实测为准，见 [本地实测记录](claude-code-local-tests.md)；
-  agy 的部分行为以 1.3.4 本地实测为准，见 [agy](agy-plugins.md#本地实测)。
+  agy 的部分行为以 1.3.4 本地实测为准，见 [agy](agy-plugins.md#本地实测)；Codex 的 hooks 行为以
+  rust-v0.162.1 源码核对为准，见 [Codex hooks 源码核对记录](codex-source-review.md)。
 - 社区来源标注【社区】，仅用于版本差异与实践补充。
 
 ## 维护

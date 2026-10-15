@@ -13,6 +13,10 @@ export interface HostOptions {
     dependencies?: unknown
     $schema?: string
   }
+  codex: HostDir & {
+    interface?: Readonly<Record<string, unknown>> // 写入 extensions.com.openai.interface
+    hooksFile?: string // 插件目录内的相对路径，默认 hooks/hooks.json（SD-07）
+  }
   agy: HostDir // agy 的根 plugin.json 只允许 name 与 description，没有其他宿主选项（F-11-02）
 }
 

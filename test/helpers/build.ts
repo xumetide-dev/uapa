@@ -3,9 +3,11 @@ import type { BuildOutcome } from '../../src/build/index.ts'
 import { type BuildDeps, runBuild } from '../../src/build/run.ts'
 import { agySubprocess } from '../../src/capabilities/agy-subprocess.ts'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
+import { codexSubprocess } from '../../src/capabilities/codex-subprocess.ts'
 import type { TargetCapabilities } from '../../src/capabilities/types.ts'
 import type { UapaConfig } from '../../src/config/types.ts'
 import { agy } from '../../src/targets/agy/index.ts'
+import { codex } from '../../src/targets/codex/index.ts'
 import type { HostModule } from '../../src/targets/types.ts'
 import { baseConfig, tempProject } from './project.ts'
 
@@ -27,15 +29,19 @@ export const writesManifest = fakeHost(async () => ({
   residualRisks: [{ target: TARGET, message: '宿主模块给出的风险' }],
 }))
 
-// agy 默认为真实宿主模块与能力数据；只配置 claude-code 目标的用例不会调用它
+// codex 与 agy 为真实宿主模块与能力数据；只配置 claude-code 目标的用例不会调用它们
 export function deps(
   host: HostModule = writesManifest,
   capabilities: TargetCapabilities = claudeCodeSubprocess,
   agyHost: HostModule = agy,
 ): BuildDeps {
   return {
-    hostModules: { 'claude-code': host, agy: agyHost },
-    targetCapabilities: { [TARGET]: capabilities, 'agy:subprocess': agySubprocess },
+    hostModules: { 'claude-code': host, codex, agy: agyHost },
+    targetCapabilities: {
+      [TARGET]: capabilities,
+      'codex:subprocess': codexSubprocess,
+      'agy:subprocess': agySubprocess,
+    },
     bundle: async () => {
       throw new Error('测试中不打包')
     },

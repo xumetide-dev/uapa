@@ -60,7 +60,7 @@ export interface CommandHookDecl {
 | 目标 | `{pluginRoot}` 替换为 |
 |---|---|
 | `claude-code:subprocess` | `${CLAUDE_PLUGIN_ROOT}` |
-| `codex:subprocess` | `$PLUGIN_ROOT`；命令是否经 shell 执行待 TA-15（SD-23） |
+| `codex:subprocess` | `${PLUGIN_ROOT}`（宿主在交给 shell 前替换，SD-23） |
 | `agy:subprocess` | `.`（hook 以插件目录为工作目录） |
 | `copilot-cli:subprocess`（预留） | 处理器的 `bash` 中为 `$PLUGIN_ROOT`，`powershell` 中为 `$env:PLUGIN_ROOT` |
 | `kimi:subprocess`（预留） | `.`（插件 hook 以插件根目录为工作目录） |

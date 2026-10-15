@@ -22,8 +22,8 @@
 
 - 比对模式要与实际构建清空后的结果一致：部分目标失败时按成功目标的产物计算 `removed`
   （模块接口 §8）。先写比对与写出共用的“计划写出的文件集合”，两者都从它得出。
-- 合并布局中 agy 与 Codex 的根 `plugin.json` 冲突，提示取 F-11-02 的 `conflictHint`；Codex 未设
-  `hooksFile` 时与 Claude Code 的 `hooks/hooks.json` 冲突，提示取 F-06-03 的 `conflictHint`。
+- Codex 的 manifest 为 `.codex-plugin/plugin.json`（M1-05），不与 agy 的根 `plugin.json` 冲突；Codex
+  未设 `hooksFile` 时与 Claude Code 的 `hooks/hooks.json` 冲突，提示取 F-06-03 的 `conflictHint`。
 
 ## 硬约束核对
 

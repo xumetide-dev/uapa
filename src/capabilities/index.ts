@@ -2,9 +2,11 @@
 import type { TargetName } from '../config/targets.ts'
 import { agySubprocess } from './agy-subprocess.ts'
 import { claudeCodeSubprocess } from './claude-code-subprocess.ts'
+import { codexSubprocess } from './codex-subprocess.ts'
 import type { TargetCapabilities } from './types.ts'
 
 export const targetCapabilities: Readonly<Record<TargetName, TargetCapabilities>> = {
   'claude-code:subprocess': claudeCodeSubprocess,
+  'codex:subprocess': codexSubprocess,
   'agy:subprocess': agySubprocess,
 }

@@ -210,13 +210,15 @@ export interface HostModule {
 - 宿主模块只按 `TargetPlan.checks` 决定生成哪些 hook，不读取 `guard.checks` 或能力数据推导。
   `TargetPlan.checks` 为空（未配置守卫，或检查全部被省略）时，宿主模块不为该目标生成入口；
   `checks` 与 `commandHooks` 都为空时，也不生成 hooks 配置，manifest 中不写指向它们的字段
-  （Codex 的 `extensions.com.openai.hooks`、Claude Code `hooks/hooks.json`
+  （Codex manifest 的 `hooks`、Claude Code `hooks/hooks.json`
   中该形态的键）；对象因此为空时不写该对象。同一宿主的目标都为空时不生成 `hooks/` 目录。`TargetPlan.skills` 为空时，manifest 不写指向 skills 的字段。
 - 宿主模块只读取 `config.hosts` 中本宿主的选项。JSON 文件由宿主模块序列化：键序为固定的插入
   顺序，两空格缩进，结尾换行。
 - 预留（F-03-07）：标为 `json-extensions` 的文件合并时，以宿主标识在 `src/config/targets.ts` 中排在最前的宿主
   的文件为基准，保留其键序；`extensions` 中各命名空间按字典序写出；按上一条的格式序列化。
-- `$schema` 格式的根 `plugin.json`（Codex；预留的 Copilot CLI 相同）顶层依次写 `$schema`
+- Codex 的 `.codex-plugin/plugin.json` 依次写 `name`、`version`、`description`，配置有值时写
+  `keywords`，再按需写 `hooks`、`interface`（F-06-02）。
+- `$schema` 格式的根 `plugin.json`（预留的 Copilot CLI）顶层依次写 `$schema`
   （`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`）、`name`、`version`、
   `description`，配置有值时写 `author`、`keywords`，最后写 `extensions`（没有内容时不写）；各宿主
   只在 `extensions` 的本宿主命名空间中写专有字段。

@@ -63,7 +63,7 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 |---|---|---|---|
 | `claude-code:in-process` | `claude-code-in-process.ts` | `hooks/uapa-guard.mjs`，由 `hooks/register.ts` 引入 | 不适用 |
 | `claude-code:subprocess` | `claude-code-subprocess.ts` | `hooks/uapa-claude-code.mjs` | `node "${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs" <检查名>` |
-| `codex:subprocess` | `codex-subprocess.ts` | `hooks/uapa-codex.mjs` | `node "$PLUGIN_ROOT/hooks/uapa-codex.mjs" <检查名>`；命令是否经 shell 执行待 TA-15 |
+| `codex:subprocess` | `codex-subprocess.ts` | `hooks/uapa-codex.mjs` | `node "${PLUGIN_ROOT}/hooks/uapa-codex.mjs" <检查名>`（经 shell 执行，`${PLUGIN_ROOT}` 由宿主在执行前替换） |
 | `agy:subprocess` | `agy-subprocess.ts` | `hooks/uapa-agy.mjs` | `node hooks/uapa-agy.mjs <检查名>`（以插件目录为工作目录） |
 
 预留目标（SD-26、SD-27）的入口：`copilot-cli:subprocess` 为
@@ -72,8 +72,8 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 
 - `<检查名>` 为 `before-tool`、`before-prompt` 或 `before-stop`。每个目标只有一个入口文件，各检查
   的 hook 命令只在该参数上不同；入口不读取宿主的事件名字段。
-- 不同宿主的生成文件不同名；例外是 Codex 与 agy 的根 `plugin.json`（共用插件目录时冲突，见
-  F-11-02），以及按 SD-07 处理的 hooks 配置。
+- 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
+  其他宿主的根 `plugin.json` 合并（F-11-02）。
 
 ## 3. 子进程入口
 

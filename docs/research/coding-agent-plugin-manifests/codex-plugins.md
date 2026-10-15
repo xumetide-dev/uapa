@@ -1,7 +1,8 @@
 # OpenAI Codex 插件：开发方式与 manifest
 
 本文说明 Codex 插件的组成、manifest 位置与字段、marketplace 格式、hooks 控制语义、
-`config.toml` 相关键与 CLI 命令。事实核对日期为 2026-10-13。Codex 文档已从
+`config.toml` 相关键与 CLI 命令。事实核对日期为 2026-10-13；manifest 与 hooks 的加载、输入与
+输出另按 rust-v0.162.1 源码核对（2026-10-14），见「源码核对（rust-v0.162.1）」。Codex 文档已从
 `developers.openai.com/codex/*` 308 重定向到 `learn.chatgpt.com/docs/*`；
 插件打包参考页仍在 `developers.openai.com/plugins/build/plugins` [X2]。
 其他平台见 [Claude Code](claude-code-plugins.md)、[OpenCode](opencode-plugins.md)。
@@ -18,6 +19,9 @@
   - **`.codex-plugin/plugin.json`**：兼容回退，旧包继续可用。
   - 根 `plugin.json` 中存在 `extensions.com.openai` 对象时，整体替代
     `.codex-plugin/plugin.json` 作为 OpenAI 专有设置的来源，两者不合并。
+  - 0.162.1 不为根 `plugin.json`（AgentPlugin 格式）的插件加载任何 hooks，含
+    `extensions.com.openai.hooks` 与默认 `hooks/hooks.json`；只有兼容 manifest 的插件加载 hooks
+    （源码核对）。
 
 ## 目录布局
 
@@ -99,7 +103,8 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   `SessionStart`、`SessionEnd` [X7]。
 - 运行 hook 需要持久化的 hook 信任（trust）；`--dangerously-bypass-hook-trust` 可临时绕过 [X7]。
 - 插件携带的生命周期 hooks 只对在 Codex 桌面端手动安装的插件生效，含 hooks 的插件不能
-  进入公开目录 [X2]。
+  进入公开目录 [X2]。0.162.1 源码中 TUI、`codex exec` 与 app-server 走同一加载路径，未见按
+  客户端区分的条件（源码核对，推断）。
 - hook 进程环境中没有 `CODEX_*` 会话变量，会话信息通过 stdin JSON 传入 [X7]。
 - 插件 hook 进程另有 `PLUGIN_ROOT`、`PLUGIN_DATA` 及兼容名 `CLAUDE_PLUGIN_ROOT`、
   `CLAUDE_PLUGIN_DATA`；数据目录为 `$CODEX_HOME/plugins/data/<plugin>-<marketplace>`，
@@ -116,6 +121,22 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
 | 执行后替换工具输出 | 部分：`PostToolUse` 返回 `decision: "block"` 时以反馈替换工具结果，不撤销已执行的命令；`updatedMCPToolOutput` 只解析、尚未生效 | [X7] |
 | 停机门禁 | `Stop` 返回 `decision: "block"` 时以 `reason` 作为续写提示继续本轮；任一 hook 返回 `continue: false` 时优先结束 | [X7] |
 | 进程内扩展 | 不支持，只有子进程与 MCP 工具两类处理器 | [X7] |
+
+## 源码核对（rust-v0.162.1）
+
+完整记录见 [Codex hooks 源码核对记录](codex-source-review.md)。与 UAPA 生成产物相关的结论：
+
+- 带 hooks 的插件须用兼容 manifest `.codex-plugin/plugin.json`；其 `hooks` 字段替换默认的
+  `hooks/hooks.json`。根 `plugin.json` 只在 `$schema` 为 agent-plugins 地址时优先。
+- hooks 文件为 `{ "hooks": { <事件>: [{ "matcher"?, "hooks": [<处理器>] }] } }`，根对象出现其他键
+  （如 `modules`）时整份文件不加载；处理器的超时字段为 `timeout`，单位秒。
+- 省略 matcher 时匹配全部工具；命令经 shell 执行，`${PLUGIN_ROOT}` 由 Codex 在执行前替换。
+- stdin 为 snake_case：`session_id`、`tool_name`、`tool_input`（`Bash` 为 `{ command }`）、
+  `prompt`、`stop_hook_active`。
+- 退出码 2 且 stderr 非空时阻断工具调用或提示；改写为 `hookSpecificOutput` 中的
+  `hookEventName`、`permissionDecision: "allow"` 与 `updatedInput`；`Stop` 返回
+  `decision: "block"` 与 `reason` 时继续本轮。其余失败一律放行。
+- 未信任的插件 hooks 被静默跳过；安装插件不自动信任其 hooks。
 
 ## marketplace.json
 

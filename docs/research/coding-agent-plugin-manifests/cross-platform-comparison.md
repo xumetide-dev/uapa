@@ -11,7 +11,7 @@ skills、hooks 控制能力、MCP 配置与分发方式，并给出跨平台发�
 | 平台 | 插件本质 | manifest 位置 | 必填字段 | 文档 |
 |---|---|---|---|---|
 | Claude Code | 声明式目录包；`hooks/hooks.json` 可含进程内 hooks 模块 | `.claude-plugin/plugin.json`，可选 | `name` | [链接](claude-code-plugins.md) |
-| Codex | 声明式目录包 | 根 `plugin.json`；`.codex-plugin/plugin.json` 兼容 | `name`、`version`、`description` | [链接](codex-plugins.md) |
+| Codex | 声明式目录包 | 根 `plugin.json`；`.codex-plugin/plugin.json` 兼容（0.162.1 只为兼容格式加载 hooks） | `name`、`version`、`description` | [链接](codex-plugins.md) |
 | OpenCode | JS/TS 代码模块 | 无；npm 包用 `package.json` | 不适用 | [链接](opencode-plugins.md) |
 | DSH | npm 包 + Cordis 配置层 | `package.json` 的 `dsh.bundle` + `cordis.patch.yml` | `dsh.bundle.patch` | [链接](dsh-plugins.md) |
 | Kimi Code | 声明式目录包 / zip | `kimi.plugin.json` 或 `.kimi-plugin/plugin.json` | `name` | [链接](kimi-code-plugins.md) |

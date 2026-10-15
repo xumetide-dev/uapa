@@ -1,5 +1,6 @@
 // 构建配置校验（F-01-03）：字段类型与取值由 zod 检查，宿主与目标的对应关系、
 // 插件目录的路径规则另行检查。错误给出字段路径（模块接口 §8）。
+import { posix, win32 } from 'node:path'
 import { z } from 'zod'
 import { failed, fieldPath, type InputIssue, type Loaded, loaded } from './issues.ts'
 import { checkPluginDirs, configuredHosts } from './layout.ts'
@@ -13,6 +14,24 @@ const SEMVER =
 const text = z.string().min(1, '不能为空')
 const relativeDir = text
 
+// 插件目录内的相对文件路径（模块接口 §2）：以 / 分隔，可以以 ./ 开头；不是绝对路径，
+// 不含反斜杠、..、. 与空段
+function isPluginFile(path: string): boolean {
+  if (posix.isAbsolute(path) || win32.isAbsolute(path) || path.includes('\\'))
+    return false
+  const segments = path.split('/')
+  const rest = segments[0] === '.' ? segments.slice(1) : segments
+  return rest.length > 0 && rest.every(s => s !== '' && s !== '.' && s !== '..')
+}
+
+// 空字符串只报“不能为空”
+const pluginFile = z
+  .string()
+  .min(1, { error: '不能为空', abort: true })
+  .refine(isPluginFile, {
+    error: '应为插件目录内以 / 分隔的相对文件路径，不得为绝对路径或含 ..',
+  })
+
 const hostOptionSchemas: { [H in HostName]: z.ZodType<HostOptions[H]> } = {
   'claude-code': z.strictObject({
     dir: relativeDir.optional(),
@@ -20,6 +39,11 @@ const hostOptionSchemas: { [H in HostName]: z.ZodType<HostOptions[H]> } = {
     userConfig: z.unknown().optional(),
     dependencies: z.unknown().optional(),
     $schema: text.optional(),
+  }),
+  codex: z.strictObject({
+    dir: relativeDir.optional(),
+    interface: z.record(z.string(), z.unknown()).optional(),
+    hooksFile: pluginFile.optional(),
   }),
   agy: z.strictObject({ dir: relativeDir.optional() }),
 }

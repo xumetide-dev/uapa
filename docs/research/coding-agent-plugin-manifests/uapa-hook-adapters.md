@@ -97,8 +97,8 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 - `shell` 的入参由适配器换算为 `{ command }`；其余工具的入参原样传入。`rewrite` 目前只对
   `shell` 的 `command` 做反向换算。
 - v0.1.0 的守卫接口不声明关心的工具，生成的 hooks 配置不写 matcher：每次工具调用都进入入口，
-  由守卫按规范名判断。Claude Code 省略 matcher 时匹配全部工具（2.1.296，[本地实测](claude-code-local-tests.md#命令-hooks)）；其余宿主
-  列入功能清单 TA-15 实测。日后按
+  由守卫按规范名判断。Claude Code 省略 matcher 时匹配全部工具（2.1.296，[本地实测](claude-code-local-tests.md#命令-hooks)），
+  Codex 相同（rust-v0.162.1，[源码核对](codex-source-review.md)）；其余宿主列入功能清单 TA-15 实测。日后按
   工具筛选时注意：CodeBuddy 的 matcher 不自动锚定，`Write` 也会匹配 `NotebookWrite`，需写成
   `^Write$`。
 - 宿主不提供工具名时（Kiro IDE 的命令 hook，#7375、#7500），工具以 `host:unknown` 传入，
@@ -128,13 +128,13 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 |---|---|---|---|
 | `claude-code:in-process` | `prompt.submit` | 返回 `{ drop: reason }` | [Mods 指南](claude-code-mods-guide.md) |
 | `claude-code:subprocess` | `UserPromptSubmit` | 退出码 2，原因写入 stderr；或 stdout `decision: "block"` + `reason` | [本地实测](claude-code-local-tests.md#命令-hooks) |
-| `codex:subprocess` | `UserPromptSubmit` | 待 TA-15 | — |
+| `codex:subprocess` | `UserPromptSubmit` | 退出码 2，原因写入 stderr；或 stdout `decision: "block"` + `reason` | [源码核对](codex-source-review.md) |
 | `agy:subprocess` | 无 | 宿主没有提示提交事件，`promptGate` 为不支持 | [agy](agy-plugins.md#hooks) |
 | `copilot-cli:subprocess` | `userPromptSubmitted` | 待 TA-15 | — |
 | `kimi:subprocess` | `UserPromptSubmit` | 退出码 2，原因写入 stderr | [Kimi Code](kimi-code-plugins.md) |
 
 提示文本在 stdin 中的字段名各宿主文档均未给出（含 Kimi Code；agy 没有该事件）。Claude Code
-为 `prompt`（2.1.296 本地实测）；其余宿主随 TA-15 写入调研文档与能力数据，确认前这些子进程
+与 Codex 为 `prompt`（2.1.296 本地实测；Codex 为 rust-v0.162.1 源码核对）；其余宿主随 TA-15 写入调研文档与能力数据，确认前这些子进程
 目标的 `promptGate` 记为不支持。
 
 ## 5. Claude Code 双形态去重
@@ -264,7 +264,7 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 - 超时只在字段名已核实的目标上写出，取 30 秒（agy、Copilot CLI 与 Kimi Code 的默认值）：
   agy 为 `timeout`（秒，1.3.4 实测生效），Copilot CLI 为 `timeoutSec`，Kimi Code 为
   `timeout`（秒，1～600），Claude Code 为 `timeout`（秒，2.1.296 实测生效，超时放行）。
-  Codex 的字段名待 TA-15 实测，实测前不写超时，构建报告写明沿用宿主默认值 600 秒。
+  Codex 为 `timeout`（秒，rust-v0.162.1 源码核对）。
   守卫逻辑的耗时应远低于 30 秒。
 - 在默认放行的目标上，守卫在入口无法启动时失效（例如缺少解释器），构建报告列为残余风险。
   子进程入口以 Node 运行，打包为 ES2022 ESM 单文件，见

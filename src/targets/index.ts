@@ -2,9 +2,11 @@
 import type { HostName } from '../config/targets.ts'
 import { agy } from './agy/index.ts'
 import { claudeCode } from './claude-code/index.ts'
+import { codex } from './codex/index.ts'
 import type { HostModule } from './types.ts'
 
 export const hostModules: Readonly<Record<HostName, HostModule>> = {
   'claude-code': claudeCode,
+  codex,
   agy,
 }

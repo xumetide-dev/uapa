@@ -243,7 +243,7 @@ dist/
 │                  # hooks/register.ts、hooks/uapa-guard.mjs、hooks/uapa-claude-code.mjs、
 │                  # types/index.d.ts
 ├── codebuddy/     # .codebuddy-plugin/plugin.json、hooks/hooks.json（只有 hooks）
-├── codex/         # plugin.json（extensions.com.openai）、hooks/hooks.json、
+├── codex/         # .codex-plugin/plugin.json、hooks/hooks.json、
 │                  # hooks/uapa-codex.mjs
 ├── copilot-cli/   # plugin.json（$schema 格式）、com.github.copilot/hooks/ 下的 hooks.json 与入口
 ├── cursor/        # .cursor-plugin/plugin.json、rules/、hooks/hooks.json

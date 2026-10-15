@@ -45,7 +45,9 @@ test('缺必填字段与未知字段', () => {
   assert.deepEqual(issues({ ...baseConfig, extra: 1 }), [
     { file: 'uapa.config.ts', field: 'extra', message: '未知字段' },
   ])
-  assert.deepEqual(fields({ ...baseConfig, hosts: { codex: {} } }), ['hosts.codex'])
+  assert.deepEqual(fields({ ...baseConfig, hosts: { 'copilot-cli': {} } }), [
+    'hosts.copilot-cli',
+  ])
   const unknownOption = { ...baseConfig, hosts: { 'claude-code': { foo: 1 } } }
   assert.deepEqual(fields(unknownOption), ['hosts.claude-code.foo'])
   assert.deepEqual(fields({ ...baseConfig, version: 'v1' }), ['version'])
@@ -121,4 +123,35 @@ test('默认布局的插件目录包含另一宿主的插件目录时校验失�
   assert.deepEqual(dirs('plugins/claude', 'plugins/agy'), [])
   // 两个宿主解析为同一目录时为合并布局（F-03-06），不按默认布局检查
   assert.deepEqual(dirs('plugins', 'plugins'), [])
+})
+
+// 承接 M1-02 验收 §7 第 2 行：hooksFile 只能是插件目录内的相对文件路径
+test('hosts.codex.hooksFile 为绝对路径、含 .. 或空段时校验失败', () => {
+  const codex = (hooksFile: unknown) => ({
+    ...baseConfig,
+    targets: ['codex:subprocess'],
+    hosts: { codex: { hooksFile } },
+  })
+  const invalid = [
+    '/abs/hooks.json',
+    'C:/hooks.json',
+    '../hooks.json',
+    'hooks/../../x.json',
+    'hooks\\x.json',
+    'hooks/',
+    './',
+    '.',
+    '',
+  ]
+  for (const path of invalid) {
+    assert.deepEqual(fields(codex(path)), ['hosts.codex.hooksFile'], path)
+  }
+  assert.match(issues(codex('../x.json'))[0]?.message ?? '', /不得为绝对路径或含 \.\./)
+  for (const path of ['hooks/codex.json', './hooks/codex.json', 'codex-hooks.json']) {
+    assert.deepEqual(fields(codex(path)), [], path)
+  }
+  assert.deepEqual(
+    fields({ ...codex('h.json'), hosts: { codex: { interface: 'x' } } }),
+    ['hosts.codex.interface'],
+  )
 })
