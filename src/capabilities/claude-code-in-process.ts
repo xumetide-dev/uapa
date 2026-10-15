@@ -21,7 +21,8 @@ export const claudeCodeInProcess: TargetCapabilities = {
     mcp: 'package',
     hooks: 'package',
     // commands/<name>.md 以 /<插件名>:<文件名> 调用，frontmatter 中的 targets 不影响加载
-    // （claude-code-local-tests.md「commands 与 userConfig」，2026-10-15 实测）
+    // （claude-code-local-tests.md「commands 与 userConfig」，2026-10-15 实测；UAPA 产物的
+    // 复测见同文「UAPA 夹具产物」）
     commands: 'package',
     // 插件没有规则组件，插件根的 CLAUDE.md 不作为上下文加载（claude-code-plugins.md）
     rules: 'none',

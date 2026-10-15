@@ -244,5 +244,5 @@ claude -p "<提示>" --plugin-dir ./after-tool-probe --permission-mode default -
 ```
 
 ```bash
-printf '%s' '{"maxLength":"64"}' | claude plugin configure guard-options@<marketplace> --values-stdin
+echo '{"maxLength":"64"}' | claude plugin configure guard-options@<marketplace> --values-stdin
 ```

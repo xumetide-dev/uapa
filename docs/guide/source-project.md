@@ -92,7 +92,8 @@ globs: ["*.ts", "src/**/*.tsx"]
   丢弃。
 - 只有 agy 承载 rules：`activation` 依次换为 `trigger: always_on`、`model_decision`、`glob`，
   `globs` 写为以 `,` 连接的一个字符串。agy 按文件的绝对路径匹配，含 `/` 的模式加 `**/` 前缀
-  （`src/**/*.tsx` 写为 `**/src/**/*.tsx`），因此也匹配其他位置的同名目录，构建报告写为残余风险。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
+  （`src/**/*.tsx` 写为 `**/src/**/*.tsx`），因此也匹配其他位置的同名目录，构建报告写为
+  残余风险。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
   的规则在它们的构建报告 `skipped` 中写为 `rules/<name>.md`。
 
 ## commands

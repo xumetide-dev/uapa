@@ -17,8 +17,9 @@ export const agySubprocess: TargetCapabilities = {
     agents: 'package',
     mcp: 'package',
     hooks: 'package',
-    // rules/<name>.md 的 trigger 与逗号分隔的 globs 生效（agy-plugins.md「rules（1.3.5，容器）」，
-    // 2026-10-15 实测）；插件没有斜杠命令组件（agy-plugins.md [A1]）
+    // rules/<name>.md 的 trigger 与逗号分隔的 globs 生效，globs 按文件的绝对路径匹配
+    // （agy-plugins.md「rules（1.3.5，容器）」，2026-10-15 实测；UAPA 产物的复测见同文「UAPA
+    // 夹具产物（1.3.5，容器）」）；插件没有斜杠命令组件（agy-plugins.md [A1]）
     rules: 'package',
     commands: 'none',
   },

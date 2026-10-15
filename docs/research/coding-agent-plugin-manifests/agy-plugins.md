@@ -225,6 +225,10 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | 停机继续 | 同一会话；副本在 UAPA 的 `Stop` hook 之后另挂记录用的 hook | 模型作答三次（继续两次）后结束，计数文件归零；记录用的 hook 只在最后一次停机时运行，stdin 含 `conversationId`、`terminationReason`、`transcriptPath` 等字段，工作目录为安装后的插件目录 |
 | agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | 安装报告 2 个 agents 与 3 个 mcpServers（`launcher` 已由 UAPA 跳过）；会话列出子代理 `agy-helper`、`reviewer` 与服务器 `components_docs`；桩服务器的工作目录为安装后的插件目录，`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data` |
 | `agents.json` 并存 | 插件含 `agents/a.md` 与 `extra/b.md`，`agents.json` 分别写 `[{"path": "extra"}]`、`{"agents": [{"path": "extra"}]}` 与 `["extra"]` | 三种写法下会话都只列出 `agents/a.md` 的子代理；`agy plugin list --json` 同样只列出 `a.md`（这三种写法都不是 agy 的格式） |
+| rules：`always_on` | `rules-commands` 产物；提示不调用工具，要求逐字引用适用的规则 | 回复引用 `回复使用中文，代码标识符保持英文。`，并以中文作答 |
+| rules：`model_decision` | 提示为设计 HTTP API，允许读取规则文件 | 模型读取 `api-design.md` 并引用正文（`路径用名词复数`、`错误响应含 code 与 message`） |
+| rules：`glob`（修正前） | `globs: "*.ts,src/**/*.tsx"`；分别读取 `a.ts` 与 `src/ui/b.tsx` 后要求引用适用的规则 | 读取 `a.ts` 后规则正文出现；读取 `src/ui/b.tsx` 后不出现，原因见下文「rules（1.3.5，容器）」中的路径匹配 |
+| rules：`glob`（修正后） | `globs: "*.ts,**/src/**/*.tsx"`；同上，另有读取 `c.txt` 的对照会话 | 读取 `a.ts` 与 `src/ui/b.tsx` 后规则正文都出现，对照会话中不出现。读取 `src/ui/b.tsx` 的会话给出回复后进程未退出，结束该进程后测试继续 |
 | `agents.json` 的 `entries` | 三个插件各含 `agents/uapa-probe-a<n>.md` 与 `extra/` 下的 `uapa-probe-b<n>.md`、`uapa-probe-c<n>.md`；`agents.json` 分别写 `{"entries": [{"path": "extra"}]}`、加 `"include_only": ["uapa-probe-b2"]`（子代理名）与 `"include_only": ["uapa-probe-b3.md"]`（文件名） | 会话列出 `a1`～`a3`、`b1`～`b3` 与 `c1`（省略前缀 `uapa-probe-`），不列 `c2`、`c3`：`entries` 中的目录被加载，`include_only` 按两种写法都只保留命中的项；`agy plugin list --json` 只列出 `a1`～`a3` |
 
 ### `Stop` 的超时与无效输出（1.3.5，容器）

@@ -43,7 +43,7 @@
 
 | 角色 | 结论 | 路径 | 发现 | 修复建议 | 关闭条件 |
 |---|---|---|---|---|---|
-| P-01 | PASS | US-01～US-08、US-18～US-20 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04） | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败 | [TA-15](technical-acceptance.md) 通过 |
+| P-01 | PASS | US-01～US-08、US-18～US-20 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04）；US-19 的 rules 与 commands 已在 agy 与 Claude Code 会话中生效，agy 按绝对路径匹配 `globs`，含目录的模式生成时加 `**/` 前缀（TA-24） | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败 | [TA-15](technical-acceptance.md) 通过 |
 | P-02 | PASS | US-09～US-11 | 安装、门禁比对与升级路径闭合；npm 12 默认禁止 git 依赖，README「安装」一节已写明 `allow-git=root`（M1-08） | 发布 v0.1.0 时在 README 写明安装方式与 npm 的 `allow-git` 设置 | README 的安装一节含 `github:xumetide-dev/uapa#vX.Y.Z` 写法、npm 12 的 `allow-git` 设置与 pnpm 安装命令 |
 | P-03 | PASS | US-12～US-13 | 能力数据更新与发布路径闭合；夹具比对与安装冒烟承接回归 | — | — |
-| P-04 | RISK | US-14～US-17、US-21 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测 | 完成 TA-15 实测 | TA-15 通过 |
+| P-04 | RISK | US-14～US-17、US-21 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测；US-21 的设置路径已在 Claude Code 2.1.296 中实测，两种形态在设置前后分别读到默认值与设置的值（TA-24） | 完成 TA-15 实测 | TA-15 通过 |
