@@ -59,6 +59,9 @@ npm install -D github:xumetide-dev/uapa#v0.2.0
 
 ## 阅读顺序
 
+使用 UAPA 构建插件时先读[帮助文档](docs/guide/README.md)：快速上手、源项目结构、构建配置、
+编写守卫、安装与分发、常见错误。以下是设计与实现的文档：
+
 1. [架构](docs/architecture/architecture.md)：术语、v0.1.0 目标、模块与依赖方向、构建调用顺序、
    目录结构、发布方式。
 2. [模块接口](docs/architecture/module-interfaces.md)：构建配置字段、宿主模块接口、能力数据、
