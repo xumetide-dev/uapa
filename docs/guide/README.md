@@ -1,7 +1,7 @@
 # UAPA 帮助文档
 
 本目录说明怎样用 UAPA 从一份源项目构建 Claude Code、Codex 与 Antigravity CLI（agy）的插件：
-写源项目、配置目标、编写守卫、构建与检查、在宿主中安装。内容对应 v0.3.0。
+写源项目、配置目标、编写守卫、构建与检查、在宿主中安装。内容对应 v0.4.0。
 
 字段、文件位置与退出码的权威定义在[架构文档](../architecture/architecture.md)与
 [模块接口](../architecture/module-interfaces.md)，宿主行为的出处在
@@ -13,7 +13,7 @@
 | 页面 | 回答的问题 | 读者 |
 |---|---|---|
 | [快速上手](getting-started.md) | 安装 UAPA，从最小的源项目构建出三个宿主的插件，并在宿主中加载 | 插件作者 |
-| [源项目结构](source-project.md) | skills、agents、MCP 服务器与覆盖文件放在哪里，各宿主怎样承载 | 插件作者 |
+| [源项目结构](source-project.md) | skills、agents、rules、commands、MCP 服务器、共用文件与覆盖文件放在哪里，各宿主怎样承载 | 插件作者 |
 | [构建配置](configuration.md) | `uapa.config.ts` 的字段、宿主选项与两种产物布局 | 插件作者 |
 | [编写守卫](guards.md) | 执行前、提示提交前、执行后与停机前检查的写法、约束与测试 | 插件作者 |
 | [命令 hooks](command-hooks.md) | 不经守卫、原样写入宿主 hooks 配置的命令 | 插件作者 |
@@ -38,7 +38,7 @@
 |---|---|
 | 宿主 | 加载插件的编码代理：`claude-code`、`codex`、`agy` |
 | 目标 | `<宿主>:<形态>`，如 `codex:subprocess`；`subprocess` 为每个事件启动一个 Node 子进程的命令 hooks，`in-process` 为 Claude Code 的 hooks 模块 |
-| 源项目 | 插件作者维护的目录：`uapa.config.ts`、skills、agents、MCP 服务器、守卫逻辑与覆盖文件 |
+| 源项目 | 插件作者维护的目录：`uapa.config.ts`、skills、agents、rules、commands、MCP 服务器、守卫逻辑、共用文件与覆盖文件 |
 | 插件目录 | 一个宿主的安装命令接收的目录；默认为 `dist/<宿主>`，同一宿主的目标写入同一目录 |
 | 守卫 | 插件在工具调用、提示提交与停机前做出的放行、拒绝、改写或阻断判断；由 `guard` 指定的文件实现 |
 | 能力 | 目标能否改写入参、替换或扣留输出、阻止停机、拦截提示；缺少时决策降级或不生成对应 hook |

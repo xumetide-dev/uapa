@@ -2,9 +2,8 @@
 
 本文按扩展机制对编码代理插件分层，用一个守卫插件示例说明
 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 的写法与各宿主上的
-结果，并给出现有插件迁移到 UAPA 的步骤。UAPA 的技术选型已接受，v0.1.0 尚未实现；公共类型与
-配置以 [模块接口](../../architecture/module-interfaces.md) 与 [功能清单](../../feature-list/README.md)
-为准，文中代码为示意写法。
+结果，并给出现有插件迁移到 UAPA 的步骤。公共类型与配置以 [模块接口](../../architecture/module-interfaces.md)、
+[帮助文档](../../guide/README.md) 与 [功能清单](../../feature-list/README.md) 为准，文中代码为示意写法。
 各宿主的事实见 [跨平台对比](cross-platform-comparison.md)。
 
 ## 1. 扩展形态分层
@@ -70,7 +69,7 @@ export default guard
 
 ### 各目标上的结果
 
-按 [UAPA hooks 适配](uapa-hook-adapters.md) 第 4、6 节推导，未实测：
+按 [UAPA hooks 适配](uapa-hook-adapters.md) 第 4、6 节：
 
 | 目标 | 拒绝 | 改写 `npm install` | 扣留输出 |
 |---|---|---|---|
@@ -78,7 +77,7 @@ export default guard
 | `codex:subprocess` | 生效 | 生效 | 生效：以反馈替换结果 |
 | `copilot-cli:subprocess`、`codebuddy:subprocess`、`opencode:in-process` | 生效 | 生效 | 生效 |
 | `dsh:cordis` | 生效 | 按 `fallbackReason` 拒绝 | 生效 |
-| `cursor:subprocess`、`kimi:subprocess`、`kiro:workspace-hook` | — | — | 不产出：缺少 `withholdOutput` |
+| `agy:subprocess`、`cursor:subprocess`、`kimi:subprocess`、`kiro:workspace-hook` | — | — | 不产出：缺少 `withholdOutput`（若从 `requires` 中去掉 `withholdOutput`，`agy:subprocess` 的拒绝与改写生效，执行后检查记为残余风险） |
 
 扣留发生在命令执行之后，命令的副作用不会撤销。需要在执行前拦下可能输出密钥的命令时，
 在 `beforeTool` 中按命令判断。

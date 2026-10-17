@@ -108,8 +108,8 @@ marketplace 文件一起提交进仓库，使用者按各宿主的方式从 git 
   Codex 读取 `.agents/plugins/marketplace.json` 并安装 Codex 产物；若只配置 Claude Code（未生成
   `.agents/plugins/marketplace.json`），不要在 Codex 中添加该 marketplace，否则 Codex 会把
   Claude Code 的插件目录当作 Codex 插件安装。
-- 要让仓库根目录本身就是 Claude Code 与 Codex 的插件，使用
-  [合并布局](configuration.md#合并布局)并设 `marketplace.dir: '.'`。
+- 要让仓库根目录本身就是 Claude Code、Codex 与 agy 的插件，使用
+  [合并布局](configuration.md#合并布局)并设 `marketplace.dir: '.'`（agy 默认写入 `.antigravity-plugin/plugin.json`，三个宿主的 manifest 在同一目录中并存）。
 - 在安装说明中写明 Codex 的信任步骤与 Node ≥ 22 的要求。
 
 字段与来源类型见各宿主调研：

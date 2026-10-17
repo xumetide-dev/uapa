@@ -57,18 +57,7 @@ export function checkPluginDirs(
     const field =
       config.hosts?.[host]?.dir === undefined ? 'outDir' : `hosts.${host}.dir`
     const shown = displayPath(root, dir.path)
-    const covers = (other: string) => dir.path === other || isInside(dir.path, other)
-    const conflicts: string[] = []
-    if (covers(root)) conflicts.push('源项目根目录')
-    if (covers(outDir)) conflicts.push(`outDir（${displayPath(root, outDir)}）`)
-    for (const other of dirs) {
-      if (other !== dir && covers(other.path)) {
-        conflicts.push(
-          `${other.hosts.join('、')} 的插件目录（${displayPath(root, other.path)}）`,
-        )
-      }
-    }
-    for (const what of conflicts) {
+    for (const what of dirConflicts(dir, dirs, root, outDir)) {
       issues.push({
         file,
         field,
@@ -77,4 +66,24 @@ export function checkPluginDirs(
     }
   }
   return issues
+}
+
+function dirConflicts(
+  dir: PluginDir,
+  dirs: readonly PluginDir[],
+  root: string,
+  outDir: string,
+): string[] {
+  const covers = (other: string) => dir.path === other || isInside(dir.path, other)
+  const conflicts: string[] = []
+  if (covers(root)) conflicts.push('源项目根目录')
+  if (covers(outDir)) conflicts.push(`outDir（${displayPath(root, outDir)}）`)
+  for (const other of dirs) {
+    if (other !== dir && covers(other.path)) {
+      conflicts.push(
+        `${other.hosts.join('、')} 的插件目录（${displayPath(root, other.path)}）`,
+      )
+    }
+  }
+  return conflicts
 }

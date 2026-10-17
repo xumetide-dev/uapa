@@ -176,6 +176,14 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 const HOOK_FAILED_REASON = "uapa: hooks 模块出错";
 function register(on, options) {
 	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options), null);
+	registerSessionEnv(on);
+	on("tool.call", ($, e, next) => toolCall($, e, next, context)).catch((_$, e, next) => {
+		if (!next.called) return { deny: HOOK_FAILED_REASON };
+		return next(e);
+	});
+	on("prompt.submit", ($, e, next) => beforePrompt($, e, next, context)).catch((_$, e, next) => next.called ? next(e) : { drop: HOOK_FAILED_REASON });
+}
+function registerSessionEnv(on) {
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_HOST_COVERAGE", await $.session.id());
 		return next(e);
@@ -188,11 +196,6 @@ function register(on, options) {
 		await $.env.set("UAPA_MODULE_SESSION_HOST_COVERAGE", await startedSessionId($, e));
 		return next(e);
 	});
-	on("tool.call", ($, e, next) => toolCall($, e, next, context)).catch((_$, e, next) => {
-		if (!next.called) return { deny: HOOK_FAILED_REASON };
-		return next(e);
-	});
-	on("prompt.submit", ($, e, next) => beforePrompt($, e, next, context)).catch((_$, e, next) => next.called ? next(e) : { drop: HOOK_FAILED_REASON });
 }
 async function startedSessionId($, e) {
 	const started = e.session_id;

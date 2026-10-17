@@ -161,7 +161,7 @@ export interface SourceProject {
 }
 
 // src/runtime/core/types.ts（F-02-01），不由包入口导出；v0.2.0 增加 'afterTool'
-export type GuardCheck = 'beforeTool' | 'beforePrompt' | 'beforeStop'
+export type GuardCheck = 'beforeTool' | 'beforePrompt' | 'beforeStop' | 'afterTool'
 
 // src/source/guard.ts
 export interface GuardDeclaration {
@@ -188,9 +188,9 @@ export interface GuardDeclaration {
   `mcpServers.docs.args[0]`。
 - v0.4.0（F-01-13、F-01-15）：本地服务器可写 `envVars`，为服务器需要从会话环境取得的变量名，非空、
   元素匹配 `^[A-Za-z_][A-Za-z0-9_]*$` 且不重复；远程服务器写 `envVars` 时返回 `InputIssue`，`field`
-  写到元素，如 `mcpServers.docs.envVars[1]`。本地与远程服务器均可写可选的 `targets`（非空、不重复，
-  只含已登记的目标名，规则同 F-01-05；未写时 `targets` 为 `null`），违反时返回 `InputIssue`，`field`
-  如 `mcpServers.docs.targets[0]`（SD-49）。
+  为 `mcpServers.<name>.envVars`（数组内元素不合规时写到元素，如 `mcpServers.docs.envVars[1]`）。本地
+  与远程服务器均可写可选的 `targets`（非空、不重复，只含已登记的目标名，规则同 F-01-05；未写时不出现
+  该字段），违反时返回 `InputIssue`，`field` 如 `mcpServers.docs.targets[0]`（SD-49）。
 - v0.4.0（F-01-12）：`files/` 只列出文件，不读取内容；复制由构建编排完成，见
   [写出、比对与退出码](build-output.md)。
 - rules 与 commands（v0.3.0）只读各自目录下一层的 `.md` 文件，其他项忽略；`<name>` 只含字母、

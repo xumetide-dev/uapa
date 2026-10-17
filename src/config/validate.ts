@@ -3,16 +3,17 @@
 // （模块接口 §8）。
 import { posix, win32 } from 'node:path'
 import { z } from 'zod'
+import {
+  commandHook,
+  noDuplicateTargets,
+  targetName,
+  unconfiguredHookTargets,
+} from './command-hooks.ts'
 import { failed, fieldPath, type InputIssue, type Loaded, loaded } from './issues.ts'
 import { checkPluginDirs, configuredHosts } from './layout.ts'
 import { checkMarketplace } from './marketplace.ts'
-import { HOSTS, type HostName, TARGETS } from './targets.ts'
-import {
-  COMMAND_HOOK_EVENTS,
-  type HostOptions,
-  MANIFEST_RESERVED_KEYS,
-  type UapaConfig,
-} from './types.ts'
+import { HOSTS, type HostName } from './targets.ts'
+import { type HostOptions, MANIFEST_RESERVED_KEYS, type UapaConfig } from './types.ts'
 
 // semver 2.0.0 规范给出的正则
 const SEMVER =
@@ -78,42 +79,6 @@ const hostOptionSchemas: { [H in HostName]: z.ZodType<HostOptions[H]> } = {
       .optional(),
   }),
 }
-
-const targetName = z.enum(TARGETS, {
-  error: issue => `未知目标名 ${JSON.stringify(issue.input)}`,
-})
-
-// 列表中第二次及以后出现的目标各记一条
-function noDuplicateTargets(targets: readonly string[], ctx: z.RefinementCtx): void {
-  targets.forEach((target, index) => {
-    if (targets.indexOf(target) !== index) {
-      ctx.addIssue({ code: 'custom', path: [index], message: `重复的目标 ${target}` })
-    }
-  })
-}
-
-// 命令 hooks 声明（命令 hooks 声明第 1 节）：matcher 等字段按未知字段拒绝
-const commandHook = z.strictObject({
-  event: z.enum(COMMAND_HOOK_EVENTS, {
-    error: issue => `未知事件 ${JSON.stringify(issue.input)}`,
-  }),
-  command: z
-    .string()
-    .min(1, { error: '不能为空', abort: true })
-    .refine(command => !command.includes('\n') && !command.includes('\r'), {
-      error: '应为单行，不能含换行',
-    }),
-  targets: z
-    .array(targetName)
-    .min(1, '至少列出一个目标')
-    .superRefine(noDuplicateTargets)
-    .optional(),
-  timeout: z
-    .number({ error: '应为正整数' })
-    .int('应为正整数')
-    .positive('应为正整数')
-    .optional(),
-})
 
 const configSchema = z.strictObject({
   name: text,
@@ -189,17 +154,4 @@ export function validateConfig(
   issues.push(...checkPluginDirs(config, root, file))
   issues.push(...checkMarketplace(config, root, file))
   return issues.length > 0 ? failed(issues) : loaded(config)
-}
-
-// 命令 hooks 声明的 targets 只能含已配置的目标
-function unconfiguredHookTargets(config: UapaConfig, file: string): InputIssue[] {
-  const issues: InputIssue[] = []
-  for (const [index, hook] of (config.commandHooks ?? []).entries()) {
-    for (const [at, target] of (hook.targets ?? []).entries()) {
-      if (config.targets.includes(target)) continue
-      const field = `commandHooks[${index}].targets[${at}]`
-      issues.push({ file, field, message: `${target} 不在 targets 中` })
-    }
-  }
-  return issues
 }

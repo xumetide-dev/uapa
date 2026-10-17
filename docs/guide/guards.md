@@ -130,7 +130,7 @@ export default guard
 | `{ kind: 'deny', reason }` | 拒绝，代理读到 `reason` |
 | `{ kind: 'rewrite', input, fallbackReason }` | 以新入参执行；目前只对 `shell` 的 `command` 做反向换算 |
 
-宿主不能改写入参时，`rewrite` 按 `fallbackReason` 拒绝，构建报告记为降级。v0.3.0 的三个宿主
+宿主不能改写入参时，`rewrite` 按 `fallbackReason` 拒绝，构建报告记为降级。v0.4.0 的三个宿主
 都能改写入参。
 
 ## 提示提交前检查 `beforePrompt`
@@ -159,7 +159,7 @@ export default guard
 `continuations` 是连续返回 `continue` 的次数，返回 `stop` 时清零；用它给强制继续设上限，否则
 代理可能一直无法结束。上例每轮最多继续一次。
 
-- 宿主自身的上限：Claude Code 为连续 8 次；Codex 与 agy 的文档未写明。
+- 宿主自身的上限：Claude Code 为连续 8 次；agy 为连续 10 次（1.3.5 实测，可由用户配置）；Codex 在 rust-v0.162.1 中不设上限。
 - agy 没有插件数据目录，计数存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时计数归零。
 
 ## 守卫选项
@@ -208,7 +208,7 @@ export default {
 
 ## 能力缺失时的处理
 
-| 能力 | 含义 | 缺少的目标（v0.3.0） | 未列入 `requires` 时 |
+| 能力 | 含义 | 缺少的目标（v0.4.0） | 未列入 `requires` 时 |
 |---|---|---|---|
 | `rewriteInput` | 改写工具入参 | 无 | `rewrite` 按 `fallbackReason` 拒绝，记为降级 |
 | `replaceOutput` | 替换工具输出 | `codex:subprocess`、`agy:subprocess` | `replace` 按扣留写出，记为降级 |
@@ -228,7 +228,10 @@ uapa: agy:subprocess: 守卫的 requires 声明了 promptGate，本目标缺少�
   按拒绝处理，停机前检查不阻止结束，执行后检查扣留输出。守卫选项的取值无效时同样处理，不调用
   守卫。
 - 入口无法启动（如宿主机器缺少 Node ≥ 22）、崩溃或超时时，由宿主的默认行为决定：Claude Code
-  与 Codex 放行；agy 的执行前检查阻断，停机前检查照常结束。构建报告把“放行”的情况列为残余风险。
+  默认放行（在 `hosts['claude-code'].onFailure` 设为 `'block'` 时，`claude-code:subprocess` 的
+  `PreToolUse` 与 `UserPromptSubmit` 条目写入 `onFailure: "block"`，Claude Code 2.1.295+ 在入口
+  无法启动、崩溃或超时时阻断）；Codex 放行；agy 的执行前检查阻断，停机前检查照常结束。构建报告把
+  “放行”的情况列为残余风险。
 
 出处与宿主版本见
 [hooks 适配 §7](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#7-失败处理)。
@@ -265,5 +268,5 @@ test('把 npm install 改写为 pnpm install', async () => {
 node --test guard.test.ts
 ```
 
-测试文件不在 `skills/`、`agents/` 与 `overrides/` 中，不会进入插件目录。宿主中的端到端效果在
-安装后的会话中确认，见[安装与分发](install.md)。
+测试文件不在 `skills/`、`agents/`、`rules/`、`commands/`、`files/` 与 `overrides/` 中，不会进入
+插件目录。宿主中的端到端效果在安装后的会话中确认，见[安装与分发](install.md)。

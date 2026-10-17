@@ -73,29 +73,3 @@ export function readTargets(
   })
   return value.filter(isTargetName)
 }
-
-// mcp/servers.json 的服务器级 targets（F-01-15，SD-49）：非空、不重复、只含已登记目标名；
-// 未写为 null，校验不通过为 false
-export function readMcpTargets(
-  value: unknown,
-  field: string,
-  issue: (field: string, message: string) => void,
-): readonly TargetName[] | null | false {
-  if (value === undefined) return null
-  if (!Array.isArray(value) || value.length === 0) {
-    issue(field, '应为非空的目标名列表')
-    return false
-  }
-  let ok = true
-  value.forEach((target, index) => {
-    const first = value.indexOf(target)
-    if (!isTargetName(target)) {
-      issue(`${field}[${index}]`, `未知目标名 ${JSON.stringify(target)}`)
-      ok = false
-    } else if (first < index) {
-      issue(`${field}[${index}]`, `与 ${field}[${first}] 重复`)
-      ok = false
-    }
-  })
-  return ok ? (value as TargetName[]) : false
-}

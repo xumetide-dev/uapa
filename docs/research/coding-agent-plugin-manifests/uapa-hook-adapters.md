@@ -122,7 +122,7 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 | `web_fetch`、`web_search` | 抓取网页、网络搜索 |
 | `subagent`、`todo` | 启动子代理、待办列表 |
 
-- 不在映射表中的工具以 `host:<原名>` 传入，例如 `host:NotebookEdit`、`host:MCP:query`。
+- 不在映射表中的工具以 `host:<原名>` 传入，例如 `host:ToolSearch`、`host:MCP:query`。
 - 宿主把编辑与新建合为一个工具时（Codex 的 `apply_patch`、Cursor 的 `Write`），换算为
   `edit_file`。守卫逻辑对文件写入的检查应同时覆盖 `edit_file` 与 `write_file`。
 - `shell` 的入参由适配器换算为 `{ command }`；其余工具的入参原样传入。`rewrite` 目前只对
@@ -188,9 +188,10 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 | `stopGate` | Cursor、OpenCode、Kiro IDE | 声明需要时构建失败；否则不生成停机事件的 hook，并在构建报告中写明残余风险：停机不受检查 |
 | `promptGate` | 能力数据记为不支持的目标（见第 4 节提示提交前检查表） | 声明需要时构建失败；否则不生成提示事件的 hook，并在构建报告中写明残余风险：提示不受检查 |
 
-停机门禁没有统一的次数上限：Claude Code 与 Copilot CLI 为连续 8 次，DSH 与 CodeBuddy 没有，
-Codex、Kimi Code 与 agy 的文档未写明。`continuations` 由适配器按会话保存，`beforeStop` 返回
-`continue` 时加 1、返回 `stop` 时清零；插件据此自行设上限。
+停机门禁没有统一的次数上限：Claude Code 与 Copilot CLI 为连续 8 次，agy 为连续 10 次（1.3.5 实测，
+可由用户配置），Codex（rust-v0.162.1 源码核对）、DSH 与 CodeBuddy 没有上限，Kimi Code 的文档未写明。
+`continuations` 由适配器按会话保存，`beforeStop` 返回 `continue` 时加 1、返回 `stop` 时清零；插件据此
+自行设上限。
 
 ## 7. 失败处理
 
@@ -221,11 +222,11 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 | `codebuddy:subprocess` | 放行 | 60 秒 |
 | `opencode:in-process`、`dsh:cordis` | 抛错即阻断 | 不适用 |
 
-- 超时只在字段名已核实的目标上写出，取 30 秒（agy、Copilot CLI 与 Kimi Code 的默认值）：
-  agy 为 `timeout`（秒，1.3.4 实测生效），Copilot CLI 为 `timeoutSec`，Kimi Code 为
-  `timeout`（秒，1～600），Claude Code 为 `timeout`（秒，2.1.296 实测生效，超时放行）。
-  Codex 为 `timeout`（秒，rust-v0.162.1 源码核对）。
-  守卫逻辑的耗时应远低于 30 秒。
+- 超时只在字段名已核实的目标上写出，守卫条目与 `always` 规则条目取 30 秒（agy、Copilot CLI 与 Kimi Code
+  的默认值），声明的命令 hooks 取 `hook.timeout ?? 30`（Codex 的 `SessionEnd` 上限 3 秒，写
+  `Math.min(hook.timeout ?? 30, 3)`，SD-48）：agy 为 `timeout`（秒，1.3.4 实测生效），Copilot CLI 为
+  `timeoutSec`，Kimi Code 为 `timeout`（秒，1～600），Claude Code 为 `timeout`（秒，2.1.296 实测生效，超时
+  放行），Codex 为 `timeout`（秒，rust-v0.162.1 源码核对）。守卫逻辑的耗时应远低于 30 秒。
 - 在默认放行的目标上，守卫在入口无法启动时失效（例如缺少解释器），构建报告列为残余风险。
   子进程入口以 Node 运行，打包为 ES2022 ESM 单文件，见
   [ARCH-001](../../architecture/ARCH-001-agent-plugin-build-tool.md)。

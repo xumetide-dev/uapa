@@ -57,10 +57,10 @@
 
 ### 1. 配置、MCP 读取与守卫公共类型（`src/config/`、`src/source/`、`src/runtime/core/`）
 
-- `src/config/types.ts`、`src/config/validate.ts`（F-01-15）：
+- `src/config/types.ts`、`src/config/validate.ts`、`src/config/command-hooks.ts`（F-01-15）：
   - `CommandHookDecl` 增加 `readonly timeout?: number`，校验为正整数（`Number.isInteger(n) && n >= 1`），违反时返回 `InputIssue`（`field: 'commandHooks[i].timeout'`）。
   - `hosts.agy` 增加 `readonly manifest?: 'plugin.json' | '.antigravity-plugin/plugin.json'`，校验取值。
-- `src/source/types.ts`、`src/source/mcp.ts`（F-01-15）：
+- `src/source/types.ts`、`src/source/mcp.ts`、`src/source/mcp-fields.ts`（F-01-15）：
   - `McpServer` 增加 `readonly targets: readonly TargetName[] | null`，按 F-01-05 规则校验 `targets`（非空、不重复、只含已登记的目标名），违反时返回 `InputIssue`（`field: 'mcpServers.<name>.targets...'`）。
 - `src/runtime/core/types.ts`、`src/runtime/core/options.ts`（F-02-06、F-04-10）：
   - `GuardContext` 增加 `readonly cwd: string | null`。
@@ -90,7 +90,7 @@
   - Codex 在 `sharedWith` 非空且本目标无写出服务器时，若 `plan.mcpServers.length > 0` 或 `input.hasMcpServers === true`，manifest 仍写 `"mcpServers": {}`。
 - agy 的 manifest 位置与合并布局残余风险（F-11-15）：
   - `manifestPath = input.config.hosts?.agy?.manifest ?? (input.sharedWith.length > 0 ? '.antigravity-plugin/plugin.json' : 'plugin.json')`。
-  - 移除与 Claude Code 共用目录时“安装转换未实测”的残余风险；与 Codex 共用目录且 `manifestPath === 'plugin.json'` 时写残余风险说明 Codex 优先读取根 `plugin.json` 而不加载任何 hooks。
+  - 移除与 Claude Code 共用目录时“安装转换未实测”的残余风险；与 Codex 共用目录且 `manifestPath === 'plugin.json'` 时由 `src/targets/agy/risks.ts` 写残余风险说明 Codex 优先读取根 `plugin.json` 而不加载任何 hooks。
 
 ### 4. 夹具与帮助文档（`test/fixtures/`、`docs/guide/`）
 
@@ -110,7 +110,7 @@
   - `test/config/validate.test.ts`：`commandHooks[i].timeout` 非整数、`<= 0` 报错，正整数通过；`hosts.agy.manifest` 非法值报错，两个合法值通过。
   - `test/source/mcp.test.ts`：`mcpServers.<name>.targets` 为空、重复、未知目标名报错，合法目标列表通过。
   - `test/build/checks.test.ts` 与 `test/build/components.test.ts`：MCP `targets` 过滤与不承载目标显式指定时报错；`dir: '.'` 时源项目 `rules/<name>.md` 与生成文件同路径冲突报错。
-  - `test/targets/codex.test.ts`、`test/targets/agy.test.ts`、`test/targets/claude-code.test.ts`：命令 hooks 自定义 `timeout`、Codex `SessionEnd` `timeout <= 3` 与 `> 3`、MCP `${user_config.<KEY>}` 剥离与 `env_vars` 并入、agy 默认与合并布局 manifest 路径。
+  - `test/targets/codex.test.ts`、`test/targets/agy.test.ts`、`test/targets/claude-code.test.ts`、`test/targets/merged-manifest-and-guard-cwd.test.ts`：命令 hooks 自定义 `timeout`、Codex `SessionEnd` `timeout <= 3` 与 `> 3`、MCP `${user_config.<KEY>}` 剥离与 `env_vars` 并入、agy 默认与合并布局 manifest 路径。
   - `test/runtime/subprocess.test.ts` 与 `test/bundle/bundle.test.ts`：三个子进程入口提取 `cwd`（含缺失/空串退化为 `null`）、子进程守卫导入 `node:fs` / `node:path` 打包通过、`claude-code:in-process` 守卫导入 `node:fs` 打包失败。
 - 夹具：`merged`、`command-hooks`、`host-coverage` 比对与入口用例通过。
 

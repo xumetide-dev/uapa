@@ -154,7 +154,7 @@ stdin 为 camelCase 字段的 JSON [A2]：
 
 | 事件 | 字段 |
 |---|---|
-| 全部 | `conversationId`、`workspacePaths`、`transcriptPath`、`artifactDirectoryPath`、`modelName` |
+| 全部 | `conversationId`、`workspacePaths`（UAPA 取 `workspacePaths[0]` 作为 `GuardContext.cwd`）、`transcriptPath`、`artifactDirectoryPath`、`modelName` |
 | `PreToolUse` | `toolCall.name`、`toolCall.args`、`stepIdx` |
 | `PostToolUse` | 同 `PreToolUse`，另有 `error`；不含工具输出 |
 | `Stop` | `executionNum`、`terminationReason`（`model_stop`、`max_steps_exceeded`、`error`）、`error`、`fullyIdle` |

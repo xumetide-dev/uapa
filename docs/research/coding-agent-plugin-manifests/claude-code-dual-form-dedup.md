@@ -14,7 +14,8 @@
     "PreToolUse": [{
       "hooks": [{
         "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs\" before-tool"
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs\" before-tool",
+        "timeout": 30
       }]
     }]
   },

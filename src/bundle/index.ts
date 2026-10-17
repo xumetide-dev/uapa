@@ -61,49 +61,56 @@ function checkDefines(request: BundleRequest): Record<string, string> {
 
 export async function bundle(request: BundleRequest): Promise<string> {
   const allowed = ALLOWED[request.external]
+  const define = {
+    __UAPA_PLUGIN_NAME__: JSON.stringify(request.data.pluginName),
+    __UAPA_MODULE_SESSION_ENV__: JSON.stringify(request.data.moduleSessionEnv),
+    ...checkDefines(request),
+  }
   const build = await rolldown({
     input: entryPath(request.entry),
     // hooks 模块运行在没有 Node 的环境中，node: 导入不视为内置模块，由下方检查拒绝
     platform: request.external === 'node' ? 'node' : 'neutral',
     external: id => allowed.test(id),
     plugins: [virtualModules(request)],
-    transform: {
-      target: 'es2022',
-      define: {
-        __UAPA_PLUGIN_NAME__: JSON.stringify(request.data.pluginName),
-        __UAPA_MODULE_SESSION_ENV__: JSON.stringify(request.data.moduleSessionEnv),
-        ...checkDefines(request),
-      },
-    },
+    transform: { target: 'es2022', define },
     // 不写 //#region 注释：注释含模块路径，产物须与本机路径无关
     experimental: { attachDebugInfo: 'none' },
     // 警告不写到构建器的终端输出；无法解析的导入保留为外部导入，由下方检查拒绝
     onLog: () => {},
   })
   try {
-    const { output } = await build.generate({
+    const gen = await build.generate({
       format: 'esm',
       comments: false,
       codeSplitting: false,
     })
-    const [chunk, ...rest] = output
-    if (chunk === undefined || chunk.type !== 'chunk' || rest.length > 0) {
-      throw new Error('打包结果不是单个文件')
-    }
-    const imports = [...chunk.imports, ...chunk.dynamicImports]
-    const disallowed = [...new Set(imports.filter(id => !allowed.test(id)))].sort()
-    if (disallowed.length > 0) {
-      throw new Error(
-        `打包结果含不允许的外部导入：${disallowed.join('、')}（只允许 ${allowed.label}）`,
-      )
-    }
-    // 未替换的打包时名称（如 __UAPA_CHECKS__[name] 这类写法）在宿主中是未定义的标识符
-    const left = BUNDLE_NAMES.filter(name => chunk.code.includes(name))
-    if (left.length > 0) {
-      throw new Error(`打包结果含未替换的打包时名称：${left.join('、')}`)
-    }
-    return chunk.code
+    return verifyOutput(gen.output, allowed)
   } finally {
     await build.close()
   }
+}
+
+function verifyOutput(
+  output: Awaited<
+    ReturnType<Awaited<ReturnType<typeof rolldown>>['generate']>
+  >['output'],
+  allowed: (typeof ALLOWED)[BundleRequest['external']],
+): string {
+  const [chunk, ...rest] = output
+  if (chunk === undefined || chunk.type !== 'chunk' || rest.length > 0) {
+    throw new Error('打包结果不是单个文件')
+  }
+  const imports = [...chunk.imports, ...chunk.dynamicImports]
+  const disallowed = [...new Set(imports.filter(id => !allowed.test(id)))].sort()
+  if (disallowed.length > 0) {
+    throw new Error(
+      `打包结果含不允许的外部导入：${disallowed.join('、')}（只允许 ${allowed.label}）`,
+    )
+  }
+  // 未替换的打包时名称（如 __UAPA_CHECKS__[name] 这类写法）在宿主中是未定义的标识符
+  const left = BUNDLE_NAMES.filter(name => chunk.code.includes(name))
+  if (left.length > 0) {
+    throw new Error(`打包结果含未替换的打包时名称：${left.join('、')}`)
+  }
+  return chunk.code
 }

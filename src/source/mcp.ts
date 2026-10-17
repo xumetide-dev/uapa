@@ -5,24 +5,26 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
 import { compare } from './files.ts'
-import { readMcpTargets } from './frontmatter.ts'
+import {
+  type Fields,
+  type Issue,
+  isEnvVarList,
+  isRecord,
+  isText,
+  isTextList,
+  isTextMap,
+  noPluginRoot,
+  readMcpTargets,
+} from './mcp-fields.ts'
 import type { McpServer } from './types.ts'
 
 const FILE = 'mcp/servers.json'
-const PLUGIN_ROOT = '{pluginRoot}'
 const LOCAL_FIELDS = ['command', 'args', 'env']
 const REMOTE_FIELDS = ['url', 'headers']
 // 只用于本地服务器；不参与本地与远程的判断，远程服务器写它时单独报错
 const ENV_VARS = 'envVars'
 const TARGETS_FIELD = 'targets'
 const SERVER_NAME = /^[A-Za-z0-9_-]+$/
-const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
-
-type Fields = Readonly<Record<string, unknown>>
-
-function isRecord(value: unknown): value is Fields {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 export async function readMcpServers(
   root: string,
@@ -57,8 +59,7 @@ async function readText(path: string): Promise<string | InputIssue | null> {
 }
 
 function readServers(value: unknown, issues: InputIssue[]): McpServer[] {
-  const issue = (field: string | null, message: string) =>
-    issues.push({ file: FILE, field, message })
+  const issue: Issue = (field, message) => issues.push({ file: FILE, field, message })
   if (!isRecord(value)) {
     issue(null, '顶层应为对象')
     return []
@@ -78,8 +79,6 @@ function readServers(value: unknown, issues: InputIssue[]): McpServer[] {
   }
   return servers
 }
-
-type Issue = (field: string | null, message: string) => void
 
 function readServer(name: string, config: unknown, issue: Issue): McpServer | null {
   const at = `mcpServers.${name}`
@@ -148,57 +147,4 @@ function readRemote(name: string, config: Fields, issue: Issue): McpServer | nul
       : { headers: { ...(headers as Record<string, string>) } }),
     ...(targets === null ? {} : { targets }),
   }
-}
-
-function isText(value: unknown, field: string, issue: Issue): value is string {
-  if (typeof value === 'string' && value.trim() !== '') return true
-  issue(field, '应为非空字符串')
-  return false
-}
-
-function isTextList(value: unknown, field: string, issue: Issue): boolean {
-  if (!Array.isArray(value)) {
-    issue(field, '应为字符串数组')
-    return false
-  }
-  const bad = value.flatMap((item, index) => (typeof item === 'string' ? [] : [index]))
-  for (const index of bad) issue(`${field}[${index}]`, '应为字符串')
-  return bad.length === 0
-}
-
-function isTextMap(value: unknown, field: string, issue: Issue): boolean {
-  if (!isRecord(value)) {
-    issue(field, '应为字符串到字符串的映射')
-    return false
-  }
-  const bad = Object.keys(value).filter(key => typeof value[key] !== 'string')
-  for (const key of bad) issue(`${field}.${key}`, '应为字符串')
-  return bad.length === 0
-}
-
-// 非空；每个元素为变量名且不重复，错误写到元素
-function isEnvVarList(value: unknown, field: string, issue: Issue): boolean {
-  if (!Array.isArray(value) || value.length === 0) {
-    issue(field, '应为非空的字符串数组')
-    return false
-  }
-  let ok = true
-  for (const [index, item] of value.entries()) {
-    const first = value.indexOf(item)
-    if (typeof item !== 'string' || !ENV_VAR_NAME.test(item)) {
-      issue(`${field}[${index}]`, '应为变量名：以字母或 _ 开头，只含字母、数字、_')
-      ok = false
-    } else if (first < index) {
-      issue(`${field}[${index}]`, `与 ${field}[${first}] 重复`)
-      ok = false
-    }
-  }
-  return ok
-}
-
-// 远程服务器的地址与请求头不经插件目录解析，不能引用插件根
-function noPluginRoot(text: string, field: string, issue: Issue): boolean {
-  if (!text.includes(PLUGIN_ROOT)) return true
-  issue(field, '远程服务器不能使用 {pluginRoot}')
-  return false
 }

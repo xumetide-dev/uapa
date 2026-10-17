@@ -33,6 +33,15 @@ export function commandSkips(
     const name = skillName(command.name)
     byName.set(name, [...(byName.get(name) ?? []), command])
   }
+  skipped.push(...checkGroupedCommands(byName, skip))
+  return skipped.sort((a, b) => compare(a.component, b.component))
+}
+
+function checkGroupedCommands(
+  byName: ReadonlyMap<string, readonly Command[]>,
+  skip: (command: Command, reason: string) => TargetSkip,
+): TargetSkip[] {
+  const skipped: TargetSkip[] = []
   for (const [name, same] of byName) {
     if (same.length > 1) {
       const paths = same.map(command => `commands/${command.name}.md`).sort(compare)
@@ -48,7 +57,7 @@ export function commandSkips(
       skipped.push(skip(command, reason))
     }
   }
-  return skipped.sort((a, b) => compare(a.component, b.component))
+  return skipped
 }
 
 function unsupportedReason(command: Command): string | null {

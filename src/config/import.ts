@@ -44,18 +44,27 @@ function importIssue(error: unknown, path: string, root: string): InputIssue {
   }
   // 相对导入缺 .ts 扩展名：url 指向不存在的模块，补上 .ts 后存在
   if (e.code === 'ERR_MODULE_NOT_FOUND' && typeof e.url === 'string') {
-    const missing = e.url.startsWith('file:') ? fileURLToPath(e.url) : e.url
-    const importer = message.split(' imported from ')[1]?.trim()
-    const file = displayPath(root, importer && existsSync(importer) ? importer : path)
-    if (existsSync(`${missing}.ts`)) {
-      const target = displayPath(root, missing)
-      return { file, field: null, message: `相对导入缺少 .ts 扩展名：${target}` }
-    }
-    return {
-      file,
-      field: null,
-      message: `找不到导入的模块：${displayPath(root, missing)}`,
-    }
+    return missingModuleIssue(e.url, message, path, root)
   }
   return { file: displayPath(root, path), field: null, message: `导入失败：${message}` }
+}
+
+function missingModuleIssue(
+  url: string,
+  message: string,
+  path: string,
+  root: string,
+): InputIssue {
+  const missing = url.startsWith('file:') ? fileURLToPath(url) : url
+  const importer = message.split(' imported from ')[1]?.trim()
+  const file = displayPath(root, importer && existsSync(importer) ? importer : path)
+  if (existsSync(`${missing}.ts`)) {
+    const target = displayPath(root, missing)
+    return { file, field: null, message: `相对导入缺少 .ts 扩展名：${target}` }
+  }
+  return {
+    file,
+    field: null,
+    message: `找不到导入的模块：${displayPath(root, missing)}`,
+  }
 }

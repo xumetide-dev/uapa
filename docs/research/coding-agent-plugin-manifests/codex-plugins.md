@@ -146,7 +146,7 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
 - hooks 文件为 `{ "hooks": { <事件>: [{ "matcher"?, "hooks": [<处理器>] }] } }`，根对象出现其他键
   （如 `modules`）时整份文件不加载；处理器的超时字段为 `timeout`，单位秒。
 - 省略 matcher 时匹配全部工具；命令经 shell 执行，`${PLUGIN_ROOT}` 由 Codex 在执行前替换。
-- stdin 为 snake_case：`session_id`、`tool_name`、`tool_input`（`Bash` 为 `{ command }`）、
+- stdin 为 snake_case：`session_id`、`cwd`、`tool_name`、`tool_input`（`Bash` 为 `{ command }`）、
   `prompt`、`stop_hook_active`。
 - 退出码 2 且 stderr 非空时阻断工具调用或提示；改写为 `hookSpecificOutput` 中的
   `hookEventName`、`permissionDecision: "allow"` 与 `updatedInput`；`Stop` 返回

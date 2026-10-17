@@ -92,7 +92,7 @@ function hooksConfigFile(
   return [{ path: HOOKS_FILE, content: json(content) }]
 }
 
-// 两个目标的服务器相同（MCP 服务器没有 targets）；取并集，按名称排序
+// 取两个目标经 targets 过滤后的服务器并集，按名称排序
 function mcpFile(plans: readonly TargetPlan[]): OutputFile[] {
   const servers = new Map(plans.flatMap(plan => plan.mcpServers.map(s => [s.name, s])))
   const sorted = [...servers.values()].sort((a, b) => compare(a.name, b.name))
@@ -120,22 +120,12 @@ async function buildClaudeResult(
     ...mcpFile(input.plans),
     ...rules.files,
   ]
-  const residualRisks = [
-    ...claudeCodeRisks(input, {
-      subprocess,
-      inProcess,
-      moduleWritten: hooksModule !== null,
-    }),
-    ...rules.risks,
-  ]
+  const moduleWritten = hooksModule !== null
+  const hostRisks = claudeCodeRisks(input, { subprocess, inProcess, moduleWritten })
+  const residualRisks = [...hostRisks, ...rules.risks]
   const marketplaces = marketplaceFiles(input)
-  return {
-    ok: true,
-    files,
-    skipped: [],
-    residualRisks,
-    ...(marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }),
-  }
+  const extra = marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }
+  return { ok: true, files, skipped: [], residualRisks, ...extra }
 }
 
 export const claudeCode: HostModule = {

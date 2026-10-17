@@ -12,6 +12,11 @@ import type { SourceProject } from './types.ts'
 
 export { readGuard } from './guard.ts'
 
+function val<T>(loaded: Loaded<T>): T {
+  if (!loaded.ok) throw new Error('unreachable')
+  return loaded.value
+}
+
 export async function readSource(
   config: UapaConfig,
   root: string,
@@ -23,35 +28,18 @@ export async function readSource(
   const mcpServers = await readMcpServers(root)
   const overrides = await readOverrides(config, root)
   const files = await readSharedFiles(root)
-  if (
-    !skills.ok ||
-    !agents.ok ||
-    !rules.ok ||
-    !commands.ok ||
-    !mcpServers.ok ||
-    !overrides.ok ||
-    !files.ok
-  ) {
-    const issues = [
-      ...(skills.ok ? [] : skills.issues),
-      ...(agents.ok ? [] : agents.issues),
-      ...(rules.ok ? [] : rules.issues),
-      ...(commands.ok ? [] : commands.issues),
-      ...(mcpServers.ok ? [] : mcpServers.issues),
-      ...(overrides.ok ? [] : overrides.issues),
-      ...(files.ok ? [] : files.issues),
-    ]
-    return { ok: false, issues }
-  }
-  const value = {
+  const parts = [skills, agents, rules, commands, mcpServers, overrides, files]
+  const issues = parts.flatMap(part => (part.ok ? [] : part.issues))
+  if (issues.length > 0) return { ok: false, issues }
+  const value: SourceProject = {
     root,
-    skills: skills.value,
-    agents: agents.value,
-    mcpServers: mcpServers.value,
-    rules: rules.value,
-    commands: commands.value,
-    overrides: overrides.value,
-    files: files.value,
+    skills: val(skills),
+    agents: val(agents),
+    mcpServers: val(mcpServers),
+    rules: val(rules),
+    commands: val(commands),
+    overrides: val(overrides),
+    files: val(files),
   }
   return { ok: true, value }
 }

@@ -38,12 +38,12 @@ Kiro、CodeBuddy、OpenCode、DSH）的设计见
 | 守卫声明 | 构建时从守卫逻辑的默认导出读出的 `name`、`requires` 与已实现的检查（`GuardDeclaration`，模块接口 §3）；不是单独的文件 |
 | 命令 hooks 声明 | 配置 `commandHooks` 中原样声明、不经守卫逻辑的命令；由子进程目标换为宿主事件名后写入 hooks 配置（[命令 hooks 声明](command-hooks.md)） |
 | 检查 | 守卫逻辑实现的方法：执行前检查 `beforeTool`、提示提交前检查 `beforePrompt`、停机前检查 `beforeStop`、执行后检查 `afterTool`（v0.2.0）。构建时的能力检查、字段白名单检查、宿主校验、`uapa build --check` 的比对与功能清单的关系检查都不属于这里的“检查” |
-| 决策 | 检查的返回值：`BeforeTool` 为 allow、deny、rewrite，`BeforePrompt` 为 allow、block，`BeforeStop` 为 stop、continue；“决策输出”指入口把决策写成宿主协议要求的退出码、stdout 与 stderr |
+| 决策 | 检查的返回值：`BeforeTool` 为 allow、deny、rewrite，`BeforePrompt` 为 allow、block，`BeforeStop` 为 stop、continue，`AfterTool` 为 keep、replace、withhold（v0.2.0）；“决策输出”指入口把决策写成宿主协议要求的退出码、stdout 与 stderr |
 | 规范名 | 守卫看到的统一工具名，如 `shell`、`edit_file`（hooks 适配第 3 节）；能力数据的 `toolNames` 把宿主工具名换算为规范名 |
 | 能力 | `Capability` 的取值，如 `rewriteInput`、`stopGate`、`promptGate`；守卫在 `requires` 中列出必需的能力 |
 | 停机门禁 | 能力 `stopGate`：停机前检查返回 `continue` 时，宿主不结束本轮；“停机继续”指该决策的输出 |
 | 能力数据 | 每个目标一个 `TargetCapabilities` 数据模块，带宿主版本、核对日期与出处 |
-| 目标数据 | 打包时注入入口的 `TargetRuntimeData`（插件名、工具名映射、能力、去重变量名），由宿主模块从能力数据与配置得出；入口不导入能力数据模块 |
+| 目标数据 | 打包时注入入口的 `TargetRuntimeData`（插件名、工具名映射、能力、去重变量名与 v0.3.0 起的守卫选项），由宿主模块从能力数据与配置得出；入口不导入能力数据模块 |
 | 入口 | 宿主调用的产物文件。子进程目标为 `hooks/uapa-<宿主>.mjs`；`claude-code:in-process` 为 `hooks/register.ts`，它只引入守卫文件 `hooks/uapa-guard.mjs`。入口源码指 `src/runtime/entries/<宿主>-<形态>.ts`，由 `bundle` 打包为入口或守卫文件。与包入口 `src/index.ts` 不同 |
 | 产物 | 一次构建为各目标生成的文件，即各插件目录的内容；不含构建报告 `<outDir>/uapa-report.json` |
 | 插件目录 | 宿主安装命令接收的一个目录，即插件包。默认每个宿主一个；同一宿主的多个目标写入同一插件目录 |
@@ -87,8 +87,8 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 
 1. `cli` 解析命令，调用 `config` 加载并校验 `uapa.config.ts`，再调用 `build`（模块接口 §8）。
 2. `build` 调用 `source` 读取源项目的组件（skills；v0.2.0 起有 agents 与 MCP 服务器，v0.3.0 起
-   有 rules 与 commands）、frontmatter 与 `overrides/<宿主>/`，并导入守卫逻辑、读取守卫声明与
-   选项；读取失败时返回输入错误，不构建任何目标。
+   有 rules 与 commands）、frontmatter、v0.4.0 起的共用文件列表 `files/` 与 `overrides/<宿主>/`，
+   并导入守卫逻辑、读取守卫声明与选项；读取失败时返回输入错误，不构建任何目标。
 3. `build` 经 `src/capabilities/index.ts` 取得每个已配置目标的能力数据，检查组件承载、守卫
    能力与命令 hooks 声明的事件承载，得出跳过项、降级项与失败的目标。
 4. `build` 经 `src/targets/index.ts` 按宿主调用 `targets/<host>`，只传入通过检查的目标。
@@ -111,15 +111,16 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 | `source` | 读取源项目组件、覆盖目录与守卫声明 | `config`（类型与目标名列表）、`runtime/core` 的类型、yaml、zod | 只读，不写文件 |
 | `build` | 能力检查、按宿主调用宿主模块、放置 skills、agents、commands 与覆盖文件、产物布局与合并、写出与比对、调用宿主校验、写出构建报告 | `config`、`source`、`runtime/core` 的类型、`capabilities`（只经 `src/capabilities/index.ts` 与 `types.ts`）、`targets`（只经 `src/targets/index.ts` 与 `src/targets/types.ts`）、`bundle`、`report` | 不包含宿主格式知识；守卫 `requires` 中的能力目标不具备时该目标失败，其余缺失按 [hooks 适配 §6](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#6-能力缺失时的处理) 降级或记为残余风险；只写入各宿主的插件目录、`<outDir>/uapa-report.json` 与 v0.4.0 起的 marketplace 文件：默认布局写入前清空该宿主的插件目录，合并布局不删除目录中的其他文件；`--check` 模式不写文件 |
 | `capabilities` | 各目标的能力数据 | `config` 与 `runtime/core` 的类型 | 只含数据；每个模块写明宿主版本、核对日期与出处 |
-| `targets/<host>` | 生成一个宿主的产物文件；有可靠宿主校验命令的宿主实现 `verify`（v0.1.0 为 Claude Code），其余宿主在生成时做字段白名单检查 | `src/targets/types.ts`；`config`、`source`、`runtime/core`、`capabilities` 与 `bundle` 的类型；yaml | `generate` 不读写磁盘，文件交给 `build` 写出；只为传入的目标生成；能力数据只经 `TargetPlan` 取得；打包经 `build` 传入的函数调用 `bundle`；宿主模块之间互不引用 |
+| `targets/<host>` | 生成一个宿主的产物文件；有可靠宿主校验命令的宿主实现 `verify`（v0.1.0 为 Claude Code），其余宿主在生成时做字段白名单检查 | `src/targets/types.ts`、`src/targets/rule-skills.ts`；`config`、`source`（类型及纯辅助函数 `compare`、`runtimeOptions`）、`runtime/core`、`capabilities` 与 `bundle` 的类型；yaml | `generate` 不读写磁盘，文件交给 `build` 写出；只为传入的目标生成；能力数据只经 `TargetPlan` 取得；打包经 `build` 传入的函数调用 `bundle`；宿主模块之间互不引用 |
 | `runtime/core` | 公共类型、目标数据类型、工具名换算、守卫返回值检查、守卫选项取值的解析 | 无 | 不做 I/O，不引用 Node 类型，由 `tsconfig.runtime-core.json` 检查 |
 | `runtime/entries` | 各目标的入口源码与决策输出 | `runtime/core`；打包时注入的 `uapa:guard` 与 `uapa:target-data`；子进程入口源码另用 `node:` 内置模块；`claude-code-in-process.ts` 另用 `'claude-code'` | `<宿主>-<形态>.ts` 之间互不导入；`claude-code-in-process.ts` 不导入 `subprocess.ts` 与 `node:` 模块，不引用 Node 全局（如 `process`、`Buffer`），与 `runtime/core` 一起由 `tsconfig.runtime-core.json` 检查；收口全部异常：执行前与提示提交前检查按拒绝输出，停机前检查不阻止结束，执行后检查按扣留输出 |
 | `bundle` | 调用 rolldown；`src/bundle/types.ts` 定义打包请求 | rolldown；`runtime/core` 的类型 | 仓库中唯一调用打包器的模块；在内存中生成单文件，不写文件；产物不导入 npm 包 |
 | `report` | 构建报告的类型与终端摘要文本 | 无 | 不读写文件；由 `build` 填充并写出；报告写入能力数据的核对日期 |
 
 `src/targets/types.ts` 只引用 `config`、`source`、`runtime/core`、`capabilities` 与 `bundle` 的类型；
-`src/targets/index.ts` 只导入各宿主模块。两者由功能模块 03 维护，宿主模块只导入 `types.ts` 与
-宿主无关的共用生成函数（`rule-skills.ts`，见[宿主模块接口](host-module-interface.md)）。
+`src/targets/index.ts` 只导入各宿主模块。两者由功能模块 03 维护，宿主模块只导入 `types.ts`、
+宿主无关的共用生成函数（`rule-skills.ts`，见[宿主模块接口](host-module-interface.md)）及 `source`
+中的无副作用纯函数（`compare`、`runtimeOptions`）。
 
 全局约束：
 
@@ -135,11 +136,12 @@ uapa/
 │   ├── index.ts             公共导出
 │   ├── cli/
 │   ├── config/              含 targets.ts：目标名与宿主标识；layout.ts：插件目录解析；
-│   │                        marketplace.ts：marketplace 目录
-│   ├── source/              含 guard.ts：读取守卫声明
-│   ├── build/               含 placement.ts：各宿主的文件表与同路径冲突
+│   │                        marketplace.ts：marketplace 目录；command-hooks.ts：命令 hooks 校验
+│   ├── source/              含 guard.ts：读取守卫声明；mcp.ts / mcp-fields.ts：MCP 声明校验
+│   ├── build/               含 placement.ts：各宿主的文件表与同路径冲突；merge.ts：JSON 合并；
+│   │                        marketplace.ts：marketplace 文件规划与比对
 │   ├── capabilities/        types.ts、index.ts 与每个目标一个数据模块
-│   ├── targets/             types.ts、index.ts 与 claude-code/、codex/、agy/
+│   ├── targets/             types.ts、index.ts、rule-skills.ts 与 claude-code/、codex/、agy/
 │   ├── runtime/
 │   │   ├── core/
 │   │   └── entries/         subprocess.ts、每个目标一个入口与打包时名称的类型声明
@@ -153,7 +155,10 @@ uapa/
 │   ├── architecture/        本文、模块接口（含宿主模块接口与写出比对两个子页）、入口与打包接口、
 │   │                        构建报告、命令 hooks 声明、选型文档
 │   ├── feature-list/        功能清单
-│   └── research/coding-agent-plugin-manifests/   宿主调研与设计提案
+│   ├── guide/               面向插件作者与 UAPA 开发者的帮助文档
+│   ├── research/coding-agent-plugin-manifests/   宿主调研与设计提案
+│   ├── workorders/          各 Sprint 施工单
+│   └── acceptance/          各 Sprint 验收记录与收口索引
 ├── dist/                    只出现在发布提交中
 ├── package.json
 ├── tsconfig.json

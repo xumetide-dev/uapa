@@ -63,20 +63,28 @@ export function userConfig(
     ]
   })
   if (errors.length > 0) return { ok: false, errors }
-  const written = guardOptions.map(option => [
-    option.name,
-    {
-      type: option.type,
-      title: option.title,
-      description: option.description,
-      default: option.default,
-    },
-  ])
-  return { ok: true, value: { ...own, ...Object.fromEntries(written) } }
+  const written = Object.fromEntries(guardOptions.map(guardOptionEntry))
+  return { ok: true, value: { ...own, ...written } }
+}
+
+function guardOptionEntry(option: GuardOptionDecl): readonly [string, unknown] {
+  const { type, title, description, default: def } = option
+  return [option.name, { type, title, description, default: def }]
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function authorField(author: UapaConfig['author']): Record<string, unknown> {
+  if (author === undefined) return {}
+  return {
+    author: {
+      name: author.name,
+      ...(author.email === undefined ? {} : { email: author.email }),
+      ...(author.url === undefined ? {} : { url: author.url }),
+    },
+  }
 }
 
 // 键序固定；未配置的可选字段不写。types 为 hooks 模块的类型契约路径（F-05-07），
@@ -88,22 +96,13 @@ export function manifest(
   userConfigValue: unknown,
 ): Record<string, unknown> {
   const options = config.hosts?.['claude-code'] ?? {}
-  const { author } = config
   return {
     ...(options.$schema === undefined ? {} : { $schema: options.$schema }),
     name: config.name,
     ...(options.displayName === undefined ? {} : { displayName: options.displayName }),
     version: config.version,
     description: config.description,
-    ...(author === undefined
-      ? {}
-      : {
-          author: {
-            name: author.name,
-            ...(author.email === undefined ? {} : { email: author.email }),
-            ...(author.url === undefined ? {} : { url: author.url }),
-          },
-        }),
+    ...authorField(config.author),
     ...(config.keywords === undefined ? {} : { keywords: config.keywords }),
     ...(options.dependencies === undefined
       ? {}

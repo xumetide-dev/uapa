@@ -120,10 +120,10 @@ pnpm exec uapa build
 全部目标成功时以退出码 0 结束，stdout 每个目标一行摘要：
 
 ```text
-成功 claude-code:in-process：跳过 0，降级 0，残余风险 0
-成功 claude-code:subprocess：跳过 0，降级 0，残余风险 2
-成功 codex:subprocess：跳过 0，降级 0，残余风险 4
-成功 agy:subprocess：跳过 0，降级 0，残余风险 1
+成功 claude-code:in-process：跳过 0，降级 0，残余风险 2
+成功 claude-code:subprocess：跳过 0，降级 0，残余风险 4
+成功 codex:subprocess：跳过 0，降级 0，残余风险 5
+成功 agy:subprocess：跳过 0，降级 0，残余风险 2
 构建报告：dist/uapa-report.json
 ```
 

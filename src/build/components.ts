@@ -79,8 +79,8 @@ export function componentPaths(
   return [...skills, ...files, ...rules]
 }
 
-// 每个目标依次记 skill、agent、command 的风险；不承载 agents 或 commands 的目标（如 Codex 之于
-// agents、agy 之于 commands）不加载对应目录，不记
+// 每个目标依次记 skill、agent、command 的风险；不承载对应组件的目标（如 Codex 之于 agents）
+// 不加载对应目录，不记
 export function recordComponentRisks(
   targets: readonly TargetState[],
   present: PlacedComponents,

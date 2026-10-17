@@ -11,7 +11,7 @@
 |---|---|
 | `src/cli/` | 命令行参数、终端输出与退出码 |
 | `src/config/` | `defineConfig`、配置加载与校验、目标名、插件目录解析 |
-| `src/source/` | 读取 skills、agents、MCP 服务器、覆盖文件与守卫声明，只读 |
+| `src/source/` | 读取 skills、agents、rules、commands、MCP 服务器、共用文件、覆盖文件与守卫声明，只读 |
 | `src/build/` | 能力检查、调用宿主模块、放置组件、合并、写出与比对、构建报告 |
 | `src/capabilities/` | 每个目标一个能力数据模块，带宿主版本、核对日期与出处 |
 | `src/targets/<宿主>/` | 生成一个宿主的 manifest、hooks 配置与 MCP 配置；Claude Code 另有宿主校验 |

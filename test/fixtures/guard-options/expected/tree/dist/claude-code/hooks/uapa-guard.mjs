@@ -200,6 +200,13 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 const HOOK_FAILED_REASON = "uapa: hooks 模块出错";
 function register(on, options) {
 	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options), null);
+	registerSessionEnv(on);
+	on("tool.call", ($, e, next) => toolCall($, e, next, context)).catch((_$, e, next) => {
+		if (!next.called) return { deny: HOOK_FAILED_REASON };
+		return next(e);
+	});
+}
+function registerSessionEnv(on) {
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_GUARD_OPTIONS", await $.session.id());
 		return next(e);
@@ -210,10 +217,6 @@ function register(on, options) {
 		"fork"
 	] }, async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_GUARD_OPTIONS", await startedSessionId($, e));
-		return next(e);
-	});
-	on("tool.call", ($, e, next) => toolCall($, e, next, context)).catch((_$, e, next) => {
-		if (!next.called) return { deny: HOOK_FAILED_REASON };
 		return next(e);
 	});
 }

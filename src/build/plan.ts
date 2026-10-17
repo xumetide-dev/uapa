@@ -15,30 +15,40 @@ export function planTargets(
   guard: GuardDeclaration | null,
   capabilities: Readonly<Record<TargetName, TargetCapabilities>>,
 ): TargetState[] {
-  return config.targets.map(target => {
-    const state = newState(target, capabilities[target])
-    const skills = planComponents(state, 'skills', source.skills)
-    const agents = planComponents(state, 'agents', source.agents)
-    const rules = planComponents(state, 'rules', source.rules)
-    const commands = planComponents(state, 'commands', source.commands)
-    const mcpServers = planMcpServers(state, source.mcpServers)
-    const checks = guard === null ? [] : planChecks(state, guard)
-    const commandHooks = planCommandHooks(state, config, capabilities)
-    if (state.errors.length === 0) {
-      state.plan = {
-        target,
-        capabilities: state.capabilities,
-        skills,
-        agents,
-        mcpServers,
-        rules,
-        commands,
-        checks,
-        commandHooks,
-      }
+  return config.targets.map(target =>
+    planTarget(target, config, source, guard, capabilities),
+  )
+}
+
+function planTarget(
+  target: TargetName,
+  config: UapaConfig,
+  source: SourceProject,
+  guard: GuardDeclaration | null,
+  capabilities: Readonly<Record<TargetName, TargetCapabilities>>,
+): TargetState {
+  const state = newState(target, capabilities[target])
+  const skills = planComponents(state, 'skills', source.skills)
+  const agents = planComponents(state, 'agents', source.agents)
+  const rules = planComponents(state, 'rules', source.rules)
+  const commands = planComponents(state, 'commands', source.commands)
+  const mcpServers = planMcpServers(state, source.mcpServers)
+  const checks = guard === null ? [] : planChecks(state, guard)
+  const commandHooks = planCommandHooks(state, config, capabilities)
+  if (state.errors.length === 0) {
+    state.plan = {
+      target,
+      capabilities: state.capabilities,
+      skills,
+      agents,
+      mcpServers,
+      rules,
+      commands,
+      checks,
+      commandHooks,
     }
-    return state
-  })
+  }
+  return state
 }
 
 interface Component {
@@ -117,6 +127,19 @@ function planChecks(state: TargetState, guard: GuardDeclaration): GuardCheck[] {
     state.errors.push(`守卫的 requires 声明了 ${capability}，本目标缺少该能力`)
   }
   if (state.errors.length > 0) return []
+  recordDegradedChecks(state, guard, supported)
+  return guard.checks.filter(check => {
+    if (check === 'beforeTool' || supported[GATE_OF_CHECK[check]]) return true
+    state.omitted.push(check)
+    return false
+  })
+}
+
+function recordDegradedChecks(
+  state: TargetState,
+  guard: GuardDeclaration,
+  supported: TargetCapabilities['capabilities'],
+): void {
   if (guard.checks.includes('beforeTool') && !supported.rewriteInput) {
     state.degraded.push({
       decision: 'rewrite',
@@ -136,11 +159,6 @@ function planChecks(state: TargetState, guard: GuardDeclaration): GuardCheck[] {
       reason: '本目标不能替换输出，replace 的 text 作为扣留说明写出',
     })
   }
-  return guard.checks.filter(check => {
-    if (check === 'beforeTool' || supported[GATE_OF_CHECK[check]]) return true
-    state.omitted.push(check)
-    return false
-  })
 }
 
 // 命令 hooks 声明的承载检查（command-hooks.md 第 4 节）：适用且本目标承载该事件的声明按声明

@@ -34,7 +34,9 @@ UAPA 不负责：
   模拟。
 - **只取共同子集。** 宿主专有组件（Claude Code 的 output styles、Cursor 的 `.mdc` 规则、
   Kimi Code 的 `systemPrompt`）通过覆盖目录 `overrides/<宿主>/` 保留在对应宿主的插件目录中。
-- **分发。** 各宿主的 marketplace 与安装命令见平台文档。
+- **分发。** 安装命令与上架流程见平台文档；v0.4.0 起配置 `marketplace` 时可一并生成 Claude Code
+  （`.claude-plugin/marketplace.json`）与 Codex（`.agents/plugins/marketplace.json`）的 marketplace
+  清单文件（SD-41）。
 
 ## 2. 与 uni-app 的对照
 
@@ -108,6 +110,7 @@ my-plugin/
 ├── rules/*.md               # 规则与指令（v0.3.0，SD-32）
 ├── agents/*.md              # 子代理定义（v0.2.0）
 ├── commands/*.md            # 斜杠命令（v0.3.0，SD-33）
+├── files/**                 # 多宿主共用的静态文件与脚本（v0.4.0，SD-37）
 ├── src/guard.ts             # 守卫逻辑（可选），默认导出 GuardPlugin
 └── overrides/<宿主>/        # 宿主专有文件，复制到该宿主的插件目录并覆盖同名文件
 ```
@@ -128,15 +131,17 @@ export default defineConfig({
 ```
 
 - v0.1.0 只读取 `uapa.config.ts`、`skills/`、守卫逻辑与 `overrides/<宿主>/`（功能模块 01、02）；
-  v0.2.0 另读取 `agents/` 与 `mcp/servers.json`（功能清单 SD-30）。
+  v0.2.0 另读取 `agents/` 与 `mcp/servers.json`（功能清单 SD-30）；v0.3.0 另读取 `rules/`、`commands/`
+  与守卫选项（SD-32～SD-35）；v0.4.0 另读取共用文件 `files/`（SD-37）。
 - 配置字段以 [模块接口 §2](../../architecture/module-interfaces.md) 为准。
 - 源文件 frontmatter 可写 `targets: [...]` 限定适用目标；未写时适用于所有能承载该组件的目标。
-- `mcp/servers.json` 只用各宿主都能表达的字段：本地服务器为 `command`、`args`、`env`，远程
-  服务器为 `url`、`headers`。路径中的插件根目录写作 `{pluginRoot}`，由宿主模块换成宿主变量，
-  如 Claude Code 的 `${CLAUDE_PLUGIN_ROOT}`、Cursor 的 `${CURSOR_PLUGIN_ROOT}`、Copilot 的
-  `${PLUGIN_ROOT}`。宿主不展开 MCP 配置中的变量时，参数与环境变量中的插件根按服务器的工作目录
-  换算，不能换算的服务器列为跳过，可在 `overrides/<宿主>/` 中提供替代配置；v0.2.0 三个宿主的
-  写法见功能清单 SD-30。
+- `mcp/servers.json` 只用各宿主都能表达的字段：本地服务器为 `command`、`args`、`env`（v0.4.0 起另可写
+  `envVars` 与可选的 `targets`），远程服务器为 `url`、`headers`（v0.4.0 起另可写可选的 `targets`）。路径中
+  的插件根目录写作 `{pluginRoot}`，由宿主模块换成宿主变量，如 Claude Code 的 `${CLAUDE_PLUGIN_ROOT}`、
+  Cursor 的 `${CURSOR_PLUGIN_ROOT}`、Copilot 的 `${PLUGIN_ROOT}`。宿主不展开 MCP 配置中的变量时，参数与
+  环境变量中的插件根按服务器的工作目录换算，不能换算的服务器列为跳过，可在 `overrides/<宿主>/` 中提供
+  替代配置；`env` 含 `${user_config.<KEY>}` 时 Claude Code 原样写出，Codex 与 agy 从生成的 `env` 中剥离并
+  由 Codex 自动将 `<KEY>` 并入 `env_vars`（SD-30、SD-40、SD-49）。
 - 守卫逻辑的写法与约束见 [UAPA hooks 适配](uapa-hook-adapters.md#1-守卫逻辑的约束)。
 
 ## 5. 构建目标
@@ -145,7 +150,7 @@ export default defineConfig({
 |---|---|---|---|
 | `claude-code:in-process` | hooks 模块（mod） | `hooks/hooks.json` 的 `"modules"` → `hooks/register.ts` | [Claude Code](claude-code-plugins.md)、[Mods 指南](claude-code-mods-guide.md) |
 | `claude-code:subprocess` | 命令 hooks | `hooks/hooks.json` 的 `"hooks"` → 子进程入口 | [Claude Code](claude-code-plugins.md) |
-| `codex:subprocess` | 命令 hooks | 插件 `hooks/hooks.json`；只对桌面端手动安装的插件生效 | [Codex](codex-plugins.md) |
+| `codex:subprocess` | 命令 hooks | `.codex-plugin/plugin.json` 与 `hooks/hooks.json` → `hooks/uapa-codex.mjs`；安装并信任 hooks 后在 TUI 与 `codex exec` 中生效（0.162.1 实测） | [Codex](codex-plugins.md) |
 | `agy:subprocess` | 命令 hooks | 根 `hooks.json` → `hooks/uapa-agy.mjs` | [agy](agy-plugins.md) |
 | `copilot-cli:subprocess` | 命令 hooks | `com.github.copilot/hooks/hooks.json`（Copilot CLI 读取的位置待 TA-15） | [GitHub Copilot](github-copilot-plugins.md) |
 | `cursor:subprocess` | 命令 hooks | `.cursor-plugin/plugin.json` 与 `hooks/hooks.json` | [Cursor](cursor-plugins.md) |
@@ -167,20 +172,21 @@ export default defineConfig({
 |---|---|---|---|---|---|---|---|---|---|---|
 | skills | 包内 | 包内 | 包内 | 包内 | 包内 | 包内 | Power 内 | 包内 | 配置目录 | 插件运行时注册 |
 | MCP | 包内 | 包内 | 包内 | 包内 | 包内 | manifest 字段 | Power 内 | 包内 | `opencode.json` | Cordis 配置 |
-| rules | 无 | 无 | 包内 | 包内 | 包内（`.mdc`） | `systemPrompt` | 工作区 steering | 无 | 配置目录 | 无 |
+| rules | 换算（技能 + SessionStart hook） | 换算（技能 + SessionStart hook） | 包内 | 包内 | 包内（`.mdc`） | `systemPrompt` | 工作区 steering | 无 | 配置目录 | 无 |
 | agents | 包内 | 无 | 包内 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
-| commands | 包内 | 包内（安装时转换为技能） | 无 | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
+| commands | 包内 | 包内（安装时转换为技能） | 包内（安装时转换为技能） | 包内 | 包内 | 包内 | 无 | 包内 | 配置目录 | 无 |
 | 命令 hooks | 包内 | 包内 | 包内 | 包内 | 包内 | manifest 字段 | 工作区 | 包内 | 无 | 兼容包（实验） |
 | 进程内 hooks | `modules` | 无 | 无 | 无 | 无 | 无 | 无 | Mods（Beta） | 插件模块 | Cordis 插件 |
 
-- “包内”指插件包可携带该组件；“配置目录”指只能放到项目或用户的配置目录，不经插件分发，
-  如 OpenCode 的 `.opencode/skills/`；“工作区”指 Power 之外单独安装到工作区的文件。“无”
-  包括平台文档未见对应组件的情况。
+- “包内”指插件包可携带该组件；“换算”指由宿主模块换算为该宿主支持的组件（Claude Code 与 Codex 在
+  v0.4.0 中把 `model`/`glob` 规则写为技能、`always` 规则写为 `SessionStart` 命令 hook，见 SD-38）；
+  “配置目录”指只能放到项目或用户的配置目录，不经插件分发，如 OpenCode 的 `.opencode/skills/`；
+  “工作区”指 Power 之外单独安装到工作区的文件。“无”包括平台文档未见对应组件的情况。
 - 目标不能承载的组件不产出，在构建报告中列为跳过；源文件 frontmatter 显式写了该目标时，
   构建失败。
-- 格式换算由宿主模块完成：rules 换成 agy 的 `trigger` 与 `globs`（v0.3.0，F-11-09）、Cursor 的
-  `.mdc`（`description`、`globs`、`alwaysApply`）、Kiro steering 的 `inclusion`、Kimi Code 的
-  `systemPrompt` 片段（单插件上限 32 KB）。
+- 格式换算由宿主模块完成：rules 换成 agy 的 `trigger` 与 `globs`（v0.3.0，F-11-09）、Claude Code 与
+  Codex 的技能与 `SessionStart` 输出脚本（v0.4.0，SD-38）、Cursor 的 `.mdc`（`description`、`globs`、
+  `alwaysApply`）、Kiro steering 的 `inclusion`、Kimi Code 的 `systemPrompt` 片段（单插件上限 32 KB）。
 
 ## 7. 构建流程
 
@@ -212,25 +218,41 @@ export default defineConfig({
 只改数据模块，字段缺失由类型检查发现（[ARCH-001](../../architecture/ARCH-001-agent-plugin-build-tool.md)）。
 
 ```ts
-// src/capabilities/codex-subprocess.ts（示意写法）
+// src/capabilities/codex-subprocess.ts
 import type { TargetCapabilities } from './types.ts'
 
 export const codexSubprocess: TargetCapabilities = {
   target: 'codex:subprocess',
-  host: { name: 'codex', version: '0.162.1', checked: '2026-10-13', source: 'codex-plugins.md' },
-  components: { skills: 'package', mcp: 'package', hooks: 'package', agents: 'none' },
+  host: { name: 'codex', version: '0.162.1', checked: '2026-10-15', source: 'codex-plugins.md' },
+  components: {
+    skills: 'package',
+    mcp: 'package',
+    hooks: 'package',
+    agents: 'none',
+    rules: 'converted',
+    commands: 'package',
+  },
   capabilities: {
-    rewriteInput: true, replaceOutput: false, withholdOutput: true, stopGate: true,
-    promptGate: false, // 待实测
+    rewriteInput: true,
+    replaceOutput: false,
+    withholdOutput: true,
+    stopGate: true,
+    promptGate: true,
   },
   failureDefault: {
     beforeTool: { error: 'allow', timeout: 'allow' },
     beforePrompt: { error: 'allow', timeout: 'allow' },
     beforeStop: { error: 'allow', timeout: 'allow' },
+    afterTool: { error: 'allow', timeout: 'allow' },
   },
-  hookTimeoutSeconds: null, // 超时字段名未核实，不写出
+  hookTimeoutSeconds: 30,
   defaultTimeoutSeconds: 600,
-  toolNames: { Bash: 'shell', apply_patch: 'edit_file', spawn_agent: 'subagent' },
+  toolNames: {
+    Bash: 'shell',
+    apply_patch: 'edit_file',
+    spawn_agent: 'subagent',
+    update_plan: 'todo',
+  },
 }
 ```
 
@@ -246,6 +268,8 @@ dist/
 ├── claude-code/   # .claude-plugin/plugin.json、hooks/hooks.json（hooks + modules）、
 │                  # hooks/register.ts、hooks/uapa-guard.mjs、hooks/uapa-claude-code.mjs、
 │                  # types/index.d.ts
+├── agy/           # plugin.json（合并布局下默认为 .antigravity-plugin/plugin.json）、
+│                  # hooks.json、hooks/uapa-agy.mjs
 ├── codebuddy/     # .codebuddy-plugin/plugin.json、hooks/hooks.json（只有 hooks）
 ├── codex/         # .codex-plugin/plugin.json、hooks/hooks.json、
 │                  # hooks/uapa-codex.mjs
@@ -257,11 +281,13 @@ dist/
 └── dsh/           # package.json（dsh.bundle）、cordis.patch.yml、插件模块
 ```
 
-- 合并布局：配置可让多个宿主写入同一插件目录（各宿主的 manifest 文件名不同，可以并存）。合并
-  规则以[模块接口](../../architecture/module-interfaces.md) §5、§8 与功能清单 F-03-06、F-03-07 为准：
-  可合并的 JSON（如 Codex 与 Copilot CLI 共用的根 `plugin.json`）按命名空间合并，其余同名文件
-  内容必须逐字一致。Claude Code 与 Codex 都生成 `hooks/hooks.json`，共用插件目录时须设置
-  `hosts.codex.hooksFile`，否则按同名文件冲突失败，构建不自动改名（功能清单 SD-07）。
+- 合并布局：配置可让多个宿主写入同一插件目录（Claude Code 用 `.claude-plugin/plugin.json`、Codex 用
+  `.codex-plugin/plugin.json`、agy 在合并布局下默认用 `.antigravity-plugin/plugin.json`，三者可在同一
+  目录中并存，SD-47）。合并规则以[模块接口](../../architecture/module-interfaces.md) §5、§8 与功能清单
+  F-03-06、F-03-07 为准：可合并的 JSON（如 Codex 与 Copilot CLI 共用的根 `plugin.json`）按命名空间合并，
+  其余同名文件内容必须逐字一致。Claude Code 与 Codex 都生成 `hooks/hooks.json`，共用插件目录时须设置
+  `hosts.codex.hooksFile`，否则按同名文件冲突失败，构建不自动改名（功能清单 SD-07）。合并布局写入源项目
+  根目录（`dir: "."`）时，构建不会将 agy 换算后的 `rules/*.md` 覆盖回源项目的 `rules/*.md`（SD-47）。
 - hooks 模块只能导入相对路径文件与 `'claude-code'`，构建时把守卫逻辑打包为模块旁的相对
   文件，不能依赖 npm 包。
 - CodeBuddy 的文档没有说明 `hooks.json` 缺少 `"hooks"` 键或含未知顶层键时的处理，生成器

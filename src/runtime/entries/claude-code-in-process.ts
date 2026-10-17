@@ -61,23 +61,7 @@ const stopContinuations = /* @__PURE__ */ atom(
 export function register(on: On, options?: unknown): void {
   // 取值在注册时检查一次；无效时各检查按守卫出错收口（F-04-09）；in-process 无工作目录（cwd 为 null，F-05-27）
   const context = guardContext(optionsFromValues(data.options, options), null)
-  // 去重（F-05-08）：变量名为 null 时整段不进入打包结果，产物中没有 $.env.set。
-  // /clear、/resume、/branch 之后 session.start 不再触发，会话 id 若随之改变，命令 hook 不再被
-  // 跳过，因此在 classic.SessionStart 上重写一次（Mods 指南「$.state 与 $.store」）
-  if (__UAPA_MODULE_SESSION_ENV__ !== null) {
-    on('session.start', async ($, e, next) => {
-      await $.env.set(__UAPA_MODULE_SESSION_ENV__, await $.session.id())
-      return next(e)
-    })
-    on(
-      'classic.SessionStart',
-      { source: ['clear', 'resume', 'fork'] },
-      async ($, e, next) => {
-        await $.env.set(__UAPA_MODULE_SESSION_ENV__, await startedSessionId($, e))
-        return next(e)
-      },
-    )
-  }
+  registerSessionEnv(on)
   // 执行前与提示提交前检查另写 .catch：未调用 next 前出错不放行（F-05-06）。处理器在重入时
   // 也会被调用，此时不能调用 $，因此只依据 next.called 作答。
   // 执行前与执行后检查共用一个 tool.call 处理函数：同一插件注册两个不带 matcher 的处理函数时
@@ -100,6 +84,25 @@ export function register(on: On, options?: unknown): void {
   if (__UAPA_CHECKS__.beforeStop) {
     on('classic.Stop', ($, e, next) => beforeStop($, e, next, context))
   }
+}
+
+// 去重（F-05-08）：变量名为 null 时整段不进入打包结果，产物中没有 $.env.set。
+// /clear、/resume、/branch 之后 session.start 不再触发，会话 id 若随之改变，命令 hook 不再被
+// 跳过，因此在 classic.SessionStart 上重写一次（Mods 指南「$.state 与 $.store」）
+function registerSessionEnv(on: On): void {
+  if (__UAPA_MODULE_SESSION_ENV__ === null) return
+  on('session.start', async ($, e, next) => {
+    await $.env.set(__UAPA_MODULE_SESSION_ENV__, await $.session.id())
+    return next(e)
+  })
+  on(
+    'classic.SessionStart',
+    { source: ['clear', 'resume', 'fork'] },
+    async ($, e, next) => {
+      await $.env.set(__UAPA_MODULE_SESSION_ENV__, await startedSessionId($, e))
+      return next(e)
+    },
+  )
 }
 
 // classic.SessionStart 之后的会话 id：/branch 与 /resume 之后，该事件中的 $.session.id() 仍为

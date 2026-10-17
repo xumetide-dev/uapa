@@ -19,7 +19,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | Kiro | Power 的根 `plugin.json`；旧版 `POWER.md` |
 | CodeBuddy / WorkBuddy | `.codebuddy-plugin/`、`.workbuddy-plugin/`、`.claude-plugin/` 下的 `plugin.json` |
 | Kimi Code | `kimi.plugin.json` 或 `.kimi-plugin/plugin.json` |
-| agy | 根 `plugin.json`，只允许 `name`、`description`；hooks 在根 `hooks.json` |
+| agy | 根 `plugin.json` 或 `.antigravity-plugin/plugin.json`（1.3.5 实测一致），只允许 `name`、`description`；hooks 在根 `hooks.json` |
 | DSH | npm `package.json` 的 `dsh.bundle` + `cordis.patch.yml`（代码插件） |
 | OpenCode | 无 manifest；JS/TS 模块，在 `opencode.json` 的 `plugin` 中启用（代码插件） |
 
@@ -65,7 +65,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | [unified-agent-plugin-architecture.md](unified-agent-plugin-architecture.md) | UAPA：定位、源项目、后续目标与产物 | 设计提案；实现以 `docs/architecture/` 与 `docs/feature-list/` 为准 |
 | [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | v0.1.0 目标的部分为实现依据；其余为设计提案 |
 | [claude-code-dual-form-dedup.md](claude-code-dual-form-dedup.md) | UAPA：Claude Code 两种 hooks 形态的文件布局与去重（hooks 适配第 5 节的子页） | 实现依据 |
-| [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；UAPA v0.1.0 尚未实现 |
+| [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；实现以 `docs/guide/` 与 `docs/architecture/` 为准 |
 | [claude-code-local-tests.md](claude-code-local-tests.md) | Claude Code 本地实测记录 | 可复现 |
 | [agy-local-tests.md](agy-local-tests.md) | agy 实测记录（1.3.4 本地，1.3.5 容器） | 可复现 |
 | [codex-local-tests.md](codex-local-tests.md) | Codex 实测记录（0.162.1 容器） | 可复现 |
@@ -77,10 +77,10 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 ## 依据
 
 - 官方文档与官方仓库为主证据；源码结论注明 tag 或提交，DSH 以上游提交 `d743267388` 为准。
-- Claude Code 的部分行为以 2.1.296 本地实测为准，见 [本地实测记录](claude-code-local-tests.md)；
+- Claude Code 的部分行为以 2.1.296 本地与容器实测为准，见 [本地实测记录](claude-code-local-tests.md)；
   agy 的部分行为以 1.3.4 本地实测与 1.3.5 容器实测为准，见 [agy 实测记录](agy-local-tests.md)；
-  Codex 的 hooks 行为以 rust-v0.162.1 源码核对为准，见
-  [Codex hooks 源码核对记录](codex-source-review.md)。
+  Codex 的行为以 rust-v0.162.1 源码核对与 0.162.1 容器实测为准，见
+  [Codex hooks 源码核对记录](codex-source-review.md) 与 [Codex 实测记录](codex-local-tests.md)。
 - 社区来源标注【社区】，仅用于版本差异与实践补充。
 
 ## 维护

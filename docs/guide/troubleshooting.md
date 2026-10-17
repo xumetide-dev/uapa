@@ -17,8 +17,8 @@
 | `uapa: uapa.config.ts: 默认导出缺失或不是对象` | 配置没有 `export default` | 以 `export default defineConfig({ … })` 导出 |
 | `uapa: uapa.config.ts: <字段>: 缺少必填字段` | 缺 `name`、`version`、`description` 或 `targets` | 补上字段，见[构建配置](configuration.md#字段) |
 | `uapa: uapa.config.ts: version: 不是 semver 版本号` | 如 `1.0` | 写成 `1.0.0` |
-| `uapa: uapa.config.ts: targets[<n>]: 未知目标名 "<名称>"` | 目标名拼写错误，或该宿主不在 v0.3.0 中 | 取值见[目标与宿主差异](targets.md#目标一览) |
-| `uapa: uapa.config.ts: <字段>: 未知字段` | 字段名拼写错误，或命令 hooks 写了 `matcher`、`timeout` | 删除或改正该字段 |
+| `uapa: uapa.config.ts: targets[<n>]: 未知目标名 "<名称>"` | 目标名拼写错误，或该宿主不在 v0.4.0 中 | 取值见[目标与宿主差异](targets.md#目标一览) |
+| `uapa: uapa.config.ts: <字段>: 未知字段` | 字段名拼写错误，或命令 hooks 写了 `matcher` | 删除或改正该字段 |
 | `uapa: uapa.config.ts: hosts.<宿主>: targets 中没有该宿主的目标` | `hosts` 中的宿主没有配置任何目标 | 删除该宿主的选项，或在 `targets` 中加入它的目标 |
 | `uapa: uapa.config.ts: <字段>: <宿主> 的插件目录 <目录> 写入前会被清空，不能等于或包含<…>` | 默认布局的插件目录覆盖了源项目根目录、`outDir` 或另一个插件目录 | 改用其他目录；要写入源项目根目录时让两个以上宿主共用它（合并布局） |
 
@@ -47,7 +47,7 @@
 | `uapa: <目标>: 守卫的 requires 声明了 <能力>，本目标缺少该能力` | 守卫要求的能力该目标没有 | 接受该目标不构建，或从 `requires` 中去掉该能力并接受降级 |
 | `uapa: <目标>: 合并布局冲突：<文件> 由 <宿主> 生成，内容不同；…` | 合并布局中两个宿主生成了同名而内容不同的文件 | 按错误中的提示处理，如为 Codex 设置 `hooksFile` |
 | `uapa: claude-code:<形态>: 宿主校验失败：claude plugin validate --strict 以退出码 1 结束` | Claude Code 的校验未通过，后续行是校验的输出 | 按输出修改配置或覆盖文件；已写出的文件保留，便于检查 |
-| `uapa: <目标>: 打包结果含不允许的外部导入：<模块>（…）` | 守卫导入了 Node 内置模块等 | 守卫中不导入 Node 与宿主 API，见[编写守卫「约束」](guards.md#约束) |
+| `uapa: <目标>: 打包结果含不允许的外部导入：<模块>（…）` | 守卫导入了第三方 npm 包，或在含 `claude-code:in-process` 时导入了 `node:` 内置模块 | 去掉第三方依赖；若需 `node:fs` / `node:path`，仅配置 `subprocess` 目标，见[编写守卫「约束」](guards.md#约束) |
 
 ## 安装后守卫不生效
 

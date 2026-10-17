@@ -28,8 +28,8 @@ export interface HostInput {
   readonly sharedWith: readonly HostName[]
   readonly bundle: (request: BundleRequest) => Promise<string> // 见入口与打包接口
   // v0.4.0（F-03-18，SD-41）：配置 marketplace 时为本宿主插件目录相对 marketplace.dir 的路径，
-  // 以 './' 开头，两者相同时为 './'；未配置时为 null
-  readonly marketplaceSource: string | null
+  // 以 './' 开头，两者相同时为 './'；未配置时为 null 或省略
+  readonly marketplaceSource?: string | null
   // v0.4.0（F-06-17，SD-49）：源项目是否声明了 MCP 服务器（含被 targets 过滤排除的服务器）
   readonly hasMcpServers?: boolean
 }
@@ -88,7 +88,7 @@ export interface HostModule {
   agents 的目标不加载该目录，不写）；宿主模块不返回 agent 文件。
 - commands（v0.3.0，SD-33）的放置与残余风险同 agents：并集原样复制为 `commands/<name>.md`；宿主
   模块不返回 command 文件。Codex 安装时把命令转换为技能，转换的限制由 Codex 宿主模块写为残余
-  风险（F-06-09）。
+  风险（F-06-09；v0.4.0 改为 F-06-13 的逐个检查）。
 - rules（v0.3.0，SD-32）由宿主模块按 `TargetPlan.rules` 生成，frontmatter 换为宿主格式，正文为
   `Rule.body`；v0.3.0 中只有 agy 承载（F-11-09），v0.4.0 的换算见下文。
 - MCP 服务器（v0.2.0，SD-30）由宿主模块按 `TargetPlan.mcpServers` 生成：Claude Code 为
@@ -140,6 +140,9 @@ export interface HostModule {
 - Codex 的 commands（F-06-13，SD-43）：按 rust-v0.162.1 的转换条件逐个检查 `TargetPlan.commands`，
   会被 Codex 跳过的命令返回 `TargetSkip`（`component` 为 `commands/<name>.md`），代替 F-06-09 中
   笼统的残余风险。
+- Codex 的 skills 长度与子目录检查（F-06-16）：名称超过 64 字符或 `<插件名>:<名称>` 超过 129 字符的
+  skill（`TargetSkip.component` 为 `skills/<name>`）与换算后的规则技能（`TargetSkip.component` 为
+  `rules/<name>.md`）返回 `TargetSkip`；skill 子目录含嵌套 `SKILL.md` 时写残余风险。
 - agy 的 commands（F-11-11，SD-39）：`components.commands` 为 `package`，按上文 commands 的规则由
   构建编排原样复制；宿主模块不返回命令文件，只写模型自动选用的残余风险。
 - MCP 服务器的环境变量与用户配置占位符（F-05-26、F-06-12、F-06-17、F-11-12、F-11-15，SD-40、SD-49）：

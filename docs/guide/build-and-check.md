@@ -91,7 +91,9 @@ modified dist/codex/skills/commit-message/SKILL.md
   "residualRisks": [
     "缺少 Node ≥ 22 或入口无法启动时，停机前检查不生效（宿主在 hook 出错时放行）",
     "本目标缺少 promptGate，未生成提示提交前检查的 hook：提示不受检查",
-    "停机计数存放在系统临时目录下的 uapa-<插件名>/，该目录被清理时停机计数归零"
+    "停机计数存放在系统临时目录下的 uapa-<插件名>/，该目录被清理时停机计数归零",
+    "agy 在连续继续 10 次后不再采用停机前检查的 continue（1.3.5 实测，次数可由用户配置）",
+    "/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测"
   ]
 }
 ```

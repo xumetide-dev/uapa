@@ -30,12 +30,8 @@ export async function readOverrides(
     const file = `${OVERRIDES_DIR}/${name}`
     const host = hosts.find(h => h === name)
     if (host === undefined) {
-      const shown = hosts.join('、')
-      issues.push({
-        file,
-        field: null,
-        message: `不是已配置的宿主（已配置：${shown}）`,
-      })
+      const message = `不是已配置的宿主（已配置：${hosts.join('、')}）`
+      issues.push({ file, field: null, message })
       continue
     }
     overrides[host] = await listFiles(join(dir, name), file, issues)

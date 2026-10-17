@@ -76,37 +76,30 @@ async function planDir(
   )
   if (targets.length === 0) return null
   const atRoot = dir.path === build.root
-  if (atRoot && shared.length > 0) {
-    for (const state of targets) state.errors.push(sharedAtRootMessage(build.root, dir))
-    return null
-  }
+  if (atRoot && shared.length > 0)
+    return failTargets(targets, [sharedAtRootMessage(build.root, dir)])
   const present = atRoot ? build.source : componentUnion(targets)
-  const layers = await dirLayers(build.root, atRoot, present, shared)
+  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件
+  const copied = atRoot ? [] : await componentFiles(build.root, present)
+  const layers: DirLayers = {
+    copied,
+    inPlace: atRoot ? componentPaths(present) : [],
+    shared,
+  }
   const { views, messages } = await placeHosts(build, dir, targets, hostFiles, layers)
   const { files, conflicts } = mergeViews(views)
   messages.push(...conflicts.map(c => conflictMessage(build.root, dir, c)))
-  if (messages.length > 0) {
-    for (const state of targets) state.errors.push(...messages)
-    return null
-  }
+  if (messages.length > 0) return failTargets(targets, messages)
   recordComponentRisks(targets, present)
   return { dir, merged: dir.hosts.length > 1, files, targets }
 }
 
-async function dirLayers(
-  root: string,
-  atRoot: boolean,
-  present: ReturnType<typeof componentUnion> & {
-    readonly rules?: readonly { readonly name: string }[]
-  },
-  shared: readonly PlannedFile[],
-): Promise<DirLayers> {
-  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件
-  return {
-    copied: atRoot ? [] : await componentFiles(root, present),
-    inPlace: atRoot ? componentPaths(present) : [],
-    shared,
-  }
+function failTargets(
+  targets: readonly TargetState[],
+  messages: readonly string[],
+): null {
+  for (const state of targets) state.errors.push(...messages)
+  return null
 }
 
 // 各宿主在该目录中的文件表，以及组件、共用文件与生成文件之间的来源冲突
@@ -185,7 +178,7 @@ function mergeViews(views: readonly HostView[]): {
     entry.file = { path: entry.file.path, content: merged, copyFrom: null }
     entry.differs = false
   }
-  const sorted = [...entries.values()].sort((a, b) => byPath(a.file, b.file))
+  const sorted = [...entries.values()].sort((a, b) => compare(a.file.path, b.file.path))
   const files = sorted.map(({ file }) => ({
     path: file.path,
     content: file.content,
@@ -202,8 +195,4 @@ function conflictMessage(root: string, dir: PluginDir, conflict: Conflict): stri
   const hosts = conflict.hosts.join('、')
   const hints = conflict.hints.map(hint => `；${hint}`).join('')
   return `合并布局冲突：${shown} 由 ${hosts} 生成，内容不同${hints}`
-}
-
-function byPath(a: { readonly path: string }, b: { readonly path: string }): number {
-  return compare(a.path, b.path)
 }

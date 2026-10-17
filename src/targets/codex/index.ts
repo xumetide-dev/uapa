@@ -163,28 +163,22 @@ export const codex: HostModule = {
     // checks、always 规则与 commandHooks 都没有时不生成 hooks 配置
     const hooks = hooksConfig(withEntry ? plan.checks : [], plan, rules.command)
     const mcp = mcpConfig(plan.mcpServers)
-    const pluginManifest = manifest(input.config, {
+    const refs = {
       hooks: manifestHooks(input, hooksFile, hooks),
       mcpServers: manifestMcp(input, plan, mcp.config),
-    })
-    const errors = fieldErrors(
-      pluginManifest,
-      hooks === null ? null : { file: hooksFile, value: hooks },
-      mcp.config === null ? null : { file: MCP_FILE, value: mcp.config },
-    )
-    if (errors.length > 0) return failAll(input.plans, errors)
-    const files: OutputFile[] = [
-      { path: MANIFEST, content: json(pluginManifest) },
-      ...(await hooksFiles(input, plan, hooksFile, hooks)),
-      ...(mcp.config === null ? [] : [{ path: MCP_FILE, content: json(mcp.config) }]),
-      ...rules.files,
-    ]
-    const marketplaces = marketplaceFiles(input)
-    return {
-      ok: true,
-      files,
-      ...codexNotes(input, plan, hooksFile, hooks, mcp, rules),
-      ...(marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }),
     }
+    const pluginManifest = manifest(input.config, refs)
+    const hooksEntry = hooks === null ? null : { file: hooksFile, value: hooks }
+    const mcpEntry = mcp.config === null ? null : { file: MCP_FILE, value: mcp.config }
+    const errors = fieldErrors(pluginManifest, hooksEntry, mcpEntry)
+    if (errors.length > 0) return failAll(input.plans, errors)
+    const files: OutputFile[] = [{ path: MANIFEST, content: json(pluginManifest) }]
+    files.push(...(await hooksFiles(input, plan, hooksFile, hooks)))
+    if (mcp.config !== null) files.push({ path: MCP_FILE, content: json(mcp.config) })
+    files.push(...rules.files)
+    const notes = codexNotes(input, plan, hooksFile, hooks, mcp, rules)
+    const marketplaces = marketplaceFiles(input)
+    const extra = marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }
+    return { ok: true, files, ...notes, ...extra }
   },
 }

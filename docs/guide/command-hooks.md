@@ -38,14 +38,13 @@ export default defineConfig({
   或 `timeout > 3` 时构建报告写 3 秒截断残余风险，`timeout <= 3` 时按原值写出且不报该风险。
 - UAPA 不读取、不换算命令的 stdin、stdout、stderr 与退出码；各宿主的输入输出协议见
   [宿主调研](../research/coding-agent-plugin-manifests/README.md)的 hooks 一节，由插件作者负责。
-- 命令引用的脚本不由 UAPA 复制，放在 `overrides/<宿主>/` 下的同一相对路径，每个宿主各放一份，
-  见[源项目结构「覆盖文件」](source-project.md#覆盖文件)：
+- 命令引用的脚本各宿主共用时放在 `files/` 下（复制时去掉顶层 `files/` 前缀，见
+  [源项目结构「共用文件」](source-project.md#共用文件)）；某个宿主需要单独版本时再放在
+  `overrides/<宿主>/` 下的同一相对路径，见[源项目结构「覆盖文件」](source-project.md#覆盖文件)：
 
 ```text
-overrides/
-├── claude-code/scripts/session-start.mjs
-├── codex/scripts/session-start.mjs
-└── agy/scripts/session-start.mjs
+files/
+└── scripts/session-start.mjs
 ```
 
 ## 各目标承载的事件

@@ -27,31 +27,31 @@ export async function runBuild(
 ): Promise<BuildOutcome> {
   const source = await readSource(config, root)
   const guard = await readGuard(config, root)
-  if (!source.ok || !guard.ok) {
-    const issues = [
-      ...(source.ok ? [] : source.issues),
-      ...(guard.ok ? [] : guard.issues),
-    ]
-    return { kind: 'input-error', issues }
-  }
+  if (!source.ok || !guard.ok) return inputErrors(source, guard)
   const build = { config, root, source: source.value, guard: guard.value }
   const states = planTargets(config, source.value, guard.value, deps.targetCapabilities)
   const generated = await generateHosts(build, states, deps)
-  const initialOutputs = await planOutputs(build, states, generated.hostFiles)
-  const { outputs, marketplaces } = await planMarketplaces(
-    build,
-    states,
-    generated,
-    initialOutputs,
-  )
+  const initial = await planOutputs(build, states, generated.hostFiles)
+  const planned = await planMarketplaces(build, states, generated, initial)
   if (options.check) {
-    const changes = await compareOutputs(root, outputs, marketplaces)
+    const changes = await compareOutputs(root, planned.outputs, planned.marketplaces)
     return { kind: 'done', report: toReport(states), reportPath: null, changes }
   }
-  await writeOutputs(root, outputs)
+  await writeOutputs(root, planned.outputs)
   await verifyHosts(config, root, states, deps.hostModules)
-  await writeMarketplaces(states, marketplaces)
+  await writeMarketplaces(states, planned.marketplaces)
   const report = toReport(states)
   const reportPath = await writeReport(config, root, report)
   return { kind: 'done', report, reportPath, changes: null }
+}
+
+function inputErrors(
+  source: Awaited<ReturnType<typeof readSource>>,
+  guard: Awaited<ReturnType<typeof readGuard>>,
+): BuildOutcome {
+  const issues = [
+    ...(source.ok ? [] : source.issues),
+    ...(guard.ok ? [] : guard.issues),
+  ]
+  return { kind: 'input-error', issues }
 }

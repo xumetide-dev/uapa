@@ -37,11 +37,19 @@ export async function planMarketplaces(
     if (collisions.length > 0) {
       failHostTargets(states, host, collisions)
       failedHosts.add(host)
-    } else {
-      marketplaces.push(...items)
-    }
+    } else marketplaces.push(...items)
   }
   if (failedHosts.size === 0) return { outputs: initialOutputs, marketplaces }
+  return replanWithoutFailed(build, states, generated, marketplaces, failedHosts)
+}
+
+async function replanWithoutFailed(
+  build: BuildInput,
+  states: readonly TargetState[],
+  generated: GeneratedHosts,
+  marketplaces: PlannedMarketplace[],
+  failedHosts: ReadonlySet<HostName>,
+): Promise<{ outputs: readonly DirOutput[]; marketplaces: PlannedMarketplace[] }> {
   for (const host of failedHosts) generated.hostFiles.delete(host)
   for (const state of states) {
     state.overridden.length = 0

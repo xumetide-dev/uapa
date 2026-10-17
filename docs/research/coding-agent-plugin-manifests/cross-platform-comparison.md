@@ -28,7 +28,8 @@ skills、hooks 控制能力、MCP 配置与分发方式，并给出跨平台发�
 - **根目录 `plugin.json`**：Codex、GitHub Copilot、Cursor、Kiro、agy 都读取，但各自规则不同。
   Copilot 与 Kiro 要求 `$schema` 并拒绝未知顶层字段（Copilot 报告并忽略，Kiro 校验失败），
   专有设置放在 `extensions` 下各自的命名空间（`com.openai`、`com.github.copilot`、
-  `dev.kiro`）；Cursor 的这种格式只承载 skills 与 MCP；agy 的 schema 只允许 `name`、`description`。
+  `dev.kiro`）；Cursor 的这种格式只承载 skills 与 MCP；agy 的 schema 只允许 `name`、`description`
+  （1.3.2 起也可放在 `.antigravity-plugin/plugin.json`，以避开与 Codex 根 `plugin.json` 的冲突）。
   同一份文件不能同时满足五家，应按宿主分别生成。
 - **`.claude-plugin/`**：Claude Code 本身使用；CodeBuddy / WorkBuddy 兼容其 `plugin.json` 并
   提供 `CLAUDE_*` 路径变量；VS Code 与 Copilot CLI 识别其 manifest；Codex 与 Copilot CLI
@@ -73,13 +74,13 @@ Agent Skills 规范定义 `SKILL.md`：必填 `name`（≤64 字符，小写字�
 
 | 平台 | 执行前阻断 | 改写工具入参 | 替换工具输出 | 停机门禁 | 失败默认 | 进程内 |
 |---|---|---|---|---|---|---|
-| Claude Code 命令 hooks | 退出码 2 / `permissionDecision` | `updatedInput` | `updatedToolOutput`（v2.1.121+） | `Stop` 阻断，上限 8 次 | 放行 | 否 |
+| Claude Code 命令 hooks | 退出码 2 / `permissionDecision` | `updatedInput` | `updatedToolOutput`（v2.1.121+） | `Stop` 阻断，上限 8 次 | 放行；处理器可写 `onFailure: "block"`（v2.1.295+） | 否 |
 | Claude Code hooks 模块 | `{ deny }` | `next({ ...e })` | `next` 后返回 `{ result }` 或 `{ deny }` | `classic.Stop` 返回 `{ block }` | 跳过该 hook | 是 |
-| Codex | 退出码 2 / `permissionDecision` | `updatedInput` | 部分：`decision: "block"` 以反馈替换 | `Stop` 阻断后继续 | 放行 | 否 |
+| Codex | 退出码 2 / `permissionDecision` | `updatedInput` | 部分：`decision: "block"` 以反馈替换 | `Stop` 阻断后继续（无上限） | 放行 | 否 |
 | GitHub Copilot CLI | 退出码 2 / `permissionDecision` | `modifiedArgs` | `modifiedResult` | `agentStop` 阻断，上限 8 次 | `preToolUse` 拒绝；超时放行 | 否 |
 | Cursor | 退出码 2 / 权限决定 | `updated_input` | 只限 MCP 工具 | 不支持 | 放行；可设 `failClosed` | 否 |
 | Kimi Code | 退出码 2 / `permissionDecision` | 未提供 | 未提供 | `Stop` 可阻断 | 放行 | 否 |
-| agy | `decision: "deny"` | `overwrite` | 不支持 | `Stop` 返回 `decision: "continue"` | `PreToolUse` 阻断（本地实测）；`Stop` 照常结束 | 否 |
+| agy | `decision: "deny"` | `overwrite` | 不支持 | `Stop` 返回 `decision: "continue"`（默认上限 10 次，1.3.5 实测） | `PreToolUse` 阻断（本地实测）；`Stop` 照常结束 | 否 |
 | Kiro | 退出码 2（IDE 文档对其他非零码说法矛盾） | 未提供 | 未提供 | 仅 CLI V3 | CLI 放行；IDE 文档矛盾；超时未说明 | 否 |
 | CodeBuddy | 退出码 2，原因先取 stdout | `modifiedInput` | `updatedToolOutput` | `continue: false` 或退出码 2，无上限 | 放行 | Mods（Beta） |
 | OpenCode | 抛错 | `output.args` | `output.output` | 不支持 | 抛错即阻断 | 是 |
@@ -104,11 +105,11 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 
 ## 工具名差异
 
-执行前 hook 收到的内置工具名（核对日期 2026-10-13，agy 为 2026-10-14，Claude Code 于 2026-10-15
+执行前 hook 收到的内置工具名（核对日期 2026-10-13，agy 为 2026-10-14～10-15，Claude Code 于 2026-10-15
 补充；“未查到”指官方文档与
 对应版本源码中均未找到）：
 
-| 能力 | Claude Code | Codex 0.162.1 | Copilot CLI | Cursor | Kimi Code 2.1.1 | Kiro IDE / CLI V3 | CodeBuddy | OpenCode 1.19.0 | DSH | agy 1.3.4 |
+| 能力 | Claude Code | Codex 0.162.1 | Copilot CLI | Cursor | Kimi Code 2.1.1 | Kiro IDE / CLI V3 | CodeBuddy | OpenCode 1.19.0 | DSH | agy 1.3.5 |
 |---|---|---|---|---|---|---|---|---|---| --- |
 | 执行 shell | `Bash`、`PowerShell` | `Bash` | `bash`、`powershell` / `Bash` | `Shell` | `Bash` | `execute_bash`、`execute_pwsh` | `Bash`、`PowerShell` | `bash` | `bash` | `run_command` |
 | 读文件 | `Read` | 未查到 | `view` / `Read` | `Read` | `Read` | `read_file` | `Read` | `read` | `read` | `view_file` |
@@ -155,8 +156,9 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 
 | 平台 | 文件 | 根键 | 本地命令写法 |
 |---|---|---|---|
-| Claude Code 插件 | `.mcp.json` 或 `plugin.json` 的 `mcpServers` | `mcpServers` | `command` + `args`，`env` |
-| Codex | `config.toml`；插件内 `mcp.json`（兼容 manifest 默认读 `.mcp.json`） | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env`；字段为 snake_case，远程服务器的请求头为 `http_headers`；本地服务器只得到少数默认变量与 `env_vars` 列出的变量，见 [Codex 源码核对](codex-source-review.md#插件中的-mcp-服务器) |
+| Claude Code 插件 | `.mcp.json` 或 `plugin.json` 的 `mcpServers` | `mcpServers` | `command` + `args`，`env`（展开 `${CLAUDE_PLUGIN_ROOT}` 与 `${user_config.<KEY>}`） |
+| Codex | `config.toml`；插件内 `mcp.json`（兼容 manifest 默认读 `.mcp.json`） | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env`；字段为 snake_case，远程服务器的请求头为 `http_headers`；本地服务器只得到少数默认变量与 `env_vars` 列出的变量，不展开 `${user_config.*}` 等占位符，见 [Codex 源码核对](codex-source-review.md#插件中的-mcp-服务器) |
+| agy | 插件根 `mcp_config.json` | `mcpServers` | `command` + `args`，`env`；远程服务器为 `serverUrl` + `headers`；本地服务器继承宿主环境，不展开 `${user_config.*}` 等占位符（1.3.5 实测） |
 | OpenCode | `opencode.json` | `mcp` | `command` 数组，`environment` |
 | DSH | Cordis 配置中的 `@deepseek-ai/dsh-mcp-client` 行 | 不适用 | 见 mcp-client README |
 | Kimi Code | `~/.kimi-code/mcp.json`、`.kimi-code/mcp.json` | 未逐字核实 | 未逐字核实 |
@@ -184,7 +186,9 @@ Copilot 展开 `${PLUGIN_ROOT}`，Cursor 不展开；没有一个变量能在所
 
 - **manifest 按宿主分别生成**：根 `plugin.json` 在 Codex、Copilot、Cursor、Kiro 中的必填字段、
   允许字段与组件位置各不相同；`.claude-plugin/plugin.json` 可同时覆盖 Claude Code 与
-  CodeBuddy / WorkBuddy。Kiro 按 kiro.dev 的六项必填填写。
+  CodeBuddy / WorkBuddy；Claude Code（`.claude-plugin/plugin.json`）、Codex（`.codex-plugin/plugin.json`）
+  与 agy（`.antigravity-plugin/plugin.json`，1.3.5 实测与根 `plugin.json` 一致）可在同一目录中并存。
+  Kiro 按 kiro.dev 的六项必填填写。
 - **需要单独适配的平台**：Kimi Code 需要 `kimi.plugin.json`；DSH 与 OpenCode 需要代码层适配
   （Cordis 插件或 JS 模块），只能复用 skills 与 MCP 服务器本身。
 - **hooks 按平台分别生成**：各宿主 hooks 格式互不兼容；Kiro 的 Power 不能携带 hooks；

@@ -311,10 +311,14 @@ async function runSubprocessEntry(protocol) {
 	if (output.stderr !== void 0) process.stderr.write(output.stderr);
 	process.exitCode = output.exitCode;
 }
+function canRunCheck(check) {
+	if (typeof guard[CHECKS[check]] !== "function") return false;
+	if (check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate) return false;
+	if (check === "after-tool" && !_uapa_target_data_default.capabilities.withholdOutput) return false;
+	return true;
+}
 async function decide(protocol, check, text, env) {
-	const implemented = typeof guard[CHECKS[check]] === "function";
-	const unsupported = check === "before-prompt" && !_uapa_target_data_default.capabilities.promptGate || check === "after-tool" && !_uapa_target_data_default.capabilities.withholdOutput;
-	if (!implemented || unsupported) return protocol.allow(check);
+	if (!canRunCheck(check)) return protocol.allow(check);
 	let event;
 	try {
 		event = protocol.parse(check, parseJson(text));
@@ -367,12 +371,12 @@ async function beforeTool(protocol, event, context) {
 	const { call } = converted;
 	const checked = await callGuard(context, (ctx) => guard.beforeTool?.(call, ctx), (value) => checkBeforeTool(value, call.tool));
 	if (!checked.ok) return protocol.deny(check, checked.reason);
-	const rewriteShell = _uapa_target_data_default.capabilities.rewriteInput ? protocol.rewriteShell : void 0;
-	const decision = resolveToolDecision(checked.value, call.tool, rewriteShell !== void 0);
+	const rewrite = _uapa_target_data_default.capabilities.rewriteInput ? protocol.rewriteShell : void 0;
+	const decision = resolveToolDecision(checked.value, call.tool, rewrite !== void 0);
 	if (decision.kind === "allow") return protocol.allow(check);
 	if (decision.kind === "deny") return protocol.deny(check, decision.reason);
-	if (rewriteShell === void 0) return protocol.deny(check, decision.fallbackReason);
-	return rewriteShell.call(protocol, tool.input, decision.command);
+	if (rewrite === void 0) return protocol.deny(check, decision.fallbackReason);
+	return rewrite.call(protocol, tool.input, decision.command);
 }
 async function beforePrompt(protocol, event, context) {
 	const check = "before-prompt";

@@ -77,7 +77,7 @@
 2.1.296 本地实测结论（`claude -p` + `--plugin-dir`），做法见
 [Claude Code 本地实测记录](claude-code-local-tests.md#命令-hooks)：
 
-- stdin 中会话 id 为 `session_id`，工具名为 `tool_name`，工具入参为 `tool_input`（Bash 的命令为
+- stdin 中会话 id 为 `session_id`，工作目录为 `cwd`，工具名为 `tool_name`，工具入参为 `tool_input`（Bash 的命令为
   `tool_input.command`），提示文本为 `prompt`。
 - `PreToolUse` 只输出 `hookSpecificOutput.updatedInput`、不带 `permissionDecision` 时改写同样生效。
 - `PreToolUse` 条目省略 matcher 时对全部工具触发。

@@ -87,6 +87,13 @@ export async function runSubprocessEntry(protocol: SubprocessProtocol): Promise<
   process.exitCode = output.exitCode
 }
 
+function canRunCheck(check: CheckArg): boolean {
+  if (typeof guard[CHECKS[check]] !== 'function') return false
+  if (check === 'before-prompt' && !data.capabilities.promptGate) return false
+  if (check === 'after-tool' && !data.capabilities.withholdOutput) return false
+  return true
+}
+
 async function decide(
   protocol: SubprocessProtocol,
   check: CheckArg,
@@ -94,26 +101,19 @@ async function decide(
   env: Env,
 ): Promise<ProcessOutput> {
   // 守卫未实现该检查，或目标不支持提示提交前检查、不能扣留输出时放行，不调用守卫
-  const implemented = typeof guard[CHECKS[check]] === 'function'
-  const unsupported =
-    (check === 'before-prompt' && !data.capabilities.promptGate) ||
-    (check === 'after-tool' && !data.capabilities.withholdOutput)
-  if (!implemented || unsupported) return protocol.allow(check)
+  if (!canRunCheck(check)) return protocol.allow(check)
   let event: HostEvent
   try {
     event = protocol.parse(check, parseJson(text))
   } catch (error) {
-    return unparseable(
-      protocol,
-      check,
-      error instanceof Error ? error.message : 'stdin',
-    )
+    const field = error instanceof Error ? error.message : 'stdin'
+    return unparseable(protocol, check, field)
   }
   if (protocol.skip?.(event, env) === true) return protocol.allow(check)
-  const context = guardContext(
-    optionsFromText(data.options, name => protocol.optionValue?.(name, env)),
-    event.cwd ?? null,
+  const options = optionsFromText(data.options, name =>
+    protocol.optionValue?.(name, env),
   )
+  const context = guardContext(options, event.cwd ?? null)
   if (check === 'before-tool') return beforeTool(protocol, event, context)
   if (check === 'before-prompt') return beforePrompt(protocol, event, context)
   if (check === 'after-tool') return afterTool(protocol, event, context)
@@ -177,19 +177,12 @@ async function beforeTool(
     value => checkBeforeTool(value, call.tool),
   )
   if (!checked.ok) return protocol.deny(check, checked.reason)
-  const rewriteShell = data.capabilities.rewriteInput
-    ? protocol.rewriteShell
-    : undefined
-  const decision = resolveToolDecision(
-    checked.value,
-    call.tool,
-    rewriteShell !== undefined,
-  )
+  const rewrite = data.capabilities.rewriteInput ? protocol.rewriteShell : undefined
+  const decision = resolveToolDecision(checked.value, call.tool, rewrite !== undefined)
   if (decision.kind === 'allow') return protocol.allow(check)
   if (decision.kind === 'deny') return protocol.deny(check, decision.reason)
-  // resolveToolDecision 只在 rewriteShell 存在时返回 rewriteShell；否则按 fallbackReason 拒绝
-  if (rewriteShell === undefined) return protocol.deny(check, decision.fallbackReason)
-  return rewriteShell.call(protocol, tool.input, decision.command)
+  if (rewrite === undefined) return protocol.deny(check, decision.fallbackReason)
+  return rewrite.call(protocol, tool.input, decision.command)
 }
 
 async function beforePrompt(

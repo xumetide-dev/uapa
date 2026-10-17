@@ -82,10 +82,10 @@ pnpm exec uapa build
 ```
 
 ```text
-成功 claude-code:in-process：跳过 0，降级 0，残余风险 0
-成功 claude-code:subprocess：跳过 0，降级 0，残余风险 1
-成功 codex:subprocess：跳过 0，降级 0，残余风险 3
-成功 agy:subprocess：跳过 0，降级 0，残余风险 0
+成功 claude-code:in-process：跳过 0，降级 0，残余风险 2
+成功 claude-code:subprocess：跳过 0，降级 0，残余风险 3
+成功 codex:subprocess：跳过 0，降级 0，残余风险 4
+成功 agy:subprocess：跳过 0，降级 0，残余风险 1
 构建报告：dist/uapa-report.json
 ```
 
@@ -101,8 +101,8 @@ pnpm exec uapa build
 | 目标 | `claude-code:in-process`、`claude-code:subprocess` | `codex:subprocess` | `agy:subprocess` |
 | skills | ✓ | ✓ | ✓ |
 | agents | ✓ | — | ✓ |
-| rules | — | — | ✓ |
-| commands | ✓ | ✓（安装时转换为技能） | — |
+| rules | ✓（换算为技能与 SessionStart hook） | ✓（换算为技能与 SessionStart hook） | ✓ |
+| commands | ✓ | ✓（安装时转换为技能） | ✓（安装时转换为技能） |
 | MCP 服务器 | ✓ | ✓ | ✓ |
 | 执行前检查：拒绝、改写入参 | ✓ | ✓ | ✓ |
 | 提示提交前检查 | ✓ | ✓ | — |
@@ -144,9 +144,10 @@ npm install -D github:xumetide-dev/uapa#v0.3.0
 | 页面 | 内容 |
 |---|---|
 | [快速上手](docs/guide/getting-started.md) | 从最小的源项目构建三个宿主的插件并加载 |
-| [源项目结构](docs/guide/source-project.md) | skills、agents、rules、commands、MCP 服务器与覆盖文件的位置 |
+| [源项目结构](docs/guide/source-project.md) | skills、agents、rules、commands、MCP 服务器、共用文件与覆盖文件的位置 |
 | [构建配置](docs/guide/configuration.md) | `uapa.config.ts` 的字段、宿主选项与产物布局 |
 | [编写守卫](docs/guide/guards.md) | 四种检查的写法、守卫选项与测试 |
+| [命令 hooks](docs/guide/command-hooks.md) | 不经守卫、原样写入宿主 hooks 配置的命令与单条超时 |
 | [目标与宿主差异](docs/guide/targets.md) | 各目标的能力、降级与残余风险 |
 | [构建、检查与报告](docs/guide/build-and-check.md) | `uapa build` 与 `--check`、构建报告、持续集成 |
 | [安装与分发](docs/guide/install.md) | 在各宿主中加载产物、信任 hooks、分发给团队 |
@@ -159,6 +160,7 @@ npm install -D github:xumetide-dev/uapa#v0.3.0
 | v0.1.0 | 四个目标；skills；执行前、提示提交前与停机前检查；命令 hooks |
 | v0.2.0 | agents、MCP 服务器；执行后检查 |
 | v0.3.0 | rules、commands；守卫选项 |
+| v0.4.0 | 共用文件、rules 与 commands 三宿主覆盖、MCP 环境变量与目标限定、marketplace 文件、命令 hooks 单条超时、守卫工作目录与可靠性 |
 
 Cursor、Kiro、CodeBuddy、OpenCode、DSH 计划在后续版本逐个增加；GitHub Copilot CLI 与 Kimi Code
 的设计已保留，暂不实现。
