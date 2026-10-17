@@ -42,14 +42,15 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 |---|---|
 | 安装 | `agy plugin install` 报告处理了 2 个 agents 与 3 个 mcpServers；`agy plugin list --json` 按文件名列出 agents，按配置名列出服务器 |
 | 相对路径的服务器 | 以 `<插件名>_relative` 连接，模型调用工具后读到标记文本；服务器的工作目录为安装后的插件目录，`env` 的相对路径未展开 |
-| `${extensionPath}` | 日志中只有 `relative` 一次启动记录，该服务器未能启动；据此推断 `args` 中的变量未展开（未核实）。`command` 中的变量见本文「v0.4.0 覆盖审查（1.3.5，容器）」 |
+| `${extensionPath}` | 日志中只有 `relative` 一次启动记录，该服务器未能启动；`args` 中的 `${…}` 按字面传递见下文「UAPA 夹具产物（1.3.5，容器）」，`command` 中的变量见「v0.4.0 覆盖审查（1.3.5，容器）」 |
 | 子代理 | 会话列出两个子代理，名称为 frontmatter 的 `name` |
 
 ## UAPA 夹具产物（1.3.5，容器）
 
-2026-10-15，测试容器中的 agy 1.3.5；模型 `gemini-3.8-flash-high`。产物为夹具期望树中插件目录的
-副本，以 `agy plugin install` 安装，打印模式运行会话（`--dangerously-skip-permissions`），结束后
-卸载；提示只要求运行标记命令。
+2026-10-15、2026-10-17，测试容器中的 agy 1.3.5；模型 `gemini-3.8-flash-high`（2026-10-15）与
+`gemini-4-argon-medium`（2026-10-17）。产物为夹具期望树或容器内构建的插件目录副本，以
+`agy plugin install` 安装，打印模式运行会话（`--dangerously-skip-permissions`），结束后卸载；提示
+只要求运行标记命令。
 
 | 项目 | 做法 | 结果 |
 |---|---|---|
@@ -63,6 +64,9 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | rules：`glob`（修正前） | `globs: "*.ts,src/**/*.tsx"`；分别读取 `a.ts` 与 `src/ui/b.tsx` 后要求引用适用的规则 | 读取 `a.ts` 后规则正文出现；读取 `src/ui/b.tsx` 后不出现，原因见本文「rules（1.3.5，容器）」中的路径匹配 |
 | rules：`glob`（修正后） | `globs: "*.ts,**/src/**/*.tsx"`；同上，另有读取 `c.txt` 的对照会话 | 读取 `a.ts` 与 `src/ui/b.tsx` 后规则正文都出现，对照会话中不出现。读取 `src/ui/b.tsx` 的会话给出回复后进程未退出，结束该进程后测试继续 |
 | `agents.json` 的 `entries` | 三个插件各含 `agents/uapa-probe-a<n>.md` 与 `extra/` 下的 `uapa-probe-b<n>.md`、`uapa-probe-c<n>.md`；`agents.json` 分别写 `{"entries": [{"path": "extra"}]}`、加 `"include_only": ["uapa-probe-b2"]`（子代理名）与 `"include_only": ["uapa-probe-b3.md"]`（文件名） | 会话列出 `a1`～`a3`、`b1`～`b3` 与 `c1`（省略前缀 `uapa-probe-`），不列 `c2`、`c3`：`entries` 中的目录被加载，`include_only` 按两种写法都只保留命中的项；`agy plugin list --json` 只列出 `a1`～`a3` |
+| commands：原样复制与调用 | `rules-commands` 的 v0.4.0 产物（含 `.antigravity-plugin/plugin.json` 与 `commands/review.md`）；安装后在空工作区目录提交 `/rules-commands:review` | `agy plugin validate` 与 `agy plugin install` 均输出 `commands : 1 processed (converted to skills)`；会话按 `review.md` 正文审查工作区并按严重程度列出结果，同时遵守 `always_on` 中文规则 |
+| 共用文件、MCP `args` 字面传递、环境继承与守卫 `ctx.cwd` | `host-coverage` 副本：`probe` 服务器的 `args` 加 `"${UAPA_ARG_PROBE}"`，`files/scripts/server.mjs` 启动时写出布尔状态（是否由 `scripts/server.mjs` 启动、`argv[2]` 是否仍以 `${` 开头、`UAPA_API_KEY` 与 `UAPA_PROBE_TOKEN` 是否存在且不以 `${` 开头）；导出两个环境变量后在 `/tmp/uapa-m507-ws-hc` 中运行会话，要求运行 `echo uapa-deny-probe > deny.txt` | 状态文件为 `{"started":true,"arg1EndsWithServerMjs":true,"arg2StartsWithDollarBrace":true,"hasApiKeyEnv":true,"apiKeyEnvStartsWithDollarBrace":false,"hasProbeTokenEnv":true}`：`files/scripts/server.mjs` 启动，`args` 中的 `${UAPA_ARG_PROBE}` 按字面传入，剥离 `env` 中的 `${user_config.UAPA_API_KEY}` 后进程继承了外部环境变量；命令被拒绝且 `deny.txt` 不存在，拒绝原因为 `拒绝标记命令 uapa-deny-probe（/tmp/uapa-m507-ws-hc）`（`ctx.cwd` 为工作区目录） |
+| 三宿主合并产物与守卫读取工作区文件 | `merged` 副本：守卫导入 `node:fs`、`node:path`，在 `beforeTool` 中读取 `join(ctx.cwd, "marker.txt")` 并写入拒绝原因；构建后对根目录运行 `claude plugin validate --strict`、`agy plugin validate` 与 `agy plugin install`，在含 `marker.txt`（内容 `uapa-marker-ok`）的工作区中要求运行 `echo uapa-deny-probe > deny.txt` | 根目录无 `plugin.json`、含 `.antigravity-plugin/plugin.json`，Claude Code 与 agy 校验及安装均通过；命令被拒绝且 `deny.txt` 不存在，模型读到 `拒绝标记命令 uapa-deny-probe（marker=uapa-marker-ok）` |
 
 ## `Stop` 的超时与无效输出（1.3.5，容器）
 

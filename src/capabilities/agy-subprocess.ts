@@ -23,7 +23,7 @@ export const agySubprocess: TargetCapabilities = {
     // 夹具产物（1.3.5，容器）」）
     rules: 'package',
     // 1.3.5 安装时把 commands/ 转换为技能，以 /<插件名>:<命令名> 调用，$ARGUMENTS 替换为参数
-    // 文本（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」，SD-39）
+    // 文本（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」「UAPA 夹具产物（1.3.5，容器）」，SD-39）
     commands: 'package',
   },
   capabilities: {
