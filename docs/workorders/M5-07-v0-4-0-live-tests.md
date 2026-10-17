@@ -34,6 +34,8 @@
   只要求运行标记命令。
 - **Codex**：使用 Codex CLI 须维护者确认；未确认时本单只记录 Claude Code 与 agy 的结果，Codex
   写明待确认。验收结论按实际覆盖的范围写判断范围。
+- **Claude Code 升级**：把容器中的 Claude Code 升级到 2.1.300 属于下载可执行文件，须维护者确认；
+  未确认时双形态去重的复测写明待确认。
 
 ## 硬约束核对
 
@@ -63,6 +65,8 @@
   - `model` 规则按描述加载。
 - `Monitor` 运行标记命令时被拒绝。
 - `onFailure` 在入口无法启动时阻断标记命令。
+- 维护者确认升级到 2.1.300 后：复跑双形态去重的会话实测（`UserPromptSubmit` 与 `Stop`），确认
+  2.1.299 起 `$.env.set` 的变化不影响 F-05-08 的去重。
 
 ### 2. agy（容器，1.3.5）
 
@@ -116,4 +120,5 @@ test/container/run.sh shell
 
 ## 依赖
 
-M5-02～M5-06 的产物；容器中的 Claude 令牌与 agy 登录；Codex 实测须维护者确认。
+M5-02～M5-06 的产物；容器中的 Claude 令牌与 agy 登录；Codex 实测与 Claude Code 的升级须维护者
+确认。
