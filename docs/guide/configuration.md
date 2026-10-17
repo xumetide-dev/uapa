@@ -117,8 +117,8 @@ marketplace: { name: 'team-tools', owner: { name: 'Example Team' }, dir: 'dist' 
 
 ### 合并布局
 
-多个宿主写入同一个目录，常用于让源项目所在的仓库本身就是可从 git 安装的插件。下例让
-三个宿主都以源项目根目录为插件目录（[`merged` 夹具](../../test/fixtures/merged/source/uapa.config.ts)）：
+多个宿主写入同一个目录，常用于让源项目所在的仓库本身就是可从 git 安装的插件。下例让三个宿主
+都以源项目根目录为插件目录（[`merged` 夹具](../../test/fixtures/merged/source/uapa.config.ts)）：
 
 ```ts
 hosts: {

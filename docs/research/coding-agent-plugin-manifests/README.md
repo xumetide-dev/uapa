@@ -27,17 +27,26 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
   位置各不相同，manifest 需按宿主分别生成。
 - `.claude-plugin/` 被多家读取：CodeBuddy / WorkBuddy 兼容其 `plugin.json`，VS Code、
   Copilot CLI、Codex 识别其 manifest 或 marketplace 位置。
+- 三宿主合并布局：Claude Code（`.claude-plugin/plugin.json`）、Codex
+  （`.codex-plugin/plugin.json`）与 agy（`.antigravity-plugin/plugin.json`，合并布局下
+  默认）三者清单路径互不冲突，可在同一插件目录中无冲突并存（1.3.5 实测一致）。
 - 插件根目录变量没有通用写法：Copilot 展开 `${PLUGIN_ROOT}`，Cursor 不展开。
+- MCP 变量与配置差异：Claude Code 原生展开 `${user_config.*}` 与 `${CLAUDE_PLUGIN_ROOT}`；
+  Codex 与 agy 均不展开变量占位符。UAPA 构建时将 `${user_config.*}` 从 Codex 与 agy 的
+  `env` 中剥离，并将 Codex 的键名自动并入 `env_vars` 白名单（SD-40、SD-49）。
 - hooks 的控制能力逐平台不同：Claude Code、Codex、Copilot CLI、Cursor、CodeBuddy、OpenCode、
   agy 能在执行前改写工具入参，Kimi Code、Kiro、DSH 不能；停机门禁在 Cursor、OpenCode 与 Kiro IDE
   上不可用。
   对照表见 [跨平台对比](cross-platform-comparison.md#hooks-控制能力)。
+- 守卫工作目录（cwd）来源：子进程 hook 中，Claude Code 与 Codex 取 stdin 的 `cwd`，
+  agy 取 stdin 的 `workspacePaths[0]`（1.3.5 容器实测）；Claude Code 进程内模块无工作目录
+  （`GuardContext.cwd` 固定为 `null`，SD-50）。
 - Claude Code 的 hooks 模块与命令 hooks 在同一插件中并存时都会执行，需要按会话 id 去重
   （2.1.296 本地实测，见 [本地实测记录](claude-code-local-tests.md)）。
 - 命令 hooks 出错（非预期退出码、超时、无法启动）时，多数宿主默认放行；Copilot CLI 的
   `preToolUse` 对非零退出码拒绝，agy 的 `PreToolUse` 出错即阻断（1.3.4 本地实测），Cursor 可设
-  `failClosed`。执行前 hook 收到的工具名也逐平台
-  不同（如 `Bash`、`Shell`、`execute_bash`），见
+  `failClosed`。单条超时多数为 30 秒或 600 秒，但 Codex 对 `SessionEnd` 强制限于 3 秒截断。
+  执行前 hook 收到的工具名也逐平台不同（如 `Bash`、`Shell`、`run_command`），见
   [跨平台对比](cross-platform-comparison.md#工具名差异)。
 - CodeBuddy 2.163.0 起默认开启 Mods（Beta），同样以 `hooks.json` 的 `modules` 键启用。
 - 从一份插件源项目构建多宿主插件包的方案见 [UAPA 设计提案](unified-agent-plugin-architecture.md)

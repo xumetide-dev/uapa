@@ -3,6 +3,9 @@
 本文说明 Moonshot AI 的 Kimi Code CLI 插件 manifest、marketplace、安装命令及 skills、MCP、
 hooks 的配置位置与控制语义。事实核对日期为 2026-10-13，以 `kimi.com/code/docs` 为准。
 
+> **阶段标记**：预留（SD-26，功能模块 08）。UAPA 规划有 `kimi:subprocess` 目标，当前版本功能保留
+> 为预留阶段，待补齐宿主实测条件后排期实现；本文为宿主机制调研与后续目标适配依据。
+
 ## 版本背景
 
 - 现行产品为 TypeScript / Node.js 实现的 Kimi Code CLI（仓库 `MoonshotAI/kimi-code`，

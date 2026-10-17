@@ -25,6 +25,11 @@ export interface RuntimeOption {
   readonly default: GuardOptionValue // 与 type 一致，由 readGuard 保证
 }
 export type GuardOptionValue = string | number | boolean // GuardContext.options 的值
+// 各检查方法的上下文参数（F-02-06，SD-50）：选项取值与当前工作目录（未提供时为 null）
+export interface GuardContext {
+  readonly options: Readonly<Record<string, GuardOptionValue>>
+  readonly cwd: string | null
+}
 
 // src/bundle/types.ts（F-03-11）：宿主模块与打包共用
 interface BundleBase {

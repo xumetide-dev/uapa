@@ -7,6 +7,9 @@
 DSH 处于开发者预览阶段，README 声明会出现不兼容变更。
 Cordis 插件的编写方法见 [DSH Cordis 插件开发指南](dsh-cordis-plugin-guide.md)。
 
+> **阶段标记**：仅调研（SD-01）。UAPA 当前版本（v0.4.0）未将 DSH 列为正式构建目标，本文仅为宿主
+> 生态调研与跨平台对比参考，不代表当前版本已提供该目标产物。
+
 ## 概述
 
 - DSH 基于 Cordis 内核（`@deepseek-ai/cordis` 4.0.5-alpha.1，位于 `vendor/cordis`），

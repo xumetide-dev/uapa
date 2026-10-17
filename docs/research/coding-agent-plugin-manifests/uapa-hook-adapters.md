@@ -125,8 +125,10 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 - 不在映射表中的工具以 `host:<原名>` 传入，例如 `host:ToolSearch`、`host:MCP:query`。
 - 宿主把编辑与新建合为一个工具时（Codex 的 `apply_patch`、Cursor 的 `Write`），换算为
   `edit_file`。守卫逻辑对文件写入的检查应同时覆盖 `edit_file` 与 `write_file`。
-- `shell` 的入参由适配器换算为 `{ command }`；其余工具的入参原样传入。`rewrite` 目前只对
-  `shell` 的 `command` 做反向换算。
+- `shell` 的入参由适配器换算为 `{ command }`（Claude Code 与 Codex 的 `Bash`、Claude Code 的
+  `Monitor` 提取 `command`；agy 的 `run_command` 提取 `CommandLine`）；其余工具的入参原样传入。
+  `rewrite` 目前只对 `shell` 的命令做反向换算（Claude Code 与 Codex 写回
+  `updatedInput.command`，agy 输出 `overwrite.CommandLine`）。
 - v0.1.0 的守卫接口不声明关心的工具，生成的 hooks 配置不写 matcher：每次工具调用都进入入口，
   由守卫按规范名判断。Claude Code 省略 matcher 时匹配全部工具（2.1.296，[本地实测](claude-code-local-tests.md#命令-hooks)），
   Codex 相同（rust-v0.162.1，[源码核对](codex-source-review.md)）；其余宿主列入功能清单 TA-15 实测。日后按
@@ -213,7 +215,7 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 | 目标 | 默认行为 | 默认超时 |
 |---|---|---|
 | `claude-code:subprocess` | 放行；处理器写 `onFailure: "block"`（2.1.295 起）时 `PreToolUse` 与 `UserPromptSubmit` 改为阻断；2.1.299 起 Windows 上未设 `shell` 且缺少 Git for Windows 的 `PreToolUse` 阻断 | 600 秒 |
-| `codex:subprocess` | 放行：非 0 非 2 退出码、超时、启动失败、非法 JSON 均放行 | 600 秒 |
+| `codex:subprocess` | 放行：非 0 非 2 退出码、超时、启动失败、非法 JSON 均放行 | 600 秒（SessionEnd 与 Interrupt 默认 1 秒、上限 3 秒截断） |
 | `copilot-cli:subprocess` | `preToolUse` 非零退出码拒绝；超时对所有事件放行 | 30 秒 |
 | `cursor:subprocess` | 放行；生成的配置设 `failClosed: true`，崩溃、超时、无输出均阻断 | 未核实 |
 | `agy:subprocess` | `PreToolUse` 出错、超时或 stdout 不是 JSON 时阻断；`Stop` 出错时照常结束（1.3.4 本地实测） | 30 秒 |

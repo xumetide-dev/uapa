@@ -160,3 +160,8 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 | 三宿主合并目录的会话与 `workspacePaths` | 在临时工作区目录中运行 `agy -p` 触发 `run_command`（只运行 `echo uapa-merged-probe-ok`） | 根 `hooks.json` 的 `PreToolUse` 触发，stdin 的 `workspacePaths` 为 `["<临时工作区目录>"]`（`workspacePaths[0]` 与 `toolCall.args.Cwd` 同为会话工作目录） |
 | 根 `plugin.json` 与 `.claude-plugin/` 并存 | 对目录 C 运行 `agy plugin validate` 与 `agy plugin install` | `agy plugin list --json` 的 `source` 同样为 `"antigravity"`，列出 `skills` 与 `hooks` |
 
+- 实测证实 agy 完全支持 `.antigravity-plugin/plugin.json` 作为替代清单，且在 `workspacePaths[0]`
+  中提供当前会话工作目录。UAPA 据此在独立目录默认写根 `plugin.json`、多宿主合并目录默认写
+  `.antigravity-plugin/plugin.json`，支持 `hosts.agy.manifest` 自定义，并将 `workspacePaths[0]`
+  提取为 `GuardContext.cwd`（F-11-15，SD-47、SD-50）。
+

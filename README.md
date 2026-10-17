@@ -24,7 +24,7 @@ skills、agents、rules、commands、MCP 服务器，以及拦截高危操作的
 需要 Node ≥ 22.18 与 git。在源项目目录中安装（其他安装方式见下文「安装」）：
 
 ```bash
-pnpm add -D github:xumetide-dev/uapa#v0.3.0
+pnpm add -D github:xumetide-dev/uapa#v0.4.0
 ```
 
 `uapa.config.ts` 声明插件与要构建的目标；`skills/`、`agents/`、`rules/`、`commands/` 等目录按约定
@@ -123,7 +123,7 @@ UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装，不引�
 pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
 
 ```bash
-pnpm add -D github:xumetide-dev/uapa#v0.3.0
+pnpm add -D github:xumetide-dev/uapa#v0.4.0
 ```
 
 npm 12 默认禁止 git 依赖，先在项目的 `.npmrc` 中只放行项目直接声明的 git 依赖：
@@ -133,7 +133,7 @@ npm config set allow-git=root --location=project
 ```
 
 ```bash
-npm install -D github:xumetide-dev/uapa#v0.3.0
+npm install -D github:xumetide-dev/uapa#v0.4.0
 ```
 
 升级时改 tag 后重新安装，锁文件记录 tag 对应的提交。运行宿主的机器上需要 Node ≥ 22：

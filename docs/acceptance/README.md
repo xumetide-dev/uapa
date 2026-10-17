@@ -112,7 +112,7 @@ docs/acceptance/
 | [M1-06](M1-06-layout-overrides-check-command-hooks.md) | 合并布局、覆盖文件、比对与命令 hooks | 有条件通过（§7 两项由 M1-07 接手） | 2026-10-14 | `bb89b1d` |
 | [M1-05](M1-05-codex-target.md) | Codex 目标 | 有条件通过（§7 两项由 M1-06、M1-08 接手） | 2026-10-14 | `6661075` |
 | [M1-04](M1-04-agy-target.md) | agy 目标 | 有条件通过（§7 一项由 M1-06 接手） | 2026-10-14 | `dba16fa` |
-| [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
 | [M1-03](M1-03-claude-code-command-hooks-guard.md) | 守卫端到端（Claude Code 命令 hooks） | 有条件通过（§7 两项由 M1-06、M1-08 接手） | 2026-10-14 | `67d6877` |
 | [M1-02](M1-02-skills-end-to-end.md) | skills 端到端 | 有条件通过（§7 四项由 M1-03～M1-07 接手） | 2026-10-14 | `8b9fdd0` |
+| [M1-01](M1-01-repo-skeleton.md) | 仓库骨架 | 通过 | 2026-10-14 | `ca5a61e` |
 <!-- acceptance-index:end -->

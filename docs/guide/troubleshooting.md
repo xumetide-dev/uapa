@@ -20,6 +20,9 @@
 | `uapa: uapa.config.ts: targets[<n>]: 未知目标名 "<名称>"` | 目标名拼写错误，或该宿主不在 v0.4.0 中 | 取值见[目标与宿主差异](targets.md#目标一览) |
 | `uapa: uapa.config.ts: <字段>: 未知字段` | 字段名拼写错误，或命令 hooks 写了 `matcher` | 删除或改正该字段 |
 | `uapa: uapa.config.ts: hosts.<宿主>: targets 中没有该宿主的目标` | `hosts` 中的宿主没有配置任何目标 | 删除该宿主的选项，或在 `targets` 中加入它的目标 |
+| `uapa: uapa.config.ts: hosts.claude-code.manifest.<键>: 由 UAPA 生成或依赖默认位置，不能透传` | 透传了 UAPA 生成或依赖默认位置的保留键（如 `name`、`types`、`mcpServers`） | 删除该键，或改用宿主选项与常规组件 |
+| `uapa: uapa.config.ts: commandHooks[<n>].targets[<m>]: <目标> 不在 targets 中` | 命令 hook 声明的 `targets` 包含了未列入顶层 `targets` 的目标 | 在顶层 `targets` 中补充该目标，或从 `commandHooks` 中移除 |
+| `uapa: uapa.config.ts: marketplace.dir: marketplace 目录 <目录> 不能等于或位于 <宿主> 的插件目录内，该目录写入前会被清空` | `marketplace.dir` 落在默认布局的插件目录内 | 改用其他目录（默认为 `outDir`），或改用合并布局 |
 | `uapa: uapa.config.ts: <字段>: <宿主> 的插件目录 <目录> 写入前会被清空，不能等于或包含<…>` | 默认布局的插件目录覆盖了源项目根目录、`outDir` 或另一个插件目录 | 改用其他目录；要写入源项目根目录时让两个以上宿主共用它（合并布局） |
 
 ## 源项目（退出码 2）
@@ -29,10 +32,13 @@
 | `uapa: skills/<目录>: 缺少 SKILL.md` | skill 目录中没有 `SKILL.md` | 补上文件，或把该目录移出 `skills/` |
 | `uapa: <文件>: 缺少以 --- 包围的 frontmatter` | `SKILL.md` 或 agent 文件开头没有 frontmatter | 在文件开头写 `---` 包围的 `name` 与 `description` |
 | `uapa: skills/<目录>/SKILL.md: name: 与目录名 <目录> 不一致` | frontmatter 的 `name` 与目录名不同 | 改成相同；agent 的 `name` 与文件名相同 |
+| `uapa: rules/<文件>: <字段>: 不支持的键` | `rules/` 下文件的 frontmatter 写了 `activation`、`description`、`globs`、`targets` 以外的键 | 删除不支持的键 |
 | `uapa: <文件>: targets[<n>]: 未知目标名 <名称>` | frontmatter 的 `targets` 写错 | 写已登记的目标名，如 `[agy:subprocess]` |
 | `uapa: overrides/<目录>: 不是已配置的宿主（已配置：<…>）` | 覆盖目录名不是已配置目标的宿主 | 目录名改为 `claude-code`、`codex` 或 `agy`，或删除该目录 |
 | `uapa: mcp/servers.json: mcpServers.<名称>: 服务器名只能含字母、数字、_、-` | 服务器名含其他字符 | 改名 |
 | `uapa: mcp/servers.json: mcpServers.<名称>: 本地服务器（command、args、env）与远程服务器（url、headers）的字段混用` | 一个服务器同时写了两类字段 | 拆成两个服务器 |
+| `uapa: mcp/servers.json: mcpServers.<名称>.envVars: 只用于本地服务器` | 远程服务器写了 `envVars`，或变量名列表为空、不合规或重复 | 仅在本地服务器写合规的变量名列表（以字母或 `_` 开头，只含字母、数字、`_`） |
+| `uapa: <文件>: 不支持的文件类型（如符号链接）：<路径>` | `files/` 或 `skills/` 等目录中包含符号链接等非普通文件 | 移除符号链接或改为普通文件 |
 | `uapa: <守卫文件>: 默认导出缺失或不是 GuardPlugin 对象` | 守卫文件没有默认导出对象 | `export default guard` |
 | `uapa: <守卫文件>: requires[<n>]: 未知能力 <名称>` | `requires` 中的能力名写错 | 取值见[编写守卫](guards.md#能力缺失时的处理) |
 
@@ -45,6 +51,9 @@
 | `uapa: <目标>: 插件名 <名称> 不是 kebab-case：…` | Claude Code 与 Codex 要求 kebab-case | 改配置的 `name`，规则见[构建配置](configuration.md#字段) |
 | `uapa: <目标>: 配置未写 author：…` | 含 Claude Code 目标时缺少 `author` | 写 `author: { name: '…' }` |
 | `uapa: <目标>: 守卫的 requires 声明了 <能力>，本目标缺少该能力` | 守卫要求的能力该目标没有 | 接受该目标不构建，或从 `requires` 中去掉该能力并接受降级 |
+| `uapa: <目标>: 同路径冲突：<文件> 既由 <宿主> 生成，又是共用文件 files/<文件>；…` | `files/` 中的共用文件与生成的文件同路径冲突 | 替换生成文件改用 `overrides/<宿主>/`，或调整共用文件路径 |
+| `uapa: <目标>: 同路径冲突：<文件> 既是复制的组件文件，又是共用文件 files/<文件>；…` | `files/` 中的共用文件与复制的组件同路径冲突 | 替换组件文件改用 `overrides/<宿主>/`，或调整共用文件路径 |
+| `uapa: <目标>: 共用文件：插件目录 <目录> 是源项目根目录，files/ 中的文件不复制到这里；…` | 插件目录设为源项目根目录（合并布局）时 `files/` 非空 | 将共用文件直接放在根目录，或改用默认布局 |
 | `uapa: <目标>: 合并布局冲突：<文件> 由 <宿主> 生成，内容不同；…` | 合并布局中两个宿主生成了同名而内容不同的文件 | 按错误中的提示处理，如为 Codex 设置 `hooksFile` |
 | `uapa: claude-code:<形态>: 宿主校验失败：claude plugin validate --strict 以退出码 1 结束` | Claude Code 的校验未通过，后续行是校验的输出 | 按输出修改配置或覆盖文件；已写出的文件保留，便于检查 |
 | `uapa: <目标>: 打包结果含不允许的外部导入：<模块>（…）` | 守卫导入了第三方 npm 包，或在含 `claude-code:in-process` 时导入了 `node:` 内置模块 | 去掉第三方依赖；若需 `node:fs` / `node:path`，仅配置 `subprocess` 目标，见[编写守卫「约束」](guards.md#约束) |
@@ -65,5 +74,5 @@
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | 刚构建完 `--check` 就报 `modified` | 格式化工具或换行设置改写了产物 | 把插件目录与 `uapa-report.json` 排除在格式化与换行转换之外 |
-| `--check` 报 `removed <文件>` | 默认布局的插件目录中有不是本次生成的文件 | 删除该文件；要放自定义文件时用 `overrides/<宿主>/` |
+| `--check` 报 `removed <文件>` | 默认布局的插件目录中有不是本次生成的文件 | 删除该文件；各宿主共用的自定义文件放在 `files/`，某个宿主专属的放在 `overrides/<宿主>/` |
 | 合并布局中删除的组件仍在插件目录中 | 合并布局不删除目录中的其他文件 | 手动删除旧文件 |

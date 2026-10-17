@@ -134,19 +134,21 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 uapa/
 ├── src/
 │   ├── index.ts             公共导出
-│   ├── cli/
+│   ├── cli/                 args.ts：参数解析与帮助；run.ts：执行流程与退出码；main.ts：CLI 入口
 │   ├── config/              含 targets.ts：目标名与宿主标识；layout.ts：插件目录解析；
 │   │                        marketplace.ts：marketplace 目录；command-hooks.ts：命令 hooks 校验
-│   ├── source/              含 guard.ts：读取守卫声明；mcp.ts / mcp-fields.ts：MCP 声明校验
-│   ├── build/               含 placement.ts：各宿主的文件表与同路径冲突；merge.ts：JSON 合并；
-│   │                        marketplace.ts：marketplace 文件规划与比对
+│   ├── source/              含 guard.ts：读取守卫声明；mcp.ts / mcp-fields.ts：MCP 声明与字段校验；
+│   │                        skills.ts、agents.ts、rules.ts、commands.ts、shared.ts、overrides.ts
+│   ├── build/               含 plan.ts：TargetPlan 规划；placement.ts：宿主文件表与冲突；
+│   │                        merge.ts：JSON 合并；marketplace.ts：marketplace 规划；
+│   │                        report.ts：报告装配
 │   ├── capabilities/        types.ts、index.ts 与每个目标一个数据模块
 │   ├── targets/             types.ts、index.ts、rule-skills.ts 与 claude-code/、codex/、agy/（各含 risks.ts）
 │   ├── runtime/
-│   │   ├── core/
-│   │   └── entries/         subprocess.ts、每个目标一个入口与打包时名称的类型声明
+│   │   ├── core/            types.ts、tools.ts、decisions.ts、output.ts、options.ts
+│   │   └── entries/         subprocess.ts、stop-counter.ts、每个目标一个入口与打包时名称的类型声明
 │   ├── bundle/              types.ts（打包请求）与 index.ts
-│   └── report/
+│   └── report/              types.ts（构建报告类型）与 summary.ts（终端摘要）
 ├── test/                    node:test 测试
 │   └── fixtures/            源项目夹具与各目标的期望产物
 ├── scripts/                 发布与检查脚本；除夹具源项目的 files/ 外，仓库中只有这里允许

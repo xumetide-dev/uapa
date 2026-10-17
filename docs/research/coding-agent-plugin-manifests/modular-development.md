@@ -12,7 +12,7 @@
 |---|---|---|---|
 | L1 | 静态清单与指令 | 分发 skills、rules、agents、命令等文本资产；不执行代码 | 各宿主的 manifest、`SKILL.md`、Cursor rules、Kiro steering |
 | L2 | MCP 服务器 | 以独立进程或远程服务提供工具；不能拦截宿主内置工具 | 各宿主的 `mcp.json` / `.mcp.json` |
-| L3 | 命令 hooks | 宿主在事件点启动子进程，经 stdin JSON、退出码与 stdout JSON 交换决定 | Claude Code、Codex、Copilot、Cursor、Kimi、Kiro、CodeBuddy |
+| L3 | 命令 hooks | 宿主在事件点启动子进程，经 stdin JSON、退出码与 stdout JSON 交换决定 | Claude Code、Codex、agy、Copilot、Cursor、Kimi、Kiro、CodeBuddy |
 | L4 | 进程内模块 | 在宿主进程或宿主提供的环境中常驻，以函数链处理事件 | Claude Code hooks 模块、CodeBuddy Mods（Beta）、OpenCode 插件、DSH Cordis 插件 |
 
 - 分层描述机制，不是宿主的等级；一个宿主可同时提供多层，例如 Claude Code 同时有 L3 与 L4。
@@ -80,7 +80,9 @@ export default guard
 | `agy:subprocess`、`cursor:subprocess`、`kimi:subprocess`、`kiro:workspace-hook` | — | — | 不产出：缺少 `withholdOutput`（若从 `requires` 中去掉 `withholdOutput`，`agy:subprocess` 的拒绝与改写生效，执行后检查记为残余风险） |
 
 扣留发生在命令执行之后，命令的副作用不会撤销。需要在执行前拦下可能输出密钥的命令时，
-在 `beforeTool` 中按命令判断。
+在 `beforeTool` 中按命令判断。守卫方法可通过 `GuardContext.cwd` 获取当前会话工作目录
+（子进程中 Claude Code 与 Codex 来自 stdin `cwd`，agy 来自 stdin `workspacePaths[0]`，
+进程内为 `null`；SD-50）。
 
 ## 3. 迁移现有插件
 
@@ -92,10 +94,11 @@ export default guard
   无法解析；日志写 stderr。
 - 在 `catch` 中 `exit 0`，使脚本出错时放行。
 - `PostToolUse` 读取 `tool_result` 字段。Claude Code 的字段名是 `tool_response`。
-- 在支持改写的宿主上仍用退出码 2 拒绝。Claude Code、Codex、Copilot CLI、Cursor、CodeBuddy
-  都能改写入参，字段名各不相同（`updatedInput`、`modifiedArgs`、`updated_input`、
-  `modifiedInput`）。
-- 把会话状态写进 `/tmp` 的共享目录。改用插件数据目录并以 `session_id` 区分。
+- 在支持改写的宿主上仍用退出码 2 拒绝。Claude Code、Codex、Copilot CLI、Cursor、CodeBuddy、
+  agy 都能改写入参，字段名各不相同（`updatedInput`、`modifiedArgs`、`updated_input`、
+  `modifiedInput`、`overwrite`）。
+- 把会话状态写进 `/tmp` 的未隔离共享目录。改用插件数据目录（Claude Code、Codex、
+  Copilot CLI）或系统临时目录下的独立命名空间（agy）并以 `session_id` 区分。
 
 迁移步骤：
 

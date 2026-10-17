@@ -6,6 +6,9 @@ CodeBuddy 文档同时发布在 `codebuddy.cn`、`codebuddy.ai`，`copilot.tence
 跳转到 `codebuddy.cn`。这些文档站对不存在的路径也返回 HTTP 200，引用时以页面实际内容为准。
 横向对比见 [跨平台对比](cross-platform-comparison.md)。
 
+> **阶段标记**：仅调研（SD-01）。UAPA 当前版本（v0.4.0）未将 CodeBuddy / WorkBuddy 列为
+> 正式构建目标，本文仅为宿主生态调研与跨平台对比参考，不代表当前版本已提供该目标产物。
+
 ## 概述
 
 - CodeBuddy Code 的插件体系兼容 Claude Code 插件格式：manifest 可选、仅 `name` 必填、

@@ -8,6 +8,9 @@ bundle、profile、`cordis.patch.yml` 与配置分层见 [DSH 插件](dsh-plugin
 DSH 0.2.1-alpha.2，Cordis 4.0.5-alpha.1）的文档与源码，核对日期 2026-10-13；
 `path:line` 均相对仓库根目录。标为“示意写法”的代码未经编译验证。
 
+> **阶段标记**：仅调研（SD-01）。本文说明 DSH 原生 Cordis 插件编写方式与兼容层机制，供技术
+> 调研与后续架构扩展参考，UAPA 当前版本（v0.4.0）不生成 DSH 插件产物。
+
 ## 插件模块
 
 插件是导出 `apply` 的 ESM 模块。`name` 为插件名，`inject` 列出依赖的服务，

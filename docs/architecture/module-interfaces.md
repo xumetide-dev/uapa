@@ -32,6 +32,13 @@ export type TargetName =
 ```ts
 // src/config/types.ts，由 src/index.ts 导出
 interface HostDir { dir?: string } // 该宿主的插件目录；默认 `<outDir>/<宿主>`
+// marketplace 文件的配置（F-01-14，SD-41）：为 Claude Code 与 Codex 写 marketplace 文件
+export interface MarketplaceConfig {
+  name: string // kebab-case
+  owner: { name: string; email?: string }
+  dir?: string // marketplace 根目录，相对配置文件所在目录；默认为 outDir
+}
+
 export interface UapaConfig {
   name: string // 插件名，写入各宿主 manifest；各宿主的命名约束由宿主模块检查
   version: string // semver
@@ -42,11 +49,7 @@ export interface UapaConfig {
   targets: readonly TargetName[] // 非空，不重复
   outDir?: string // 输出根目录，默认 'dist'；构建报告写在这里
   commandHooks?: readonly CommandHookDecl[] // 原样声明的命令 hooks，见 command-hooks.md
-  marketplace?: { // v0.4.0（F-01-14，SD-41）
-    name: string // kebab-case
-    owner: { name: string; email?: string }
-    dir?: string // marketplace 根目录；默认为 outDir
-  }
+  marketplace?: MarketplaceConfig // v0.4.0（F-01-14，SD-41）
   hosts?: {
     'claude-code'?: HostDir & {
       displayName?: string; userConfig?: unknown
@@ -162,8 +165,12 @@ export interface SourceProject {
 
 // src/runtime/core/types.ts（F-02-01），不由包入口导出；v0.2.0 增加 'afterTool'
 export type GuardCheck = 'beforeTool' | 'beforePrompt' | 'beforeStop' | 'afterTool'
+export const GUARD_CHECKS: readonly GuardCheck[] = [
+  'beforeTool', 'beforePrompt', 'beforeStop', 'afterTool',
+]
 
 // src/source/guard.ts
+export type GuardOptionDecl = GuardOption & { readonly name: string }
 export interface GuardDeclaration {
   readonly modulePath: string // 守卫逻辑的绝对路径，供打包使用
   readonly name: string // 只用于错误信息，不写入构建报告
@@ -171,11 +178,14 @@ export interface GuardDeclaration {
   readonly checks: readonly GuardCheck[] // 默认导出上存在的方法；afterTool 自 v0.2.0（F-02-04）
   // v0.3.0（F-02-05）：默认导出的 options，按 name 排序；没有时为空；
   // GuardOption 见 hooks 适配第 2 节
-  readonly options: readonly (GuardOption & { readonly name: string })[]
+  readonly options: readonly GuardOptionDecl[]
 }
 ```
 
-- 守卫逻辑以 `export default` 导出 `GuardPlugin`。
+- 守卫逻辑以 `export default` 导出 `GuardPlugin`（公共类型见
+  [hooks 适配 §2](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#2-公共类型)
+  与 [入口与打包接口 §1](runtime-interfaces.md#1-打包)，各检查方法接收 `GuardContext`，
+  含选项取值与 `cwd`）。
 - 状态文件名与去重变量名由配置的 `name` 派生，不使用守卫的 `name`。
 - agents 只读 `agents/` 下一层的 `.md` 文件，其他项忽略（与 skills 忽略非目录项相同）；frontmatter
   的 `name`、`description` 为非空字符串，`name` 与文件名不同时返回 `InputIssue`，`targets` 的规则

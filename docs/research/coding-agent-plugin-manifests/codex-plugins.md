@@ -144,7 +144,8 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   `hooks/hooks.json`。根 `plugin.json` 只在 `$schema` 为 agent-plugins 地址时优先。
 - 不读取默认 `hooks/hooks.json` 的写法是 `"hooks": {"hooks": {}}`；`"hooks": []` 等同未写。
 - hooks 文件为 `{ "hooks": { <事件>: [{ "matcher"?, "hooks": [<处理器>] }] } }`，根对象出现其他键
-  （如 `modules`）时整份文件不加载；处理器的超时字段为 `timeout`，单位秒。
+  （如 `modules`）时整份文件不加载；处理器的超时字段为 `timeout`，单位秒。宿主把 `SessionEnd` 与
+  `Interrupt` 超时上限设为 3 秒，写入更大值时告警；UAPA 产物自动将其超时压至至多 3 秒以消除告警。
 - 省略 matcher 时匹配全部工具；命令经 shell 执行，`${PLUGIN_ROOT}` 由 Codex 在执行前替换。
 - stdin 为 snake_case：`session_id`、`cwd`、`tool_name`、`tool_input`（`Bash` 为 `{ command }`）、
   `prompt`、`stop_hook_active`。
@@ -157,7 +158,11 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   其余失败保留原输出。
 - 兼容 manifest 的 `mcpServers` 可指向 `./mcp.json`；文件中的字段为 snake_case（远程服务器的
   请求头为 `http_headers`），未知字段被忽略，不展开 `${PLUGIN_ROOT}` 等占位符；相对的 `cwd`
-  拼到插件目录下。
+  拼到插件目录下。本地服务器启动前清空环境，只保留 `HOME`、`PATH`、`SHELL`、`USER` 等少数系统
+  变量，未在 `env` 或 `env_vars` 声明的变量不会透传；UAPA 将整值引用 `${user_config.<KEY>}` 的
+  项从 `env` 剥离并并入 `env_vars`。兼容 manifest 未写 `mcpServers` 时默认读取根目录 `.mcp.json`；
+  UAPA 在 Codex 无服务器但与 Claude Code 共用目录时显式写入 `"mcpServers": {}`，避免误读
+  Claude Code 写出的 `.mcp.json`。
 - 插件不承载 agents。
 - 兼容格式的插件在安装时把 `commands/**/*.md` 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果
   超过 4000 字节的命令被跳过；插件不承载 rules 与指令文件，也没有传给 hook 的用户配置（2026-10-15

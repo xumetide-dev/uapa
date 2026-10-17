@@ -24,6 +24,11 @@
 `source` 均为 `"antigravity"`，skills、agents、commands、rules、MCP 服务器与根 `hooks.json` 照常
 加载，见[实测记录「替代 manifest 位置与合并目录（1.3.5，容器）」](agy-local-tests.md#替代-manifest-位置与合并目录135容器)。
 
+UAPA 生成 manifest 时的路径规范（F-11-15，SD-47）：单宿主独立目录默认写根 `plugin.json`；多宿主
+合并目录默认写 `.antigravity-plugin/plugin.json`（避免与 Codex 根 `plugin.json` 优先规则冲突导致
+Codex 忽略 hooks）；同时支持通过 `hosts.agy.manifest` 自定义清单路径（可显式指定为 `'plugin.json'`
+或 `'.antigravity-plugin/plugin.json'`）。
+
 | 字段 | 必填 | 含义 |
 |---|---|---|
 | `name` | CLI 必填（应用与 IDE 缺省为目录名） | 匹配 `^[a-zA-Z0-9-_]+$` |
@@ -43,10 +48,15 @@
 | skills | `skills/<name>/SKILL.md` | [A1] |
 | 子代理 | `agents/<name>.md`，frontmatter 必填 `name` 与 `description`；1.3.3 起另可用根 `agents.json` 声明 | [A1][A3] |
 | rules | `rules/<name>.md`；frontmatter 的 `trigger` 决定是否进入上下文，见[实测记录「rules（1.3.5，容器）」](agy-local-tests.md#rules135容器) | [A1] |
+| commands | `commands/<name>.md`，安装时由宿主转换为技能，以 `/<插件名>:<命令名>` 调用，正文 `$ARGUMENTS` 替换为参数 | [A3]；容器实测 |
 | MCP 服务器 | 根 `mcp_config.json` | [A1] |
 | hooks | 根 `hooks.json` | [A1] |
 | 命令行工具 | `bin/`，代理可按名称运行 | [A3] |
 
+- UAPA 的 `agy:subprocess` 目标支持承载全部 6 类组件：`skills`、`agents`、`mcp`、`hooks`、
+  `rules` 与 `commands`（F-11-01、F-11-06～F-11-09，SD-30、SD-32、SD-39）。源项目的 `commands/`
+  原样复制进插件包，由宿主在安装时转换为技能；`rules/` 换算为 frontmatter `trigger` 与逗号分隔
+  的 `globs`。
 - 每个 skill 自动成为斜杠命令 [A6]，插件 skill 的命令为 `/<插件名>:<skill>`（1.2.7 修复了双前缀）；
   打印模式中以 `/<skill>` 开头的提示展开该 skill（1.1.9）；frontmatter 写
   `disable-slash-command: true` 时不进入 `/` 菜单（1.1.12）[A3]。`agy plugin import gemini` 把
@@ -159,6 +169,12 @@ stdin 为 camelCase 字段的 JSON [A2]：
 | `PostToolUse` | 同 `PreToolUse`，另有 `error`；不含工具输出 |
 | `Stop` | `executionNum`、`terminationReason`（`model_stop`、`max_steps_exceeded`、`error`）、`error`、`fullyIdle` |
 | `PreInvocation` | `invocationNum`（本次模型调用的序号，从 0 起）、`initialNumSteps`（当前轨迹的步数） |
+
+- stdin 的 `workspacePaths` 为工作区绝对路径数组。UAPA 子进程入口
+  （`src/runtime/entries/agy-subprocess.ts`）从中提取 `workspacePaths[0]` 作为
+  `GuardContext.cwd` 传入守卫；当 `workspacePaths` 缺失、非数组、为空数组或首项为空串时，
+  `GuardContext.cwd` 静默退化为 `null`，不因工作目录缺失阻断执行前检查（F-04-10、F-11-15，
+  SD-50；1.3.5 容器实测）。
 
 `toolCall.args` 的键为 PascalCase（本地实测）：
 

@@ -40,7 +40,7 @@
 | US-21 | P-04 | v0.3.0 | Claude Code 的插件设置 | 在 Claude Code 中设置插件选项后继续使用 | 守卫按设置的取值判断；取值无效时执行前检查按拒绝处理 | F-04-09, F-05-17, F-05-18 |
 | US-22 | P-01 | v0.4.0 | `files/` | 把 MCP 服务器与命令 hooks 用到的脚本放进 `files/`，构建到三个宿主 | 每个插件目录都有同样的文件；与生成文件或组件文件同名时构建失败，并提示改用覆盖目录 | F-01-12, F-03-17 |
 | US-23 | P-01 | v0.4.0 | `rules/`、`commands/` | 同一份 rules 与 commands 构建到三个宿主 | Claude Code 与 Codex 以技能和会话开始时的上下文承载 rules，agy 安装时把 commands 转换为技能；不能换算的条目列为跳过，语义差异写入残余风险 | F-03-19, F-05-19, F-06-11, F-06-13, F-11-11 |
-| US-24 | P-01 | v0.4.0 | `mcp/servers.json` | 为本地 MCP 服务器声明它需要的环境变量，或限定服务器只写入指定目标 | Codex 产物写入 `env_vars`；宿主不展开的占位符与未声明变量的服务器写入残余风险；指定 `targets` 的服务器只写入匹配目标 | F-01-13, F-01-15, F-03-20, F-05-26, F-06-12, F-11-12 |
+| US-24 | P-01 | v0.4.0 | `mcp/servers.json` | 为本地 MCP 服务器声明它需要的环境变量，或限定服务器只写入指定目标 | Codex 产物写入 `env_vars`；本地服务器 `env` 含 `${user_config.<KEY>}` 时由 Codex 与 agy 从生成的 `env` 中剥离并列入残余风险，Codex 并入 `env_vars`；宿主不展开的占位符与未声明变量的服务器写入残余风险；指定 `targets` 的服务器只写入匹配目标 | F-01-13, F-01-15, F-03-20, F-05-26, F-06-12, F-06-17, F-11-12, F-11-15 |
 | US-25 | P-02 | v0.4.0 | `marketplace` 配置 | 为团队生成 Claude Code 与 Codex 的 marketplace 文件并提交 | 团队按安装指南添加 marketplace 并安装插件；门禁中的 `uapa build --check` 发现 marketplace 文件与配置不一致 | F-01-14, F-03-18, F-05-24, F-06-15 |
 | US-26 | P-01 | v0.4.0 | `hosts['claude-code']` | 透传 Claude Code 专有的 manifest 字段，并让守卫入口出错时阻断 | `plugin.json` 含透传字段并通过 `validate --strict`；`PreToolUse` 与 `UserPromptSubmit` 的守卫条目写 `onFailure: "block"`，构建报告写明缺少 Node 时的后果；含保留词的插件名在构建时失败 | F-01-14, F-05-20, F-05-21, F-05-25 |
 | US-27 | P-04 | v0.4.0 | 三个宿主中的插件 | 安装 v0.4.0 构建的插件后日常使用 | 守卫检查 `Monitor` 启动的命令；构建报告列出宿主可能使守卫不运行的情形；Codex 会话开始时不出现超时告警 | F-05-22, F-05-23, F-06-14, F-06-16, F-11-14 |

@@ -82,6 +82,15 @@ if (process.env.UAPA_MODULE_SESSION_COMMAND_GUARD === input.session_id) process.
   （[双形态去重的会话实测](claude-code-local-tests.md#双形态去重的会话实测)）。
   `SessionStart` 事件上的命令 hook 能否看到同一会话模块写入的变量，取决于调用顺序，未实测；
   该事件不要依赖去重。
+- 去重退出与 `onFailure: "block"`：配置 `hosts['claude-code'].onFailure = 'block'` 时，`PreToolUse`
+  与 `UserPromptSubmit` 条目写入 `"onFailure": "block"`。在模块正常运行的会话中，命令 hook 比对
+  环境变量命中后以退出码 0 结束，视为正常成功放行，不会触发 `onFailure: "block"`。若 hooks
+  模块因宿主参数（如 `--safe-mode`、`--bare`）、版本不支持或异常未能加载，去重环境变量未写入，
+  命令 hook 正常执行守卫逻辑；此时若命令 hook 异常崩溃或超时，`onFailure: "block"` 确保阻断
+  工具调用与提示提交（fail-closed），守卫不静默失效。
+- 两种形态共存时的环境要求：虽然命令 hook 在比对成功后提前退出，但宿主在分发事件时仍会启动
+  `node` 子进程。若运行宿主的机器缺少 Node ≥ 22，子进程启动失败，在配置了 `onFailure: "block"`
+  时会导致即使模块已加载成功，工具调用与提示仍被宿主阻断（构建报告为此输出残余风险）。
 - hooks 模块运行在没有 Node `process` 的独立环境中，与 hook 子进程不共享内存，不能用
   `globalThis` 标志或进程 id 判断模块是否生效。
 - 在 DSH 中，`$.env` 是进程级、所有会话共享的，上述做法不成立。同一插件不要同时挂载

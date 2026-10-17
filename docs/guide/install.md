@@ -2,7 +2,8 @@
 
 本文说明怎样把构建出的插件目录装进 Claude Code、Codex 与 agy，以及分发给团队的方式。本地目录的
 加载与安装步骤已用 UAPA 的夹具产物实测，见
-[M2-05 验收](../acceptance/M2-05-three-host-live-tests.md)与
+[M2-05 验收](../acceptance/M2-05-three-host-live-tests.md)、
+[M5-07 验收](../acceptance/M5-07-v0-4-0-live-tests.md)与
 [Claude Code 本地实测记录](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#v040-覆盖审查21296容器)。
 
 ## 前提条件
@@ -18,8 +19,9 @@
 claude --plugin-dir dist/claude-code
 ```
 
-配置了 [`marketplace`](configuration.md#marketplace) 时（默认写在 `dist/.claude-plugin/marketplace.json`），
-也可以添加本地 marketplace 并安装到用户配置（Claude Code 2.1.296 容器实测）：
+配置了 [`marketplace`](configuration.md#marketplace) 时（默认写在
+`dist/.claude-plugin/marketplace.json`），也可以添加本地 marketplace 并安装到用户配置
+（Claude Code 2.1.296 容器实测）：
 
 ```bash
 claude plugin marketplace add dist
@@ -28,7 +30,8 @@ claude plugin install <插件名>@<marketplace 名>
 
 - 会话中重新构建后，用 `/reload-plugins` 重载。
 - `/plugin` 面板的 Errors 标签页显示插件的加载错误。
-- UAPA 在写出后已对插件目录运行 `claude plugin validate --strict`（PATH 中有 `claude` 时）；手动校验插件目录或生成的 marketplace 文件：
+- UAPA 在写出后已对插件目录运行 `claude plugin validate --strict`（PATH 中有 `claude` 时）；
+  手动校验插件目录或生成的 marketplace 文件：
 
 ```bash
 claude plugin validate dist/claude-code --strict
@@ -92,9 +95,10 @@ agy plugin list --json
 
 ## 分发给团队
 
-在 `uapa.config.ts` 中配置 [`marketplace`](configuration.md#marketplace)（把产物提交进仓库根目录分发时设 `dir: '.'`），
-`uapa build` 在 `marketplace.dir` 中生成 Claude Code 与 Codex 的 marketplace 文件。把产物与生成的
-marketplace 文件一起提交进仓库，使用者按各宿主的方式从 git 安装：
+在 `uapa.config.ts` 中配置 [`marketplace`](configuration.md#marketplace)
+（把产物提交进仓库根目录分发时设 `dir: '.'`），`uapa build` 在 `marketplace.dir` 中生成
+Claude Code 与 Codex 的 marketplace 文件。把产物与生成的 marketplace 文件一起提交进仓库，
+使用者按各宿主的方式从 git 安装：
 
 | 宿主 | 生成的 marketplace 文件 | 条目的 `source` | 安装命令 |
 |---|---|---|---|
@@ -104,12 +108,13 @@ marketplace 文件一起提交进仓库，使用者按各宿主的方式从 git 
 
 - **只配置 Claude Code 时 Codex 的误装风险**：Codex 查找 marketplace 时先读
   `.agents/plugins/marketplace.json`，不存在时回退读取 `.claude-plugin/marketplace.json`
-  （rust-v0.162.1 `core-plugins/src/marketplace.rs`）。同时配置 Claude Code 与 Codex 时两个文件并存，
-  Codex 读取 `.agents/plugins/marketplace.json` 并安装 Codex 产物；若只配置 Claude Code（未生成
-  `.agents/plugins/marketplace.json`），不要在 Codex 中添加该 marketplace，否则 Codex 会把
-  Claude Code 的插件目录当作 Codex 插件安装。
+  （rust-v0.162.1 `core-plugins/src/marketplace.rs`）。同时配置 Claude Code 与 Codex 时
+  两个文件并存，Codex 读取 `.agents/plugins/marketplace.json` 并安装 Codex 产物；若只配置
+  Claude Code（未生成 `.agents/plugins/marketplace.json`），不要在 Codex 中添加该
+  marketplace，否则 Codex 会把 Claude Code 的插件目录当作 Codex 插件安装。
 - 要让仓库根目录本身就是 Claude Code、Codex 与 agy 的插件，使用
-  [合并布局](configuration.md#合并布局)并设 `marketplace.dir: '.'`（agy 默认写入 `.antigravity-plugin/plugin.json`，三个宿主的 manifest 在同一目录中并存）。
+  [合并布局](configuration.md#合并布局)并设 `marketplace.dir: '.'`（agy 默认写入
+  `.antigravity-plugin/plugin.json`，三个宿主的 manifest 在同一目录中并存）。
 - 在安装说明中写明 Codex 的信任步骤与 Node ≥ 22 的要求。
 
 字段与来源类型见各宿主调研：

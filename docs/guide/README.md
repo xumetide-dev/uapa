@@ -16,7 +16,7 @@
 | [源项目结构](source-project.md) | skills、agents、rules、commands、MCP 服务器、共用文件与覆盖文件放在哪里，各宿主怎样承载 | 插件作者 |
 | [构建配置](configuration.md) | `uapa.config.ts` 的字段、宿主选项与两种产物布局 | 插件作者 |
 | [编写守卫](guards.md) | 执行前、提示提交前、执行后与停机前检查的写法、约束与测试 | 插件作者 |
-| [命令 hooks](command-hooks.md) | 不经守卫、原样写入宿主 hooks 配置的命令 | 插件作者 |
+| [命令 hooks](command-hooks.md) | 不经守卫、原样写入宿主 hooks 配置的命令与单条超时 | 插件作者 |
 | [目标与宿主差异](targets.md) | 四个目标的能力、降级与残余风险，Claude Code 的两种形态 | 插件作者 |
 | [构建、检查与报告](build-and-check.md) | `uapa build` 与 `--check` 的输出、退出码、构建报告与持续集成中的用法 | 插件作者 |
 | [安装与分发](install.md) | 在各宿主中加载产物、信任 hooks、分发给团队 | 插件作者 |

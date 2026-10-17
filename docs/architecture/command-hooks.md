@@ -10,9 +10,11 @@ hooks 的入口与命令见[入口与打包接口](runtime-interfaces.md)，模�
 
 ```ts
 // src/config/types.ts（F-01-09、F-01-15），由 src/index.ts 导出
-export type CommandHookEvent =
-  | 'SessionStart' | 'SessionEnd' | 'UserPromptSubmit'
-  | 'PreToolUse' | 'PostToolUse' | 'Stop'
+export const COMMAND_HOOK_EVENTS = [
+  'SessionStart', 'SessionEnd', 'UserPromptSubmit',
+  'PreToolUse', 'PostToolUse', 'Stop',
+] as const
+export type CommandHookEvent = (typeof COMMAND_HOOK_EVENTS)[number]
 export interface CommandHookDecl {
   readonly event: CommandHookEvent
   readonly command: string // 原样写入 hooks 配置；插件根目录写作 {pluginRoot}

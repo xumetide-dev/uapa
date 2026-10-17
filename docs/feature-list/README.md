@@ -37,7 +37,7 @@ v0.3.0 的范围见 SD-31，v0.4.0 的范围见 SD-36，预留的理由与恢复
 | 03 | [构建编排](modules/03-build.md) | 能力检查、宿主模块接口与注册表、按宿主构建、组件放置与覆盖、产物布局与合并、宿主校验、比对、构建报告 | `src/build/`、`src/report/`、`src/capabilities/types.ts`、`src/capabilities/index.ts`、`src/targets/types.ts`、`src/targets/index.ts`、`src/bundle/types.ts` |
 | 04 | [守卫运行时](modules/04-guard-runtime.md) | 工具名与入参换算、子进程入口的公共部分、打包 | `src/runtime/core/`（`types.ts` 除外）、`src/runtime/entries/subprocess.ts`、`src/runtime/entries/bundle-names.d.ts`、`src/bundle/`（`types.ts` 除外） |
 | 05 | [Claude Code 目标](modules/05-claude-code.md) | 两种形态的能力数据、manifest、hooks 配置、入口；两种形态合为一个插件包并去重 | `src/targets/claude-code/`、`src/capabilities/claude-code-*.ts`、`src/runtime/entries/claude-code-*.ts` |
-| 06 | [Codex 目标](modules/06-codex.md) | 能力数据、`$schema` 格式 manifest、hooks 配置与入口 | `src/targets/codex/`、`src/capabilities/codex-subprocess.ts`、`src/runtime/entries/codex-subprocess.ts` |
+| 06 | [Codex 目标](modules/06-codex.md) | 能力数据、`.codex-plugin/plugin.json` 兼容 manifest、hooks 配置与入口 | `src/targets/codex/`、`src/capabilities/codex-subprocess.ts`、`src/runtime/entries/codex-subprocess.ts` |
 | 07 | [Copilot CLI 目标](modules/07-copilot-cli.md)（预留） | 能力数据、`$schema` 格式 manifest、hooks 配置与入口 | `src/targets/copilot-cli/`、`src/capabilities/copilot-cli-subprocess.ts`、`src/runtime/entries/copilot-cli-subprocess.ts` |
 | 08 | [Kimi Code 目标](modules/08-kimi-code.md)（预留） | 能力数据、`kimi.plugin.json`、hook 规则与入口 | `src/targets/kimi/`、`src/capabilities/kimi-subprocess.ts`、`src/runtime/entries/kimi-subprocess.ts` |
 | 09 | [命令行](modules/09-cli.md) | 命令、参数、终端输出与退出码 | `src/cli/` |

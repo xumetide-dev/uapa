@@ -34,6 +34,9 @@ skills、hooks 控制能力、MCP 配置与分发方式，并给出跨平台发�
 - **`.claude-plugin/`**：Claude Code 本身使用；CodeBuddy / WorkBuddy 兼容其 `plugin.json` 并
   提供 `CLAUDE_*` 路径变量；VS Code 与 Copilot CLI 识别其 manifest；Codex 与 Copilot CLI
   识别其 `marketplace.json`。
+- **三宿主合并布局**：Claude Code（`.claude-plugin/plugin.json`）、Codex
+  （`.codex-plugin/plugin.json`）与 agy（`.antigravity-plugin/plugin.json`，合并布局下默认）
+  三者清单文件完全解耦，可在一个插件目录中无冲突并存（1.3.5 实测与根 `plugin.json` 一致）。
 - **宿主自有格式**：Kimi Code（`kimi.plugin.json`）、DSH（`package.json` 的 `dsh` 键）、
   OpenCode（代码模块 + `opencode.json` 的 `plugin` 数组）。
 
@@ -91,6 +94,10 @@ Agent Skills 规范定义 `SKILL.md`：必填 `name`（≤64 字符，小写字�
 - Claude Code 的 `PostToolUse` 用退出码 2 或 `decision: "block"` 只附加原因，模型仍能读到原始输出。
 - 同名字段在不同平台含义不同：`continue: false` 在 Claude Code 中终止处理，在 CodeBuddy 的
   `Stop` 中表示继续工作。
+- 命令 hook 单条超时：Claude Code 与 Codex 默认均为 600 秒，agy 与 Copilot CLI 默认为 30 秒。
+  Codex 对 `SessionEnd`（及 `Interrupt`）默认超时为 1 秒、上限强制截断为 3 秒（超过 3 秒时产生
+  Warning 告警并截断到 3 秒，rust-v0.162.1 源码核对）；UAPA 对 Codex `SessionEnd` 单条 hook 超时
+  自动截断为 `Math.min(requested, 3)`。
 
 ## Hooks 命名差异
 
@@ -124,6 +131,7 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 | 编辑 notebook | `NotebookEdit` | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 |
 | 待办 | `TaskCreate` 等 | `update_plan` | `update_todo` / `TodoWrite` | 未查到 | `TodoList` | 未查到 | `TaskCreate` 等 | `todowrite` | `todo_write` | 未查到 |
 | 名称所在字段 | stdin `tool_name`；模块 `e.tool` | `tool_name` | `toolName` / `tool_name` | `tool_name` | `tool_name` | `tool_name` | `tool_name` | `input.tool` | `exec.name` | `toolCall.name` |
+| 会话工作目录字段 | stdin `cwd`；模块无 | stdin `cwd` | 待 TA-15 | 未查到 | 未查到 | 未查到 | stdin `cwd` | 运行时确定 | 进程当前目录 | stdin `workspacePaths[0]` |
 
 - Claude Code：`Task` 于 v2.1.63 改名为 `Agent`，设置中的 `Task(...)` 仍作为别名生效；
   `TodoWrite` 默认关闭，由 `TaskCreate`、`TaskGet`、`TaskList`、`TaskUpdate` 取代
@@ -149,6 +157,11 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
   `subagent`。
 - agy：工具名取自 hooks 文档的 matcher 列表，入参键为 PascalCase（如 `run_command` 的
   `CommandLine`），见 [agy](agy-plugins.md#输入)。
+- 会话工作目录提取：子进程 hook 中，Claude Code（`claude-code:subprocess`）与 Codex
+  （`codex:subprocess`）从 stdin 的 `cwd` 字段提取工作目录；agy（`agy:subprocess`）从 stdin 的
+  `workspacePaths[0]` 提取（1.3.5 容器实测，`workspacePaths` 为数组）；Claude Code 进程内模块
+  （`claude-code:in-process`）事件对象不提供工作目录（2.1.296 实测），UAPA 运行时固定置为
+  `null`（SD-50）。
 - 按 `Bash` 编写的 matcher 在 Cursor（`Shell`）与 Kiro（`execute_bash`）上不会命中；跨平台
   守卫需要逐平台映射工具名，存在文档内部不一致的项需在目标版本上实测。
 
@@ -163,6 +176,15 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 | DSH | Cordis 配置中的 `@deepseek-ai/dsh-mcp-client` 行 | 不适用 | 见 mcp-client README |
 | Kimi Code | `~/.kimi-code/mcp.json`、`.kimi-code/mcp.json` | 未逐字核实 | 未逐字核实 |
 | Copilot / Cursor / Kiro 插件 | 插件根 `mcp.json` | 未逐字核实 | Kiro：`type: "stdio"` + `command`、`args`、`env` |
+
+- 跨宿主 `${user_config.*}` 剥离：Claude Code 原生展开 `${user_config.<KEY>}` 占位符；Codex 与
+  agy 均不展开 `${user_config.*}` 等变量占位符。UAPA 构建时将含 `${user_config.`
+  的 `env` 键值对从 Codex 与 agy 的 MCP 配置中剥离，避免将未展开的字面量占位符传递给进程
+  （SD-49）。
+- Codex 环境变量白名单自动并入：Codex 启动本地 MCP 服务器前清空环境，仅保留少数系统环境变量；
+  UAPA 构建时将源项目声明的 `envVars` 与剥离出的 `${user_config.<KEY>}` 中的 `<KEY>`
+  自动去重合并写入 Codex `mcp.json` 的 `env_vars` 字段（SD-40、SD-49）。agy 本地 MCP 服务器
+  直接继承宿主会话环境，无需写 `env_vars`。
 
 ## 路径变量
 

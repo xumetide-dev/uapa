@@ -5,6 +5,9 @@ rules 与 hooks 的文件格式和控制语义。事实核对日期为 2026-10-1
 Cursor 的 VS Code 扩展（`.vsix`，Open VSX）是另一套机制，不在本文范围。
 横向对比见 [跨平台对比](cross-platform-comparison.md)。
 
+> **阶段标记**：仅调研（SD-01）。UAPA 当前版本（v0.4.0）未将 Cursor 列为正式构建目标，本文仅为宿主
+> 生态调研与跨平台对比参考，不代表当前版本已提供该目标产物。
+
 ## 两种插件格式
 
 | 格式 | manifest | 可承载的组件 |

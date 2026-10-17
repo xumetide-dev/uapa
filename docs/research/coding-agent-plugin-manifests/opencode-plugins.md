@@ -5,6 +5,9 @@
 （2026-10-11 发布）源码为准。其他平台见 [Claude Code](claude-code-plugins.md)、
 [Codex](codex-plugins.md)，横向对比见 [跨平台对比](cross-platform-comparison.md)。
 
+> **阶段标记**：仅调研（SD-01）。UAPA 当前版本（v0.4.0）未将 OpenCode 列为正式构建目标，本文仅为宿主
+> 生态调研与跨平台对比参考，不代表当前版本已提供该目标产物。
+
 ## 概述
 
 - OpenCode 插件是 JavaScript / TypeScript 模块，导出一个或多个插件函数；

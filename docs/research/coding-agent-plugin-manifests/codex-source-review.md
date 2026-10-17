@@ -60,7 +60,7 @@
 | 插件目录变量 | 插件来源的命令中 `${PLUGIN_ROOT}`、`${PLUGIN_DATA}` 由 Codex 在交给 shell 前按字面替换；进程环境另有 `PLUGIN_ROOT`、`PLUGIN_DATA`、`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA` | `hooks/src/engine/discovery.rs`；测试 `plugin_hook_sources_expand_plugin_placeholders` |
 | 工作目录 | stdin 中的 `cwd` | `hooks/src/engine/command_runner.rs` |
 | 数据目录 | `$CODEX_HOME/plugins/data/<插件名>-<marketplace>`；hook 路径上没有创建该目录的代码 | `core-plugins/src/store.rs` |
-| 超时 | 默认 600 秒，最小 1 秒；`SessionEnd`、`Interrupt` 默认 1 秒、上限 3 秒，写入更大的值时压到 3 秒，并在每次会话开始时以 Warning 事件显示“clamping SessionEnd hook timeout to 3s”（告警在信任检查之前产生）；超时杀进程组并记为失败 | `hooks/src/engine/discovery.rs` 的 `normalize_command_hook`；`core/src/session/session.rs` |
+| 超时 | 默认 600 秒，最小 1 秒；`SessionEnd`、`Interrupt` 默认 1 秒、上限 3 秒，写入更大的值时压到 3 秒，并在每次会话开始时以 Warning 事件显示“clamping SessionEnd hook timeout to 3s”（告警在信任检查之前产生）；超时杀进程组并记为失败；UAPA 生成产物时自动将 `SessionEnd` 的超时限定为至多 3 秒，避免触发该警告 | `hooks/src/engine/discovery.rs` 的 `normalize_command_hook`；`core/src/session/session.rs` |
 
 ## stdin
 
@@ -167,7 +167,10 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
   `__CF_USER_TEXT_ENCODING`、`LANG`、`LC_ALL`、`TERM`、`TMPDIR`、`TZ` 与证书相关的变量，再加入
   `env` 中的变量与 `env_vars` 列出的会话变量（`rmcp-client/src/utils.rs`、
   `utils/pty/src/child_command.rs`）。依赖令牌或代理变量的服务器不写 `env_vars` 时拿不到这些变量，
-  启动或鉴权失败时插件不报错。
+  启动或鉴权失败时插件不报错。UAPA 对此的处理：源项目若声明 `envVars`，写为 `env_vars` 数组；
+  若本地服务器 `env` 含 `${user_config.<KEY>}`，因 Codex 不展开用户配置占位符，UAPA 自动剥离
+  该配置并把整值引用的 `<KEY>` 并入 `env_vars`（去重），由会话环境变量传递取值；未声明 `envVars`
+  且无提取键的本地服务器输出清空环境残余风险（F-06-12、F-06-17，SD-40、SD-49）。
 - `type` 可省略，解析前被移除；`stdio`、`http`、`streamable_http`、`streamable-http` 静默接受，
   其他取值只告警。传输方式由有 `command` 还是 `url` 决定。
 - 未知字段被静默忽略（测试 `deserialize_ignores_unknown_server_fields`），因此 `headers` 等

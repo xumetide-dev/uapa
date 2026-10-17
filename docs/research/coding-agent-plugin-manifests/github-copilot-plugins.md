@@ -4,6 +4,9 @@
 marketplace、安装方式与 hooks 配置和控制语义。事实核对日期为 2026-10-13。
 横向对比见 [跨平台对比](cross-platform-comparison.md)。
 
+> **阶段标记**：预留（SD-27，功能模块 07）。UAPA 规划有 `copilot-cli:subprocess` 目标，当前版本
+> 功能保留为预留阶段，待补齐宿主实测条件后排期实现；本文为宿主机制调研与后续目标适配依据。
+
 ## 概述
 
 - agent 插件是预打包的 agent 定制集合，可从插件 marketplace 发现并安装 [G1]。

@@ -39,7 +39,7 @@ team-rules/
 在该目录中安装 UAPA（npm 的写法与升级方式见仓库 [README「安装」](../../README.md#安装)）：
 
 ```bash
-pnpm add -D github:xumetide-dev/uapa#v0.3.0
+pnpm add -D github:xumetide-dev/uapa#v0.4.0
 ```
 
 ## 2. 写配置、skill 与守卫

@@ -49,9 +49,11 @@
 
 - 默认情况下，hook 无法启动、以 0 与 2 以外的退出码结束、超时或输出无效时，流程继续 [C4]。
 - 2.1.295 起处理器可写 `onFailure: "block"`：上述情况按退出码 2 处理，`PreToolUse` 阻断工具调用，
-  `UserPromptSubmit` 阻断提示；对 `Stop` 与 async hooks 无效 [C4]（CHANGELOG 2.1.295）。2.1.296 中
-  入口文件不存在时，`onFailure: "block"` 的 `PreToolUse` 阻断了标记命令，未写时命令照常运行（容器
-  实测，见[本地实测记录「v0.4.0 覆盖审查」](claude-code-local-tests.md#v040-覆盖审查21296容器)）。
+  `UserPromptSubmit` 阻断提示；对 `PostToolUse`（工具已执行完毕）、`Stop` 与 async hooks 无效
+  [C4]（CHANGELOG 2.1.295）。UAPA 仅在配置 `hosts['claude-code'].onFailure = 'block'` 时为
+  `PreToolUse` 与 `UserPromptSubmit` 守卫条目写入该字段（SD-43），规则条目与声明的命令不写。
+  2.1.296 中入口不存在时，`onFailure: "block"` 的 `PreToolUse` 阻断了标记命令，未写时照常运行。
+  [本地实测记录「v0.4.0 覆盖审查」](claude-code-local-tests.md#v040-覆盖审查21296容器)。
 - 2.1.299 起，未设 `shell` 的 `PreToolUse` hook 在 Windows 上缺少 Git for Windows 时改为阻断；hook
   拿不到或交不回值时，能阻断的动作改为拒绝，已运行的工具结果被扣留（CHANGELOG 2.1.299）。
 - 2.1.300 起 `updatedInput` 受校验：未知键被丢弃，工具拒绝的入参使该次调用被拒

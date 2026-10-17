@@ -26,6 +26,7 @@
 | commands | 承载 | 承载，安装时转换为技能；Codex 不转换的命令记为跳过 | 承载，安装时转换为技能 |
 | MCP 服务器 | 承载 | 承载；`command` 含 `{pluginRoot}` 的跳过 | 承载；`command` 含 `{pluginRoot}` 的跳过 |
 | 守卫选项 | 写入 `userConfig`，取使用者设置的值 | 取 `default`，记为残余风险 | 取 `default`，记为残余风险 |
+| 守卫工作目录（`ctx.cwd`） | `subprocess` 取 `stdin.cwd`；`in-process` 为 `null` | 取 `stdin.cwd` | 取 `stdin.workspacePaths[0]` |
 | `rewriteInput` | 有 | 有 | 有 |
 | `replaceOutput` | 有 | 无 | 无 |
 | `withholdOutput` | 有 | 有 | 无 |
@@ -89,6 +90,8 @@
   `disableAllHooks`、`--safe-mode`、`--bare` 与托管设置可使插件的 hooks 与 hooks 模块不运行。
   声明 `SessionEnd` 命令时，插件 hooks 共用宿主 1.5 秒的总预算；agent 的 frontmatter 中
   `permissionMode`、`hooks`、`mcpServers`、`initialPrompt` 被插件 agent 忽略。
+- 守卫工作目录（`ctx.cwd`）：`claude-code:subprocess` 从宿主 stdin 的 `cwd` 字段读取；
+  `claude-code:in-process` 的宿主事件对象不提供工作目录，`ctx.cwd` 为 `null`。
 
 ## Codex
 
@@ -111,6 +114,7 @@
   转换后的技能以
   `$<插件名>:source-command-<命令名>` 调用，TUI 中键入 `$` 与名称片段时出现在补全列表；模型也按
   `description` 选用（codex-cli 0.162.1 容器实测）。
+- 守卫工作目录（`ctx.cwd`）：从宿主 stdin 的 `cwd` 字段读取，为空或非字符串时退化为 `null`。
 
 ## agy
 
@@ -133,6 +137,8 @@
 - `agy plugin validate` 对结构错误的插件也报告 `[ok]`，不能作为校验手段；UAPA 在生成时对
   manifest（`plugin.json` 或 `.antigravity-plugin/plugin.json`）、`hooks.json` 与 `mcp_config.json`
   做字段白名单检查。
+- 守卫工作目录（`ctx.cwd`）：从宿主 stdin 的 `workspacePaths[0]` 读取
+  （agy 1.3.5 容器实测），缺失或为空时退化为 `null`。
 
 ## 参考
 

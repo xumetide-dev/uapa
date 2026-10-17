@@ -142,7 +142,10 @@ export default defineConfig({
   环境变量中的插件根按服务器的工作目录换算，不能换算的服务器列为跳过，可在 `overrides/<宿主>/` 中提供
   替代配置；`env` 含 `${user_config.<KEY>}` 时 Claude Code 原样写出，Codex 与 agy 从生成的 `env` 中剥离并
   由 Codex 自动将 `<KEY>` 并入 `env_vars`（SD-30、SD-40、SD-49）。
-- 守卫逻辑的写法与约束见 [UAPA hooks 适配](uapa-hook-adapters.md#1-守卫逻辑的约束)。
+- 守卫逻辑通过 `GuardContext` 获取选项取值与当前工作目录 `cwd`（v0.4.0，SD-50）：
+  `claude-code:subprocess` 与 `codex:subprocess` 取 stdin 的 `cwd`，`agy:subprocess` 取
+  stdin 的 `workspacePaths[0]`（1.3.5 容器实测），`claude-code:in-process` 固定为 `null`。
+  守卫逻辑的写法与约束见 [UAPA hooks 适配](uapa-hook-adapters.md#1-守卫逻辑的约束)。
 
 ## 5. 构建目标
 
@@ -266,7 +269,8 @@ export const codexSubprocess: TargetCapabilities = {
 
 - 字段定义见 [模块接口 §4](../../architecture/module-interfaces.md)：`toolNames` 以宿主工具名为
   键。`capabilities` 与 `failureDefault` 的取值见 [UAPA hooks 适配](uapa-hook-adapters.md)
-  第 4、6、7 节；`toolNames` 见同文第 3 节。
+  第 4、6、7 节；`toolNames` 见同文第 3 节。声明的命令 hook 超时取 `hook.timeout ?? 30`；
+  Codex 对 `SessionEnd` 单条 hook 超时强制限于 3 秒截断（`Math.min(requested, 3)`，SD-48）。
 - 核对日期写入构建报告，供发布前复核。
 
 ## 9. 产物布局
