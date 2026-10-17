@@ -74,7 +74,8 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
-        "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效"
+        "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效",
+        "MCP 服务器 docs、plain 未声明 envVars：Codex 启动本地服务器前清空环境，只传递 HOME、PATH 等少数变量与 env、env_vars 中的变量"
       ]
     },
     {

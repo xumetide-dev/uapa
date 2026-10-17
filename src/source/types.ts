@@ -25,6 +25,8 @@ export type McpServer =
       readonly command: string
       readonly args?: readonly string[]
       readonly env?: Readonly<Record<string, string>>
+      // 需要从会话环境取得的变量名，按声明顺序（F-01-13，SD-40）
+      readonly envVars?: readonly string[]
     }
   | {
       readonly name: string

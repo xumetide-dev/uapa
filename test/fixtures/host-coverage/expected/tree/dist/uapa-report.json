@@ -60,11 +60,19 @@
           "path": "dist/codex"
         }
       ],
-      "skipped": [],
+      "skipped": [
+        {
+          "component": "commands/review.md",
+          "reason": "正文含模板写法 $ARGUMENTS，Codex 不转换"
+        }
+      ],
       "degraded": [],
       "overridden": [],
       "hostValidation": "none",
-      "residualRisks": []
+      "residualRisks": [
+        "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效",
+        "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：Codex 不展开 MCP 配置中的变量，按字面传递"
+      ]
     },
     {
       "target": "agy:subprocess",
@@ -86,7 +94,10 @@
       "degraded": [],
       "overridden": [],
       "hostValidation": "none",
-      "residualRisks": []
+      "residualRisks": [
+        "agy 安装时把 commands 转换为技能，以 /<插件名>:<命令名> 调用；转换后的技能也会被模型按 description 自动选用",
+        "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：agy 不展开 MCP 配置中的变量，按字面传递"
+      ]
     }
   ]
 }

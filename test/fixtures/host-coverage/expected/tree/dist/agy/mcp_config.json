@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "probe": {
+      "command": "node",
+      "args": [
+        "./scripts/server.mjs"
+      ]
+    },
+    "remote": {
+      "serverUrl": "http://127.0.0.1:9/mcp",
+      "headers": {
+        "Authorization": "Bearer ${TOKEN}"
+      }
+    }
+  }
+}

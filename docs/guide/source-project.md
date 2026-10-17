@@ -158,7 +158,8 @@ targets: [agy:subprocess]
     "team-docs": {
       "command": "node",
       "args": ["{pluginRoot}/mcp/server.mjs"],
-      "env": { "TEAM_DOCS_DIR": "{pluginRoot}/docs" }
+      "env": { "TEAM_DOCS_DIR": "{pluginRoot}/docs" },
+      "envVars": ["TEAM_DOCS_TOKEN"]
     },
     "issues": {
       "url": "https://mcp.example.com/mcp"
@@ -167,10 +168,13 @@ targets: [agy:subprocess]
 }
 ```
 
-- 本地服务器写 `command`（必填）、`args`、`env`；远程服务器写 `url`（必填）、`headers`。两类
-  字段不能混用，其他字段为输入错误。
-- `{pluginRoot}` 表示安装后的插件目录，只能用在本地服务器的这三个字段中。它引用的文件
-  （上例的 `mcp/server.mjs`）不由 UAPA 复制，须放在[覆盖文件](#覆盖文件)中。
+- 本地服务器写 `command`（必填）、`args`、`env`、`envVars`；远程服务器写 `url`（必填）、
+  `headers`。两类字段不能混用，其他字段为输入错误。
+- `{pluginRoot}` 表示安装后的插件目录，只能用在本地服务器的 `command`、`args`、`env` 中。它引用
+  的文件（上例的 `mcp/server.mjs`）放在[共用文件](#共用文件)中，每个插件目录各复制一份；只给
+  某个宿主的放在该宿主的[覆盖文件](#覆盖文件)中。
+- `envVars` 列出服务器需要从会话环境取得的变量名，只写名称，不写值：非空，元素以字母或 `_`
+  开头、只含字母、数字、`_`，不重复。
 
 各宿主对 `{pluginRoot}` 的换算：
 
@@ -187,6 +191,19 @@ targets: [agy:subprocess]
   的 `url` 写为 `serverUrl`。
 - Codex 不为插件的服务器名加命名空间，与用户配置或其他插件重名时插件的服务器可能不生效（构建
   报告的残余风险）；agy 以 `<插件名>_<服务器名>` 命名。
+
+各宿主中本地服务器的环境与 MCP 配置中的 `${…}`：
+
+| 宿主 | 本地服务器的环境 | `envVars` | `${…}` |
+|---|---|---|---|
+| Claude Code | 继承会话环境 | 不写入 | 由宿主展开 |
+| Codex | 只有 `HOME`、`PATH` 等少数变量，加上 `env` 与 `env_vars` 中的变量 | 写为 `env_vars` | 不展开，按字面传递 |
+| agy | 继承会话环境 | 不写入 | 不展开，按字面传递 |
+
+- Codex 中未声明 `envVars` 的本地服务器拿不到令牌、代理等会话变量，构建报告列出这些服务器。
+- Codex 与 agy 中含 `${` 的字段（如请求头 `Bearer ${TOKEN}`）按字面传递，构建报告列出这些字段。
+  Codex 另有 `bearer_token_env_var` 与 `env_http_headers` 从环境变量取请求头，UAPA 不生成；需要
+  时用 `overrides/codex/mcp.json` 提供整个文件。
 
 宿主事实的出处（codex-cli 0.162.1、agy 1.3.5）：
 [Codex「容器实测」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)、

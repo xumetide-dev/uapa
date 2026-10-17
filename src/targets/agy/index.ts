@@ -107,7 +107,13 @@ export const agy: HostModule = {
     if (mcp.config !== null) files.push({ path: MCP_FILE, content: json(mcp.config) })
     const rules = ruleFiles(plan?.rules ?? [])
     files.push(...rules.files)
-    const residualRisks = plan === undefined ? [] : risks(input, plan, rules.risks)
+    const residualRisks =
+      plan === undefined
+        ? []
+        : [
+            ...risks(input, plan, rules.risks),
+            ...mcp.risks.map((message): TargetNote => ({ target: TARGET, message })),
+          ]
     return { ok: true, files, skipped: mcp.skipped, residualRisks }
   },
 }

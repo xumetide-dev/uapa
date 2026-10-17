@@ -1,6 +1,8 @@
 // mcp.json（F-06-06，SD-30）：manifest 的 mcpServers 指向它。Codex 不展开 MCP 配置中的占位符，
-// 本地服务器不经 shell 启动；相对的 cwd 拼到插件目录下；请求头字段为 http_headers
-// （codex-source-review.md「插件中的 MCP 服务器」，rust-v0.162.1）。
+// 本地服务器不经 shell 启动；相对的 cwd 拼到插件目录下；请求头字段为 http_headers。本地服务器
+// 启动前清空环境，只保留 HOME、PATH 等少数变量，再加入 env 与 env_vars 列出的会话变量；envVars
+// 写为 env_vars 的字符串数组，source 取默认的 local（F-06-12，SD-40）。出处均为
+// codex-source-review.md「插件中的 MCP 服务器」，rust-v0.162.1。
 import type { McpServer } from '../../source/types.ts'
 import type { TargetSkip } from '../types.ts'
 
@@ -10,13 +12,18 @@ const TARGET = 'codex:subprocess'
 const PLUGIN_ROOT = '{pluginRoot}'
 const SKIP_REASON =
   'Codex 不展开 MCP 配置中的插件根，command 中的 {pluginRoot} 不能换算'
+const ENV_RISK =
+  '未声明 envVars：Codex 启动本地服务器前清空环境，只传递 HOME、PATH 等少数变量与 env、' +
+  'env_vars 中的变量'
+const LITERAL_RISK = '含 ${：Codex 不展开 MCP 配置中的变量，按字面传递'
 
 // 以插件目录为工作目录（cwd 为 .）时，参数与环境变量中的插件根写作 .
 function withRoot(text: string): string {
   return text.split(PLUGIN_ROOT).join('.')
 }
 
-// 键序固定：type 在前；本地服务器为 command、args、env、cwd，远程服务器为 url、http_headers
+// 键序固定：type 在前；本地服务器为 command、args、env、env_vars、cwd，远程服务器为 url、
+// http_headers
 function entry(server: McpServer): Record<string, unknown> {
   if (server.kind === 'remote') {
     const { url, headers } = server
@@ -26,7 +33,7 @@ function entry(server: McpServer): Record<string, unknown> {
       ...(headers === undefined ? {} : { http_headers: headers }),
     }
   }
-  const { command, args, env } = server
+  const { command, args, env, envVars } = server
   const values = [...(args ?? []), ...Object.values(env ?? {})]
   const usesRoot = values.some(value => value.includes(PLUGIN_ROOT))
   return {
@@ -40,6 +47,7 @@ function entry(server: McpServer): Record<string, unknown> {
             Object.entries(env).map(([key, value]) => [key, withRoot(value)]),
           ),
         }),
+    ...(envVars === undefined ? {} : { env_vars: envVars }),
     ...(usesRoot ? { cwd: '.' } : {}),
   }
 }
@@ -47,21 +55,55 @@ function entry(server: McpServer): Record<string, unknown> {
 export interface McpOutput {
   readonly config: { mcpServers: Record<string, unknown> } | null // 没有可写的服务器时为 null
   readonly skipped: readonly TargetSkip[]
+  readonly risks: readonly string[] // 只针对写入的服务器
 }
 
 // servers 已按名称排序；command 含 {pluginRoot} 的服务器不写入，列为跳过
 export function mcpConfig(servers: readonly McpServer[]): McpOutput {
   const skipped: TargetSkip[] = []
-  const entries: [string, Record<string, unknown>][] = []
+  const written: McpServer[] = []
   for (const server of servers) {
     if (server.kind === 'local' && server.command.includes(PLUGIN_ROOT)) {
       const component = `mcpServers.${server.name}`
       skipped.push({ target: TARGET, component, reason: SKIP_REASON })
     } else {
-      entries.push([server.name, entry(server)])
+      written.push(server)
     }
   }
   const config =
-    entries.length === 0 ? null : { mcpServers: Object.fromEntries(entries) }
-  return { config, skipped }
+    written.length === 0
+      ? null
+      : { mcpServers: Object.fromEntries(written.map(s => [s.name, entry(s)])) }
+  return { config, skipped, risks: risks(written) }
+}
+
+// 未声明 envVars 的本地服务器一条，含 ${ 的字段一条，各自列出全部服务器或字段
+function risks(written: readonly McpServer[]): string[] {
+  const messages: string[] = []
+  const bare = written.filter(s => s.kind === 'local' && s.envVars === undefined)
+  if (bare.length > 0) {
+    messages.push(`MCP 服务器 ${bare.map(s => s.name).join('、')} ${ENV_RISK}`)
+  }
+  const literal = written.flatMap(literalFields)
+  if (literal.length > 0)
+    messages.push(`MCP 服务器的字段 ${literal.join('、')} ${LITERAL_RISK}`)
+  return messages
+}
+
+// 含 ${ 的字段，路径与读取 mcp/servers.json 时的错误相同，如 mcpServers.docs.args[0]
+function literalFields(server: McpServer): string[] {
+  const at = `mcpServers.${server.name}`
+  const map = (field: string, values: Readonly<Record<string, string>> = {}) =>
+    Object.entries(values).map(
+      ([key, text]) => [`${at}.${field}.${key}`, text] as const,
+    )
+  const fields =
+    server.kind === 'remote'
+      ? [[`${at}.url`, server.url] as const, ...map('headers', server.headers)]
+      : [
+          [`${at}.command`, server.command] as const,
+          ...(server.args ?? []).map((text, i) => [`${at}.args[${i}]`, text] as const),
+          ...map('env', server.env),
+        ]
+  return fields.filter(([, text]) => text.includes('${')).map(([field]) => field)
 }

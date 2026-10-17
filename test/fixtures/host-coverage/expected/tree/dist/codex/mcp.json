@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "probe": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/server.mjs"
+      ],
+      "env_vars": [
+        "UAPA_PROBE_TOKEN"
+      ],
+      "cwd": "."
+    },
+    "remote": {
+      "type": "http",
+      "url": "http://127.0.0.1:9/mcp",
+      "http_headers": {
+        "Authorization": "Bearer ${TOKEN}"
+      }
+    }
+  }
+}

@@ -154,6 +154,7 @@ export const codex: HostModule = {
     const residualRisks = [
       ...(hooks === null ? [] : hooksRisks(input, plan, hooksFile)),
       ...(mcp.config === null ? [] : mcpRisks()),
+      ...mcp.risks.map(message => ({ target: TARGET, message })),
       ...rules.risks.map(message => ({ target: TARGET, message })),
     ]
     const skipped = [

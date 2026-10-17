@@ -466,6 +466,12 @@ test('mcp.json：写明 type、http_headers；args 与 env 的 {pluginRoot} 换�
         'Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，' +
         '插件的服务器可能不生效',
     },
+    {
+      target: TARGET,
+      message:
+        'MCP 服务器 docs、plain 未声明 envVars：Codex 启动本地服务器前清空环境，只传递 ' +
+        'HOME、PATH 等少数变量与 env、env_vars 中的变量',
+    },
   ])
 })
 
@@ -492,7 +498,9 @@ test('字段白名单覆盖 mcp.json', () => {
     file: 'mcp.json',
     value: value as Record<string, unknown>,
   })
-  const ok = { mcpServers: { a: { type: 'stdio', command: 'x', cwd: '.' } } }
+  const ok = {
+    mcpServers: { a: { type: 'stdio', command: 'x', env_vars: ['A'], cwd: '.' } },
+  }
   assert.deepEqual(fieldErrors(manifest, null, mcp(ok)), [])
   assert.deepEqual(fieldErrors(manifest, null, mcp({ mcpServers: {}, extra: 1 })), [
     'mcp.json 含 Codex 不允许的字段 extra',

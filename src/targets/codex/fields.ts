@@ -55,12 +55,13 @@ const GROUP_FIELDS = ['matcher', 'hooks']
 // 宿主另接受 async、statusMessage 等字段；UAPA 只写这三个，async 为 true 时不能阻断
 const HANDLER_FIELDS = ['type', 'command', 'timeout']
 const MCP_FILE_FIELDS = ['mcpServers']
-// 宿主另接受 env_vars、bearer_token_env_var、env_http_headers；UAPA 只写这些
+// 宿主另接受 bearer_token_env_var、env_http_headers；UAPA 只写这些（env_vars 见 F-06-12）
 const MCP_SERVER_FIELDS = [
   'type',
   'command',
   'args',
   'env',
+  'env_vars',
   'cwd',
   'url',
   'http_headers',

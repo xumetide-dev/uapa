@@ -107,3 +107,56 @@ test('服务器名、字段、类型、混用与远程服务器的 {pluginRoot} 
     assert.match(result.issues[0]?.message ?? '', message)
   }
 })
+
+test('本地服务器的 envVars 按声明顺序读取', async () => {
+  const result = await read(
+    servers({
+      mcpServers: {
+        docs: { command: 'node', envVars: ['UAPA_TOKEN', '_PROXY', 'a1'] },
+      },
+    }),
+  )
+  assert.ok(result.ok)
+  assert.deepEqual(result.value.mcpServers, [
+    {
+      name: 'docs',
+      kind: 'local',
+      command: 'node',
+      envVars: ['UAPA_TOKEN', '_PROXY', 'a1'],
+    },
+  ])
+})
+
+test('envVars：远程服务器写该字段、为空、元素不合规则或重复时失败，字段写到元素', async () => {
+  const cases: [unknown, [string, RegExp][]][] = [
+    [
+      { url: 'http://h', envVars: ['A'] },
+      [['mcpServers.a.envVars', /只用于本地服务器/]],
+    ],
+    [{ command: 'x', envVars: [] }, [['mcpServers.a.envVars', /非空的字符串数组/]]],
+    [{ command: 'x', envVars: 'A' }, [['mcpServers.a.envVars', /非空的字符串数组/]]],
+    [
+      { command: 'x', envVars: ['A', '1B', 'C-D', 2] },
+      [
+        ['mcpServers.a.envVars[1]', /应为变量名/],
+        ['mcpServers.a.envVars[2]', /应为变量名/],
+        ['mcpServers.a.envVars[3]', /应为变量名/],
+      ],
+    ],
+    [
+      { command: 'x', envVars: ['A', 'B', 'A'] },
+      [['mcpServers.a.envVars[2]', /与 mcpServers\.a\.envVars\[0\] 重复/]],
+    ],
+  ]
+  for (const [config, expected] of cases) {
+    const result = await read(servers({ mcpServers: { a: config } }))
+    assert.ok(!result.ok, JSON.stringify(config))
+    assert.deepEqual(
+      result.issues.map(i => i.field),
+      expected.map(([field]) => field),
+    )
+    expected.forEach(([, message], index) => {
+      assert.match(result.issues[index]?.message ?? '', message)
+    })
+  }
+})

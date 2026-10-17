@@ -1,6 +1,6 @@
 // 读取 MCP 服务器（F-01-08，SD-30）：mcp/servers.json 的顶层只有 mcpServers，值为服务器名到
-// 配置的映射。本地服务器为 command（必填）、args、env，远程服务器为 url（必填）、headers；
-// {pluginRoot} 只用于本地服务器，由各宿主模块换算。
+// 配置的映射。本地服务器为 command（必填）、args、env、envVars（F-01-13，SD-40），远程服务器为
+// url（必填）、headers；{pluginRoot} 只用于本地服务器，由各宿主模块换算。
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
@@ -11,7 +11,10 @@ const FILE = 'mcp/servers.json'
 const PLUGIN_ROOT = '{pluginRoot}'
 const LOCAL_FIELDS = ['command', 'args', 'env']
 const REMOTE_FIELDS = ['url', 'headers']
+// 只用于本地服务器；不参与本地与远程的判断，远程服务器写它时单独报错
+const ENV_VARS = 'envVars'
 const SERVER_NAME = /^[A-Za-z0-9_-]+$/
+const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 type Fields = Readonly<Record<string, unknown>>
 
@@ -85,7 +88,7 @@ function readServer(name: string, config: unknown, issue: Issue): McpServer | nu
   }
   const keys = Object.keys(config)
   for (const key of keys.filter(
-    k => ![...LOCAL_FIELDS, ...REMOTE_FIELDS].includes(k),
+    k => ![...LOCAL_FIELDS, ...REMOTE_FIELDS, ENV_VARS].includes(k),
   )) {
     issue(`${at}.${key}`, '未知字段')
   }
@@ -100,11 +103,12 @@ function readServer(name: string, config: unknown, issue: Issue): McpServer | nu
 
 function readLocal(name: string, config: Fields, issue: Issue): McpServer | null {
   const at = `mcpServers.${name}`
-  const { command, args, env } = config
+  const { command, args, env, envVars } = config
   const ok = [
     isText(command, `${at}.command`, issue),
     args === undefined || isTextList(args, `${at}.args`, issue),
     env === undefined || isTextMap(env, `${at}.env`, issue),
+    envVars === undefined || isEnvVarList(envVars, `${at}.envVars`, issue),
   ].every(Boolean)
   if (!ok) return null
   return {
@@ -113,12 +117,14 @@ function readLocal(name: string, config: Fields, issue: Issue): McpServer | null
     command: command as string,
     ...(args === undefined ? {} : { args: [...(args as string[])] }),
     ...(env === undefined ? {} : { env: { ...(env as Record<string, string>) } }),
+    ...(envVars === undefined ? {} : { envVars: [...(envVars as string[])] }),
   }
 }
 
 function readRemote(name: string, config: Fields, issue: Issue): McpServer | null {
   const at = `mcpServers.${name}`
   const { url, headers } = config
+  if (config.envVars !== undefined) issue(`${at}.envVars`, '只用于本地服务器')
   const urlOk = isText(url, `${at}.url`, issue) && noPluginRoot(url, `${at}.url`, issue)
   let headersOk = headers === undefined || isTextMap(headers, `${at}.headers`, issue)
   if (headersOk && headers !== undefined) {
@@ -128,7 +134,7 @@ function readRemote(name: string, config: Fields, issue: Issue): McpServer | nul
     )
     headersOk = checks.every(Boolean)
   }
-  if (!urlOk || !headersOk) return null
+  if (!urlOk || !headersOk || config.envVars !== undefined) return null
   return {
     name,
     kind: 'remote',
@@ -163,6 +169,26 @@ function isTextMap(value: unknown, field: string, issue: Issue): boolean {
   const bad = Object.keys(value).filter(key => typeof value[key] !== 'string')
   for (const key of bad) issue(`${field}.${key}`, '应为字符串')
   return bad.length === 0
+}
+
+// 非空；每个元素为变量名且不重复，错误写到元素
+function isEnvVarList(value: unknown, field: string, issue: Issue): boolean {
+  if (!Array.isArray(value) || value.length === 0) {
+    issue(field, '应为非空的字符串数组')
+    return false
+  }
+  let ok = true
+  for (const [index, item] of value.entries()) {
+    const first = value.indexOf(item)
+    if (typeof item !== 'string' || !ENV_VAR_NAME.test(item)) {
+      issue(`${field}[${index}]`, '应为变量名：以字母或 _ 开头，只含字母、数字、_')
+      ok = false
+    } else if (first < index) {
+      issue(`${field}[${index}]`, `与 ${field}[${first}] 重复`)
+      ok = false
+    }
+  }
+  return ok
 }
 
 // 远程服务器的地址与请求头不经插件目录解析，不能引用插件根
