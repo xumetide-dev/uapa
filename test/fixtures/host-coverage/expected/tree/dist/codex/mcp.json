@@ -7,7 +7,8 @@
         "./scripts/server.mjs"
       ],
       "env_vars": [
-        "UAPA_PROBE_TOKEN"
+        "UAPA_PROBE_TOKEN",
+        "UAPA_API_KEY"
       ],
       "cwd": "."
     },

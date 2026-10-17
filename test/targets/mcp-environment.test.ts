@@ -168,3 +168,130 @@ test('没有未声明 envVars 的本地服务器、也没有含 ${ 的字段时�
     /不为插件的 MCP 服务器名加命名空间/,
   )
 })
+
+test('本地服务器 env 含 ${user_config.<KEY>} 时：Claude Code 保留，Codex 与 agy 剥离并写残余风险，Codex 将整值 <KEY> 并入 env_vars（F-06-17、F-11-15）', async () => {
+  const userConfigServers: readonly McpServer[] = [
+    {
+      name: 'only-user-config',
+      kind: 'local',
+      command: 'node',
+      env: { API_KEY: '${user_config.API_KEY}' },
+    },
+    {
+      name: 'mixed',
+      kind: 'local',
+      command: 'node',
+      env: {
+        API_KEY: '${user_config.API_KEY}',
+        PREFIXED: 'Bearer ${user_config.TOKEN}',
+        PLAIN: '1',
+      },
+      envVars: ['API_KEY', 'EXTRA_VAR'],
+    },
+  ]
+  const runHost = (
+    host: HostModule,
+    target: TargetName,
+    capabilities: TargetCapabilities,
+  ) =>
+    host.generate({
+      config: { ...baseConfig, targets: [target] } as UapaConfig,
+      plans: [
+        {
+          target,
+          capabilities,
+          skills: [],
+          agents: [],
+          mcpServers: userConfigServers,
+          rules: [],
+          commands: [],
+          checks: [],
+          commandHooks: [],
+        },
+      ],
+      guard: null,
+      sharedWith: [],
+      bundle: async () => '',
+    })
+  const claudeResult = await runHost(
+    claudeCode,
+    'claude-code:subprocess',
+    claudeCodeSubprocess,
+  )
+  assert.deepEqual(
+    servers(claudeResult, '.mcp.json').only_user_config ??
+      servers(claudeResult, '.mcp.json')['only-user-config'],
+    {
+      command: 'node',
+      env: { API_KEY: '${user_config.API_KEY}' },
+    },
+  )
+  const codexResult = await runHost(codex, 'codex:subprocess', codexSubprocess)
+  assert.deepEqual(servers(codexResult, 'mcp.json'), {
+    'only-user-config': {
+      type: 'stdio',
+      command: 'node',
+      env_vars: ['API_KEY'],
+    },
+    mixed: {
+      type: 'stdio',
+      command: 'node',
+      env: { PLAIN: '1' },
+      env_vars: ['API_KEY', 'EXTRA_VAR'],
+    },
+  })
+  assert.ok(codexResult.ok)
+  assert.deepEqual(
+    codexResult.residualRisks.map(r => r.message),
+    [
+      'Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，' +
+        '插件的服务器可能不生效',
+      'MCP 服务器的字段 mcpServers.only-user-config.env.API_KEY、mcpServers.mixed.env.API_KEY、' +
+        'mcpServers.mixed.env.PREFIXED 含 ${user_config.：Codex 不展开用户配置占位符，已从 env 中剥离',
+    ],
+  )
+  const agyResult = await runHost(agy, 'agy:subprocess', agySubprocess)
+  assert.deepEqual(servers(agyResult, 'mcp_config.json'), {
+    'only-user-config': {
+      command: 'node',
+    },
+    mixed: {
+      command: 'node',
+      env: { PLAIN: '1' },
+    },
+  })
+  assert.ok(agyResult.ok)
+  assert.deepEqual(
+    agyResult.residualRisks.map(r => r.message),
+    [
+      'MCP 服务器的字段 mcpServers.only-user-config.env.API_KEY、mcpServers.mixed.env.API_KEY、' +
+        'mcpServers.mixed.env.PREFIXED 含 ${user_config.：agy 不展开用户配置占位符，已从 env 中剥离',
+    ],
+  )
+})
+
+test('源项目有 MCP 服务器但按 targets 过滤后 Codex 无服务器时，共用目录 manifest 仍写 "mcpServers": {}（F-06-17）', async () => {
+  const result = await codex.generate({
+    config: { ...baseConfig, targets: ['codex:subprocess'] } as UapaConfig,
+    plans: [
+      {
+        target: 'codex:subprocess',
+        capabilities: codexSubprocess,
+        skills: [],
+        agents: [],
+        mcpServers: [],
+        rules: [],
+        commands: [],
+        checks: [],
+        commandHooks: [],
+      },
+    ],
+    guard: null,
+    sharedWith: ['claude-code'],
+    hasMcpServers: true,
+    bundle: async () => '',
+  })
+  assert.ok(result.ok)
+  const manifest = result.files.find(f => f.path === '.codex-plugin/plugin.json')
+  assert.deepEqual(JSON.parse(String(manifest?.content)).mcpServers, {})
+})

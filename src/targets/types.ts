@@ -28,6 +28,8 @@ export interface HostInput {
   readonly bundle: (request: BundleRequest) => Promise<string>
   // 配置 marketplace 时为本宿主插件目录相对 marketplace.dir 的路径，以 './' 开头；未配置时为 null（F-03-18）
   readonly marketplaceSource?: string | null
+  // 源项目是否声明了至少一个 MCP 服务器（供合并布局下 Codex 判断是否写 "mcpServers": {}，F-06-17）
+  readonly hasMcpServers?: boolean
 }
 
 export interface OutputFile {

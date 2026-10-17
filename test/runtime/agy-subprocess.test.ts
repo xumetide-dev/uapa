@@ -186,3 +186,18 @@ test('不读取宿主变量：设置 agy 与其他宿主的变量时输出与写
   assert.deepEqual(await readdir(other), [])
   assert.deepEqual(await readdir(join(tmp, 'uapa-demo')), ['uapa-stop-c1.json'])
 })
+
+test('从 stdin.workspacePaths[0] 提取工作目录，缺失、空数组、空串或非字符串时退化为 null（F-11-15）', async () => {
+  const env = { TMPDIR: await freshTmp() }
+  const payload = (workspacePaths: unknown) => ({
+    ...tool('run_command', { CommandLine: 'cwd' }),
+    ...(workspacePaths === undefined ? {} : { workspacePaths }),
+  })
+  assert.deepEqual(
+    run('before-tool', payload(['/work/agy', '/work/other']), env),
+    denied('cwd=/work/agy'),
+  )
+  for (const invalid of [undefined, [], [''], [42], 'not-array']) {
+    assert.deepEqual(run('before-tool', payload(invalid), env), denied('cwd=null'))
+  }
+})

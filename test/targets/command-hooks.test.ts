@@ -251,10 +251,7 @@ test('Codex 与 Claude Code 共用目录且 hooks 写在默认文件时，残余
   assert.ok(!risks(separate).includes(message))
 })
 
-test('agy 与 Claude Code 共用目录时，残余风险写明安装转换未实测（F-11-03）', async () => {
-  const message =
-    '与 Claude Code 共用插件目录：agy 的安装命令是否把含 .claude-plugin/ 的目录按 Claude Code ' +
-    '插件转换未实测'
+test('agy 与其他宿主共用目录时默认写 .antigravity-plugin/plugin.json；显式写根 plugin.json 且与 Codex 共用时写残余风险（F-11-15）', async () => {
   const shared = await generate({
     module: agy,
     capabilities: agySubprocess,
@@ -262,13 +259,79 @@ test('agy 与 Claude Code 共用目录时，残余风险写明安装转换未实
     commandHooks: [],
     sharedWith: ['claude-code', 'codex'],
   })
-  assert.deepEqual(risks(shared), [message])
-  const withCodex = await generate({
+  assert.deepEqual(paths(shared), ['.antigravity-plugin/plugin.json'])
+  assert.deepEqual(risks(shared), [])
+  const withCodexRoot = await generate({
     module: agy,
     capabilities: agySubprocess,
     checks: [],
     commandHooks: [],
     sharedWith: ['codex'],
+    config: { hosts: { agy: { manifest: 'plugin.json' } } },
   })
-  assert.deepEqual(risks(withCodex), [])
+  assert.deepEqual(paths(withCodexRoot), ['plugin.json'])
+  assert.deepEqual(risks(withCodexRoot), [
+    '与 Codex 共用插件目录且写根 plugin.json：Codex 优先读取根 plugin.json（AgentPlugin 格式）' +
+      '并忽略 .codex-plugin/plugin.json，不加载任何 hooks',
+  ])
+})
+
+test('命令 hooks 单条自定义 timeout：三宿主按单条 timeout 写出，Codex SessionEnd 按 min(timeout, 3) 截断（F-05-27、F-06-17、F-11-15）', async () => {
+  const claude = await generate({
+    module: claudeCode,
+    capabilities: claudeCodeSubprocess,
+    checks: ['beforeTool'],
+    commandHooks: [{ event: 'PreToolUse', command: 'echo fast', timeout: 10 }],
+  })
+  const entry = `node "\${CLAUDE_PLUGIN_ROOT}/hooks/uapa-claude-code.mjs" before-tool`
+  assert.deepEqual(json(claude, 'hooks/hooks.json'), {
+    hooks: {
+      PreToolUse: [
+        { hooks: [handler(entry)] },
+        { hooks: [{ type: 'command', command: 'echo fast', timeout: 10 }] },
+      ],
+    },
+  })
+  const agyResult = await generate({
+    module: agy,
+    capabilities: agySubprocess,
+    checks: [],
+    commandHooks: [{ event: 'Stop', command: 'echo fast', timeout: 10 }],
+    withGuard: false,
+  })
+  assert.deepEqual(json(agyResult, 'hooks.json'), {
+    demo: { Stop: [{ type: 'command', command: 'echo fast', timeout: 10 }] },
+  })
+  const codexShort = await generate({
+    module: codex,
+    capabilities: codexSubprocess,
+    checks: [],
+    commandHooks: [
+      { event: 'Stop', command: 'echo stop', timeout: 10 },
+      { event: 'SessionEnd', command: 'echo end', timeout: 2 },
+    ],
+    withGuard: false,
+  })
+  assert.deepEqual(json(codexShort, 'hooks/hooks.json'), {
+    hooks: {
+      Stop: [{ hooks: [{ type: 'command', command: 'echo stop', timeout: 10 }] }],
+      SessionEnd: [{ hooks: [{ type: 'command', command: 'echo end', timeout: 2 }] }],
+    },
+  })
+  assert.ok(
+    !risks(codexShort).some(r => r.includes('Codex 的 SessionEnd 超时上限 3 秒')),
+  )
+  const codexLong = await generate({
+    module: codex,
+    capabilities: codexSubprocess,
+    checks: [],
+    commandHooks: [{ event: 'SessionEnd', command: 'echo end', timeout: 10 }],
+    withGuard: false,
+  })
+  assert.deepEqual(json(codexLong, 'hooks/hooks.json'), {
+    hooks: {
+      SessionEnd: [{ hooks: [{ type: 'command', command: 'echo end', timeout: 3 }] }],
+    },
+  })
+  assert.ok(risks(codexLong).some(r => r.includes('Codex 的 SessionEnd 超时上限 3 秒')))
 })

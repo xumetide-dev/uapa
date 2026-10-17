@@ -4,10 +4,13 @@ import { accessSync, constants, mkdirSync, readFileSync, renameSync, writeFileSy
 const guard = {
 	name: "host-coverage-guard",
 	requires: [],
-	beforeTool: (call) => call.tool === "shell" && String(call.input.command).includes("uapa-deny-probe") ? {
-		kind: "deny",
-		reason: "拒绝标记命令 uapa-deny-probe"
-	} : { kind: "allow" },
+	beforeTool: (call, ctx) => {
+		if (call.tool === "shell" && String(call.input.command).includes("uapa-deny-probe")) return {
+			kind: "deny",
+			reason: `拒绝标记命令 uapa-deny-probe${ctx.cwd === null ? "" : `（${ctx.cwd}）`}`
+		};
+		return { kind: "allow" };
+	},
 	beforePrompt: (p) => p.prompt.includes("API_KEY=") ? {
 		kind: "block",
 		reason: "提示中含疑似密钥"
@@ -137,14 +140,17 @@ function parseText(option, raw) {
 	const value = Number(raw);
 	return Number.isFinite(value) ? value : null;
 }
-function guardContext(result) {
+function guardContext(result, cwd = null) {
 	if (!result.ok) return {
 		ok: false,
 		reason: `uapa: 守卫选项无效: ${result.name}`
 	};
 	return {
 		ok: true,
-		value: { options: result.options }
+		value: {
+			options: result.options,
+			cwd
+		}
 	};
 }
 function isRecord$1(value) {
@@ -315,7 +321,7 @@ async function decide(protocol, check, text, env) {
 		return unparseable(protocol, check, error instanceof Error ? error.message : "stdin");
 	}
 	if (protocol.skip?.(event, env) === true) return protocol.allow(check);
-	const context = guardContext(optionsFromText(_uapa_target_data_default.options, (name) => protocol.optionValue?.(name, env)));
+	const context = guardContext(optionsFromText(_uapa_target_data_default.options, (name) => protocol.optionValue?.(name, env)), event.cwd ?? null);
 	if (check === "before-tool") return beforeTool(protocol, event, context);
 	if (check === "before-prompt") return beforePrompt(protocol, event, context);
 	if (check === "after-tool") return afterTool(protocol, event, context);
@@ -433,7 +439,13 @@ await runSubprocessEntry({
 	parse(check, stdin) {
 		if (!isRecord(stdin) || typeof stdin.conversationId !== "string") throw new Error("conversationId");
 		const sessionId = stdin.conversationId;
-		if (check !== "before-tool") return { sessionId };
+		const paths = stdin.workspacePaths;
+		const first = Array.isArray(paths) ? paths[0] : void 0;
+		const cwd = typeof first === "string" && first !== "" ? first : null;
+		if (check !== "before-tool") return {
+			sessionId,
+			cwd
+		};
 		const call = stdin.toolCall;
 		if (!isRecord(call)) throw new Error("toolCall");
 		if (typeof call.name !== "string") throw new Error("toolCall.name");
@@ -442,6 +454,7 @@ await runSubprocessEntry({
 		const command = typeof input.CommandLine === "string" ? { command: input.CommandLine } : {};
 		return {
 			sessionId,
+			cwd,
 			tool: {
 				name: call.name,
 				input,

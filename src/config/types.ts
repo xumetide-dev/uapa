@@ -22,7 +22,10 @@ export interface HostOptions {
     interface?: Readonly<Record<string, unknown>> // 写入 .codex-plugin/plugin.json 的 interface
     hooksFile?: string // 插件目录内的相对路径，默认 hooks/hooks.json（SD-07）
   }
-  agy: HostDir // agy 的根 plugin.json 只允许 name 与 description，没有其他宿主选项（F-11-02）
+  agy: HostDir & {
+    // 清单相对插件目录的路径；省略时默认布局写 plugin.json，合并布局写 .antigravity-plugin/plugin.json（F-01-15，SD-47）
+    manifest?: 'plugin.json' | '.antigravity-plugin/plugin.json'
+  }
 }
 
 // hosts['claude-code'].manifest 不得含的键：UAPA 生成或依赖默认位置的字段（SD-42）
@@ -61,11 +64,12 @@ export const COMMAND_HOOK_EVENTS = [
 ] as const
 export type CommandHookEvent = (typeof COMMAND_HOOK_EVENTS)[number]
 
-// 原样写入各目标 hooks 配置的命令，不经守卫逻辑；v0.1.0 不支持 matcher 与超时字段
+// 原样写入各目标 hooks 配置的命令，不经守卫逻辑；不支持 matcher 字段
 export interface CommandHookDecl {
   readonly event: CommandHookEvent
   readonly command: string // 单行；插件根目录写作 {pluginRoot}，由宿主模块按目标替换
   readonly targets?: readonly TargetName[] // 限定目标；省略时适用于全部已配置目标
+  readonly timeout?: number // 单条命令超时（正整数，单位秒）；省略时取目标默认超时（F-01-15，SD-48）
 }
 
 export interface UapaConfig {

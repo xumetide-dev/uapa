@@ -69,7 +69,14 @@ const hostOptionSchemas: { [H in HostName]: z.ZodType<HostOptions[H]> } = {
     interface: z.record(z.string(), z.unknown()).optional(),
     hooksFile: pluginFile.optional(),
   }),
-  agy: z.strictObject({ dir: relativeDir.optional() }),
+  agy: z.strictObject({
+    dir: relativeDir.optional(),
+    manifest: z
+      .enum(['plugin.json', '.antigravity-plugin/plugin.json'], {
+        error: "只能为 'plugin.json' 或 '.antigravity-plugin/plugin.json'",
+      })
+      .optional(),
+  }),
 }
 
 const targetName = z.enum(TARGETS, {
@@ -85,7 +92,7 @@ function noDuplicateTargets(targets: readonly string[], ctx: z.RefinementCtx): v
   })
 }
 
-// 命令 hooks 声明（命令 hooks 声明第 1 节）：matcher、timeout 等字段按未知字段拒绝
+// 命令 hooks 声明（命令 hooks 声明第 1 节）：matcher 等字段按未知字段拒绝
 const commandHook = z.strictObject({
   event: z.enum(COMMAND_HOOK_EVENTS, {
     error: issue => `未知事件 ${JSON.stringify(issue.input)}`,
@@ -100,6 +107,11 @@ const commandHook = z.strictObject({
     .array(targetName)
     .min(1, '至少列出一个目标')
     .superRefine(noDuplicateTargets)
+    .optional(),
+  timeout: z
+    .number({ error: '应为正整数' })
+    .int('应为正整数')
+    .positive('应为正整数')
     .optional(),
 })
 
@@ -182,15 +194,11 @@ export function validateConfig(
 // 命令 hooks 声明的 targets 只能含已配置的目标
 function unconfiguredHookTargets(config: UapaConfig, file: string): InputIssue[] {
   const issues: InputIssue[] = []
-  const hooks = config.commandHooks ?? []
-  for (const [index, hook] of hooks.entries()) {
+  for (const [index, hook] of (config.commandHooks ?? []).entries()) {
     for (const [at, target] of (hook.targets ?? []).entries()) {
       if (config.targets.includes(target)) continue
-      issues.push({
-        file,
-        field: `commandHooks[${index}].targets[${at}]`,
-        message: `${target} 不在 targets 中`,
-      })
+      const field = `commandHooks[${index}].targets[${at}]`
+      issues.push({ file, field, message: `${target} 不在 targets 中` })
     }
   }
   return issues

@@ -179,14 +179,17 @@ function parseText(option, raw) {
 	const value = Number(raw);
 	return Number.isFinite(value) ? value : null;
 }
-function guardContext(result) {
+function guardContext(result, cwd = null) {
 	if (!result.ok) return {
 		ok: false,
 		reason: `uapa: 守卫选项无效: ${result.name}`
 	};
 	return {
 		ok: true,
-		value: { options: result.options }
+		value: {
+			options: result.options,
+			cwd
+		}
 	};
 }
 function isRecord$1(value) {
@@ -357,7 +360,7 @@ async function decide(protocol, check, text, env) {
 		return unparseable(protocol, check, error instanceof Error ? error.message : "stdin");
 	}
 	if (protocol.skip?.(event, env) === true) return protocol.allow(check);
-	const context = guardContext(optionsFromText(_uapa_target_data_default.options, (name) => protocol.optionValue?.(name, env)));
+	const context = guardContext(optionsFromText(_uapa_target_data_default.options, (name) => protocol.optionValue?.(name, env)), event.cwd ?? null);
 	if (check === "before-tool") return beforeTool(protocol, event, context);
 	if (check === "before-prompt") return beforePrompt(protocol, event, context);
 	if (check === "after-tool") return afterTool(protocol, event, context);
@@ -486,8 +489,10 @@ await runSubprocessEntry({
 	parse(check, stdin) {
 		if (!isRecord(stdin) || typeof stdin.session_id !== "string") throw new Error("session_id");
 		const sessionId = stdin.session_id;
+		const cwd = typeof stdin.cwd === "string" && stdin.cwd !== "" ? stdin.cwd : null;
 		if (check === "before-tool") return {
 			sessionId,
+			cwd,
 			tool: hostTool(stdin)
 		};
 		if (check === "after-tool") {
@@ -495,6 +500,7 @@ await runSubprocessEntry({
 			if (!Object.hasOwn(stdin, "tool_response")) throw new Error("tool_response");
 			return {
 				sessionId,
+				cwd,
 				tool,
 				toolOutput: stdin.tool_response
 			};
@@ -503,10 +509,14 @@ await runSubprocessEntry({
 			if (typeof stdin.prompt !== "string") throw new Error("prompt");
 			return {
 				sessionId,
+				cwd,
 				prompt: stdin.prompt
 			};
 		}
-		return { sessionId };
+		return {
+			sessionId,
+			cwd
+		};
 	},
 	skip(event, env) {
 		return env["UAPA_MODULE_SESSION_GUARD_OPTIONS"] === event.sessionId;

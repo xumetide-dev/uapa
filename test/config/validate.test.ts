@@ -263,3 +263,34 @@ test('marketplace.dir 位于默认布局的插件目录内，或插件目录不�
   }
   assert.deepEqual(fields(at('plugin', merged)), [])
 })
+
+test('hosts.agy.manifest 与 commandHooks[i].timeout 校验（F-01-15）', () => {
+  const agyCfg = (manifest: unknown) => ({
+    ...baseConfig,
+    targets: ['agy:subprocess'],
+    hosts: { agy: { manifest } },
+  })
+  assert.deepEqual(fields(agyCfg('plugin.json')), [])
+  assert.deepEqual(fields(agyCfg('.antigravity-plugin/plugin.json')), [])
+  assert.deepEqual(issues(agyCfg('other.json')), [
+    {
+      file: 'uapa.config.ts',
+      field: 'hosts.agy.manifest',
+      message: "只能为 'plugin.json' 或 '.antigravity-plugin/plugin.json'",
+    },
+  ])
+  assert.deepEqual(
+    fields({
+      ...baseConfig,
+      commandHooks: [{ event: 'Stop', command: 'echo ok', timeout: 10 }],
+    }),
+    [],
+  )
+  assert.deepEqual(
+    fields({
+      ...baseConfig,
+      commandHooks: [{ event: 'Stop', command: 'echo ok', timeout: 0 }],
+    }),
+    ['commandHooks[0].timeout'],
+  )
+})

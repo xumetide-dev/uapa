@@ -30,16 +30,22 @@ interface GuardPlugin {
   `BeforePrompt`、`AfterTool`、`BeforeStop`、`Capability`、`GuardOption`、`GuardContext`。
 - 构建时 UAPA 导入守卫文件，读取 `name`、`requires`、`options` 与已实现的方法，再把它打包进
   各目标的入口；模块顶层的代码在构建时也会运行。
-- 各检查方法的最后一个参数 `ctx` 为本次调用的选项取值；不用选项的守卫可以不写这个参数。
+- 各检查方法的最后一个参数 `ctx`（`GuardContext`）含本次调用的选项取值 `ctx.options` 与当前会话
+  工作目录 `ctx.cwd`（`string | null`）；不用 `ctx` 的守卫可以不写这个参数。
+- 子进程目标从宿主 stdin 提取 `ctx.cwd`（Claude Code 与 Codex 取 `stdin.cwd`，agy 取
+  `stdin.workspacePaths[0]`，缺失或空串时为 `null`）；`claude-code:in-process` 的宿主事件对象不含
+  工作目录，`ctx.cwd` 为 `null`。
 
 ## 约束
 
-同一份守卫代码要在 Claude Code 的 hooks 模块（没有 Node）与各宿主的子进程入口中运行，因此：
-
-- 只用公共类型与语言内置对象，不导入 Node、Bun 或宿主 API，不做文件、网络与进程 I/O。
+- 同时面向 `claude-code:in-process` 与子进程目标的守卫，只用公共类型与语言内置对象，不导入
+  `node:`、Bun 或宿主 API（`claude-code:in-process` 打包时拒绝 `'claude-code'` 以外的外部导入）。
+- 只面向子进程目标（`claude-code:subprocess`、`codex:subprocess`、`agy:subprocess`）的守卫，可以
+  静态导入 `node:` 内置模块（如 `node:fs`、`node:path`），配合 `ctx.cwd`（判空后）读取工作区
+  文件；不得导入第三方 npm 包（保持产物零依赖）。
 - 相对导入的 `.ts` 文件随守卫一起打包；导入写 `.ts` 扩展名。
 - 不用 Node 类型剥离不支持的语法：`enum`、`namespace`、参数属性。
-- 判断应在远低于 30 秒内返回：子进程目标的 hooks 超时为 30 秒，超时后的处理见
+- 判断应在远低于 30 秒内返回：子进程目标的守卫 hooks 超时为 30 秒，超时后的处理见
   [失败处理](#失败处理)。
 
 ## 示例
@@ -237,8 +243,8 @@ import { test } from 'node:test'
 import guard from './guard.ts'
 
 const shell = (command: string) => ({ sessionId: 't', tool: 'shell', input: { command } })
-// 检查方法的最后一个参数；守卫声明了选项时在这里给出要测试的取值
-const ctx = { options: {} }
+// 检查方法的最后一个参数；守卫声明了选项或读取工作目录时在这里给出要测试的取值
+const ctx = { options: {}, cwd: null }
 
 test('拒绝 --no-verify', async () => {
   const decision = await guard.beforeTool?.(shell('git commit --no-verify -m x'), ctx)

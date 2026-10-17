@@ -16,10 +16,34 @@ const ENV_RISK =
   '未声明 envVars：Codex 启动本地服务器前清空环境，只传递 HOME、PATH 等少数变量与 env、' +
   'env_vars 中的变量'
 const LITERAL_RISK = '含 ${：Codex 不展开 MCP 配置中的变量，按字面传递'
+const USER_CONFIG_PREFIX = '${user_config.'
+const USER_CONFIG_VAR = /^\$\{user_config\.([A-Za-z_][A-Za-z0-9_]*)\}$/
+const USER_CONFIG_RISK =
+  '含 ${user_config.：Codex 不展开用户配置占位符，已从 env 中剥离'
 
 // 以插件目录为工作目录（cwd 为 .）时，参数与环境变量中的插件根写作 .
 function withRoot(text: string): string {
   return text.split(PLUGIN_ROOT).join('.')
+}
+
+// 剥离含 ${user_config. 的 env 项（F-06-17，SD-49）
+function retainedEnv(
+  env: Readonly<Record<string, string>> | undefined,
+): [string, string][] {
+  return Object.entries(env ?? {}).filter(
+    ([, value]) => !value.includes(USER_CONFIG_PREFIX),
+  )
+}
+
+// 整值匹配 ${user_config.<KEY>} 的项将 <KEY> 并入 env_vars（去重）
+function mergedEnvVars(server: McpServer): string[] | undefined {
+  if (server.kind !== 'local') return undefined
+  const extracted = Object.values(server.env ?? {}).flatMap(value => {
+    const match = USER_CONFIG_VAR.exec(value)
+    return match?.[1] === undefined ? [] : [match[1]]
+  })
+  const combined = [...new Set([...(server.envVars ?? []), ...extracted])]
+  return combined.length === 0 ? undefined : combined
 }
 
 // 键序固定：type 在前；本地服务器为 command、args、env、env_vars、cwd，远程服务器为 url、
@@ -33,18 +57,20 @@ function entry(server: McpServer): Record<string, unknown> {
       ...(headers === undefined ? {} : { http_headers: headers }),
     }
   }
-  const { command, args, env, envVars } = server
-  const values = [...(args ?? []), ...Object.values(env ?? {})]
+  const { command, args, env } = server
+  const retained = retainedEnv(env)
+  const values = [...(args ?? []), ...retained.map(([, value]) => value)]
   const usesRoot = values.some(value => value.includes(PLUGIN_ROOT))
+  const envVars = mergedEnvVars(server)
   return {
     type: 'stdio',
     command,
     ...(args === undefined ? {} : { args: args.map(withRoot) }),
-    ...(env === undefined
+    ...(retained.length === 0
       ? {}
       : {
           env: Object.fromEntries(
-            Object.entries(env).map(([key, value]) => [key, withRoot(value)]),
+            retained.map(([key, value]) => [key, withRoot(value)]),
           ),
         }),
     ...(envVars === undefined ? {} : { env_vars: envVars }),
@@ -77,12 +103,16 @@ export function mcpConfig(servers: readonly McpServer[]): McpOutput {
   return { config, skipped, risks: risks(written) }
 }
 
-// 未声明 envVars 的本地服务器一条，含 ${ 的字段一条，各自列出全部服务器或字段
+// 未声明 envVars 的本地服务器一条，剥离的 ${user_config. 字段一条，其余含 ${ 的字段一条
 function risks(written: readonly McpServer[]): string[] {
   const messages: string[] = []
-  const bare = written.filter(s => s.kind === 'local' && s.envVars === undefined)
+  const bare = written.filter(s => s.kind === 'local' && mergedEnvVars(s) === undefined)
   if (bare.length > 0) {
     messages.push(`MCP 服务器 ${bare.map(s => s.name).join('、')} ${ENV_RISK}`)
+  }
+  const stripped = written.flatMap(strippedFields)
+  if (stripped.length > 0) {
+    messages.push(`MCP 服务器的字段 ${stripped.join('、')} ${USER_CONFIG_RISK}`)
   }
   const literal = written.flatMap(literalFields)
   if (literal.length > 0)
@@ -90,7 +120,14 @@ function risks(written: readonly McpServer[]): string[] {
   return messages
 }
 
-// 含 ${ 的字段，路径与读取 mcp/servers.json 时的错误相同，如 mcpServers.docs.args[0]
+function strippedFields(server: McpServer): string[] {
+  if (server.kind !== 'local') return []
+  return Object.entries(server.env ?? {})
+    .filter(([, text]) => text.includes(USER_CONFIG_PREFIX))
+    .map(([key]) => `mcpServers.${server.name}.env.${key}`)
+}
+
+// 含 ${ 的保留字段，路径与读取 mcp/servers.json 时的错误相同，如 mcpServers.docs.args[0]
 function literalFields(server: McpServer): string[] {
   const at = `mcpServers.${server.name}`
   const map = (field: string, values: Readonly<Record<string, string>> = {}) =>
@@ -103,7 +140,9 @@ function literalFields(server: McpServer): string[] {
       : [
           [`${at}.command`, server.command] as const,
           ...(server.args ?? []).map((text, i) => [`${at}.args[${i}]`, text] as const),
-          ...map('env', server.env),
+          ...retainedEnv(server.env).map(
+            ([key, text]) => [`${at}.env.${key}`, text] as const,
+          ),
         ]
   return fields.filter(([, text]) => text.includes('${')).map(([field]) => field)
 }

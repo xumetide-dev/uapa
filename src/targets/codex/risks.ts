@@ -44,7 +44,12 @@ export function hooksRisks(
   // 没有守卫时 checks 为空
   const trust = plan.checks.length > 0 ? TRUST_RISK + GUARD_UNTRUSTED : TRUST_RISK
   const messages = [trust, DIRECTORY_RISK, MANAGED_RISK]
-  if (plan.commandHooks.some(hook => hook.event === 'SessionEnd')) {
+  if (
+    plan.commandHooks.some(
+      hook =>
+        hook.event === 'SessionEnd' && (hook.timeout === undefined || hook.timeout > 3),
+    )
+  ) {
     messages.push(SESSION_END_RISK)
   }
   if (plan.checks.includes('afterTool')) messages.push(AFTER_TOOL_RISK)

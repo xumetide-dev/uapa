@@ -64,16 +64,19 @@ export async function componentFiles(
   return files
 }
 
-// 组件在插件目录中的路径，与 componentFiles 的 path 相同；插件目录是源项目根目录时用于同路径
-// 检查（组件已在原位，不复制）
-export function componentPaths(placed: PlacedComponents): string[] {
+// 组件在插件目录中的路径，与 componentFiles 的 path 相同；插件目录是源项目根目录时一并包含源项目的
+// rules/<name>.md，用于同路径检查（组件已在原位，不复制，且不得被生成文件覆盖；F-03-20）
+export function componentPaths(
+  placed: PlacedComponents & { readonly rules?: readonly { readonly name: string }[] },
+): string[] {
   const skills = placed.skills.flatMap(skill =>
     skill.files.map(file => `skills/${skill.name}/${file}`),
   )
   const files = FILE_KINDS.flatMap(kind =>
     placed[kind].map(component => `${kind}/${component.name}.md`),
   )
-  return [...skills, ...files]
+  const rules = (placed.rules ?? []).map(rule => `rules/${rule.name}.md`)
+  return [...skills, ...files, ...rules]
 }
 
 // 每个目标依次记 skill、agent、command 的风险；不承载 agents 或 commands 的目标（如 Codex 之于

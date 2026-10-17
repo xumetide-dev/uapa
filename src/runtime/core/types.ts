@@ -68,9 +68,10 @@ export type GuardOption =
 
 export type GuardOptionValue = string | number | boolean
 
-// 各检查方法的最后一个参数：本次调用的选项取值，键为选项名；没有声明选项时为空对象
+// 各检查方法的最后一个参数：本次调用的选项取值与当前工作目录（F-02-06，SD-50）
 export interface GuardContext {
   readonly options: Readonly<Record<string, GuardOptionValue>>
+  readonly cwd: string | null
 }
 
 export interface GuardPlugin {

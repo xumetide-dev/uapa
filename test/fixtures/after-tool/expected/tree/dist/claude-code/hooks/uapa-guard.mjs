@@ -132,14 +132,17 @@ function isValueOf(option, value) {
 function isRecord$1(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function guardContext(result) {
+function guardContext(result, cwd = null) {
 	if (!result.ok) return {
 		ok: false,
 		reason: `uapa: 守卫选项无效: ${result.name}`
 	};
 	return {
 		ok: true,
-		value: { options: result.options }
+		value: {
+			options: result.options,
+			cwd
+		}
 	};
 }
 function isRecord(value) {
@@ -223,7 +226,7 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 }
 const HOOK_FAILED_REASON = "uapa: hooks 模块出错";
 function register(on, options) {
-	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options));
+	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options), null);
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_AFTER_TOOL_GUARD", await $.session.id());
 		return next(e);

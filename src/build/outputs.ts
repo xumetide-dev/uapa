@@ -96,7 +96,9 @@ async function planDir(
 async function dirLayers(
   root: string,
   atRoot: boolean,
-  present: ReturnType<typeof componentUnion>,
+  present: ReturnType<typeof componentUnion> & {
+    readonly rules?: readonly { readonly name: string }[]
+  },
   shared: readonly PlannedFile[],
 ): Promise<DirLayers> {
   // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件

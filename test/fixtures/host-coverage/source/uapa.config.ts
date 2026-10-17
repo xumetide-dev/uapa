@@ -14,6 +14,14 @@ export default {
   guard: 'guard.ts',
   hosts: {
     'claude-code': {
+      userConfig: {
+        UAPA_API_KEY: {
+          type: 'string',
+          title: '测试令牌',
+          description: 'MCP 服务器的测试令牌',
+          sensitive: true,
+        },
+      },
       manifest: { homepage: 'https://example.com/host-coverage', license: 'MIT' },
       onFailure: 'block',
     },

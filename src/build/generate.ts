@@ -61,6 +61,7 @@ function hostInput(
       pluginDir === undefined
         ? null
         : marketplaceSourceOf(config, root, pluginDir.path),
+    hasMcpServers: build.source.mcpServers.length > 0,
     bundle: deps.bundle,
   }
 }

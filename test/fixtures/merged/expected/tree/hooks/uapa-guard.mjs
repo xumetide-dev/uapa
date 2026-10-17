@@ -140,14 +140,17 @@ function isValueOf(option, value) {
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function guardContext(result) {
+function guardContext(result, cwd = null) {
 	if (!result.ok) return {
 		ok: false,
 		reason: `uapa: 守卫选项无效: ${result.name}`
 	};
 	return {
 		ok: true,
-		value: { options: result.options }
+		value: {
+			options: result.options,
+			cwd
+		}
 	};
 }
 function canonicalToolName(hostName, toolNames) {
@@ -195,7 +198,7 @@ const stopContinuations = atom({
 	key: "uapaStopContinuations"
 }, 0);
 function register(on, options) {
-	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options));
+	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options), null);
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_MERGED_GUARD", await $.session.id());
 		return next(e);

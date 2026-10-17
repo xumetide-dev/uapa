@@ -14,7 +14,11 @@ export default {
   ],
   guard: 'guard.ts',
   commandHooks: [
-    { event: 'SessionStart', command: 'node "{pluginRoot}/scripts/session.mjs"' },
+    {
+      event: 'SessionStart',
+      command: 'node "{pluginRoot}/scripts/session.mjs"',
+      timeout: 10,
+    },
     { event: 'SessionEnd', command: 'node "{pluginRoot}/scripts/session.mjs" end' },
   ],
 } satisfies UapaConfig

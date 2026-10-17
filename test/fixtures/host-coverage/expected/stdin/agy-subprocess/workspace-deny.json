@@ -1,0 +1,21 @@
+{
+  "args": [
+    "before-tool"
+  ],
+  "stdin": {
+    "conversationId": "fixture-session",
+    "workspacePaths": [
+      "/workspace/agy"
+    ],
+    "toolCall": {
+      "name": "run_command",
+      "args": {
+        "CommandLine": "echo uapa-deny-probe"
+      }
+    }
+  },
+  "env": {},
+  "exitCode": 0,
+  "stdout": "{\"decision\":\"deny\",\"reason\":\"拒绝标记命令 uapa-deny-probe（/workspace/agy）\"}\n",
+  "stderr": ""
+}

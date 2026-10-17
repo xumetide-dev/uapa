@@ -16,7 +16,7 @@
       {
         "type": "command",
         "command": "node \"./scripts/session.mjs\"",
-        "timeout": 30
+        "timeout": 10
       }
     ]
   }

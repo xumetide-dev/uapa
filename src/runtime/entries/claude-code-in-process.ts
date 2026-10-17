@@ -59,8 +59,8 @@ const stopContinuations = /* @__PURE__ */ atom(
 // 处理函数之间共用的 $ 只经顶层函数的参数传递（Mods 指南「验证、测试与调试」）。
 // options 为宿主传入的插件选项取值（F-05-18），生成的 register.ts 原样转交
 export function register(on: On, options?: unknown): void {
-  // 取值在注册时检查一次；无效时各检查按守卫出错收口（F-04-09）
-  const context = guardContext(optionsFromValues(data.options, options))
+  // 取值在注册时检查一次；无效时各检查按守卫出错收口（F-04-09）；in-process 无工作目录（cwd 为 null，F-05-27）
+  const context = guardContext(optionsFromValues(data.options, options), null)
   // 去重（F-05-08）：变量名为 null 时整段不进入打包结果，产物中没有 $.env.set。
   // /clear、/resume、/branch 之后 session.start 不再触发，会话 id 若随之改变，命令 hook 不再被
   // 跳过，因此在 classic.SessionStart 上重写一次（Mods 指南「$.state 与 $.store」）

@@ -123,10 +123,10 @@ export type McpServer =
   | { readonly name: string; readonly kind: 'local'; readonly command: string
       readonly args?: readonly string[]; readonly env?: Readonly<Record<string, string>>
       readonly envVars?: readonly string[] // v0.4.0（F-01-13，SD-40）
-      readonly targets: readonly TargetName[] | null } // v0.4.0（F-01-15，SD-49）；未写为 null
+      readonly targets?: readonly TargetName[] | null } // v0.4.0（F-01-15，SD-49）；未写时不出现
   | { readonly name: string; readonly kind: 'remote'; readonly url: string
       readonly headers?: Readonly<Record<string, string>>
-      readonly targets: readonly TargetName[] | null }
+      readonly targets?: readonly TargetName[] | null }
 // v0.3.0（F-01-10，SD-32）：rules/ 下一层的 <name>.md；宿主模块按自身格式重写 frontmatter
 export type RuleActivation = 'always' | 'model' | 'glob'
 export interface Rule {

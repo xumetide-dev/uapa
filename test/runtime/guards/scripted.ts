@@ -7,10 +7,16 @@ import type {
   ToolCall,
 } from '../../../src/index.ts'
 
-function decide(action: unknown, tool: string, input: unknown): BeforeTool {
+function decide(
+  action: unknown,
+  tool: string,
+  input: unknown,
+  cwd: string | null = null,
+): BeforeTool {
   if (action === 'throw') throw new Error('boom')
   if (action === 'invalid') return { kind: 'deny', reason: ' ' }
   if (action === 'deny') return { kind: 'deny', reason: '不允许' }
+  if (action === 'cwd') return { kind: 'deny', reason: `cwd=${String(cwd)}` }
   if (action === 'echo')
     return { kind: 'deny', reason: `${tool} ${JSON.stringify(input)}` }
   if (action === 'rewrite') {
@@ -40,11 +46,12 @@ function afterDecision(call: ToolCall, output: string): AfterTool {
 const guard: GuardPlugin = {
   name: 'scripted',
   requires: [],
-  beforeTool: call =>
+  beforeTool: (call, ctx) =>
     decide(
       call.tool === 'shell' ? call.input.command : call.input.action,
       call.tool,
       call.input,
+      ctx.cwd,
     ),
   beforePrompt(p) {
     if (p.prompt === 'throw') throw new Error('boom')

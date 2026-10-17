@@ -77,19 +77,30 @@ function planComponents<T extends Component>(
   return planned
 }
 
-// MCP 服务器没有 targets：本目标不承载 MCP 时全部列为跳过
+// MCP 服务器按 targets 与承载能力筛选（F-03-20，SD-49）：不适用本目标的服务器不计；
+// 本目标不能承载 MCP 时，显式写了本目标的服务器使目标失败，未写 targets 的列为跳过
 function planMcpServers(
   state: TargetState,
   servers: readonly McpServer[],
 ): McpServer[] {
-  if (state.capabilities.components.mcp !== 'none') return [...servers]
+  const carried = state.capabilities.components.mcp !== 'none'
+  const planned: McpServer[] = []
   for (const server of servers) {
-    state.skipped.push({
-      component: `mcpServers.${server.name}`,
-      reason: '本目标不能承载 MCP 服务器',
-    })
+    const targets = server.targets ?? null
+    if (targets !== null && !targets.includes(state.target)) continue
+    if (carried) planned.push(server)
+    else if (targets !== null) {
+      state.errors.push(
+        `MCP 服务器 ${server.name} 显式限定了本目标，但本目标不能承载 MCP 服务器`,
+      )
+    } else {
+      state.skipped.push({
+        component: `mcpServers.${server.name}`,
+        reason: '本目标不能承载 MCP 服务器',
+      })
+    }
   }
-  return []
+  return planned
 }
 
 // 缺失时省略对应 hook 的能力（hooks 适配第 6 节）；rewriteInput 与 replaceOutput 缺失按降级处理

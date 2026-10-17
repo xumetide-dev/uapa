@@ -2,10 +2,13 @@ import "claude-code";
 const guard = {
 	name: "host-coverage-guard",
 	requires: [],
-	beforeTool: (call) => call.tool === "shell" && String(call.input.command).includes("uapa-deny-probe") ? {
-		kind: "deny",
-		reason: "拒绝标记命令 uapa-deny-probe"
-	} : { kind: "allow" },
+	beforeTool: (call, ctx) => {
+		if (call.tool === "shell" && String(call.input.command).includes("uapa-deny-probe")) return {
+			kind: "deny",
+			reason: `拒绝标记命令 uapa-deny-probe${ctx.cwd === null ? "" : `（${ctx.cwd}）`}`
+		};
+		return { kind: "allow" };
+	},
 	beforePrompt: (p) => p.prompt.includes("API_KEY=") ? {
 		kind: "block",
 		reason: "提示中含疑似密钥"
@@ -118,14 +121,17 @@ function isValueOf(option, value) {
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function guardContext(result) {
+function guardContext(result, cwd = null) {
 	if (!result.ok) return {
 		ok: false,
 		reason: `uapa: 守卫选项无效: ${result.name}`
 	};
 	return {
 		ok: true,
-		value: { options: result.options }
+		value: {
+			options: result.options,
+			cwd
+		}
 	};
 }
 function canonicalToolName(hostName, toolNames) {
@@ -169,7 +175,7 @@ function resolveToolDecision(decision, tool, rewriteInput) {
 }
 const HOOK_FAILED_REASON = "uapa: hooks 模块出错";
 function register(on, options) {
-	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options));
+	const context = guardContext(optionsFromValues(_uapa_target_data_default.options, options), null);
 	on("session.start", async ($, e, next) => {
 		await $.env.set("UAPA_MODULE_SESSION_HOST_COVERAGE", await $.session.id());
 		return next(e);

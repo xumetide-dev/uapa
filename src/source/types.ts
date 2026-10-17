@@ -29,12 +29,15 @@ export type McpServer =
       readonly env?: Readonly<Record<string, string>>
       // 需要从会话环境取得的变量名，按声明顺序（F-01-13，SD-40）
       readonly envVars?: readonly string[]
+      // 限定目标；未写为 null（F-01-15，SD-49）
+      readonly targets?: readonly TargetName[] | null
     }
   | {
       readonly name: string
       readonly kind: 'remote'
       readonly url: string
       readonly headers?: Readonly<Record<string, string>>
+      readonly targets?: readonly TargetName[] | null
     }
 
 // rules/ 下一层的 <name>.md（F-01-10，SD-32）；宿主模块按自身格式重写 frontmatter

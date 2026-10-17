@@ -207,3 +207,14 @@ test('执行后检查：守卫出错、返回值无效与 tool_response 缺失�
     blocked('uapa: 无法解析宿主输入: tool_response'),
   )
 })
+
+test('从 stdin.cwd 提取工作目录，缺失、空串或非字符串时退化为 null（F-06-17）', () => {
+  assert.deepEqual(
+    run('before-tool', { ...tool('Bash', { command: 'cwd' }), cwd: '/work/codex' }),
+    denied('cwd=/work/codex'),
+  )
+  for (const invalid of [undefined, '', 42, null]) {
+    const payload = { ...tool('Bash', { command: 'cwd' }), cwd: invalid }
+    assert.deepEqual(run('before-tool', payload), denied('cwd=null'))
+  }
+})

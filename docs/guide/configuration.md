@@ -72,7 +72,7 @@ UAPA 在生成时就拒绝。规则的出处见
 | `claude-code` | `onFailure` | 只取 `'block'`：`claude-code:subprocess` 的执行前与提示提交前守卫条目写 `onFailure: "block"`，入口出错、无法启动或超时时阻断工具调用与提示；缺少 Node ≥ 22 时每次都被阻断，见[宿主差异](targets.md#hook-出错与超时) |
 | `codex` | `interface` | `.codex-plugin/plugin.json` 的 `interface`（展示名、分类等） |
 | `codex` | `hooksFile` | hooks 配置在插件目录中的相对路径，默认 `hooks/hooks.json`；不得为绝对路径或含 `..` |
-| `agy` | 只有 `dir` | agy 的 `plugin.json` 只接受 `name` 与 `description` |
+| `agy` | `manifest` | manifest 在插件目录中的相对路径：`'plugin.json'` 或 `'.antigravity-plugin/plugin.json'`；省略时默认布局写 `'plugin.json'`，合并布局写 `'.antigravity-plugin/plugin.json'` |
 
 各字段在宿主中的含义见宿主调研的 manifest 一节：
 [Claude Code](../research/coding-agent-plugin-manifests/claude-code-plugins.md)、
@@ -118,22 +118,26 @@ marketplace: { name: 'team-tools', owner: { name: 'Example Team' }, dir: 'dist' 
 ### 合并布局
 
 多个宿主写入同一个目录，常用于让源项目所在的仓库本身就是可从 git 安装的插件。下例让
-Claude Code 与 Codex 都以源项目根目录为插件目录，agy 仍写入 `dist/agy`
-（[`merged` 夹具](../../test/fixtures/merged/source/uapa.config.ts)）：
+三个宿主都以源项目根目录为插件目录（[`merged` 夹具](../../test/fixtures/merged/source/uapa.config.ts)）：
 
 ```ts
 hosts: {
   'claude-code': { dir: '.' },
   codex: { dir: '.', hooksFile: 'hooks/codex-hooks.json' },
+  agy: { dir: '.' },
 },
 ```
 
 - 只写入生成的文件，不删除目录中的其他文件。组件删除或改名后留下的旧文件须手动删除。
+- 合并布局中 agy 默认写 `.antigravity-plugin/plugin.json`（agy 1.3.5 容器实测），与
+  `.claude-plugin/plugin.json`、`.codex-plugin/plugin.json` 各自位于宿主子目录，不触发 Codex
+  对根 `plugin.json` 的优先读取规则。
 - 各宿主生成的同名文件必须逐字一致，否则写入该目录的全部目标失败，该目录不写入任何文件。
   Claude Code 与 Codex 的 hooks 配置默认都是 `hooks/hooks.json`，因此上例为 Codex 指定
   `hooksFile`。
-- 插件目录就是源项目根目录时，skills 与 agents 直接从源项目加载，不再复制；`files/` 须为空，
-  见[共用文件](source-project.md#共用文件)。
+- 插件目录就是源项目根目录时，skills、agents、commands 直接从源项目加载，不再复制；源项目含
+  `rules/` 时，agy 生成的 `rules/<name>.md` 会与源项目文件同路径冲突，此时为 agy 使用单独目录。
+  `files/` 须为空，见[共用文件](source-project.md#共用文件)。
 - 构建报告仍写在 `<outDir>/uapa-report.json`。
 
 ## 参考

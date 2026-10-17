@@ -13,20 +13,21 @@ await runSubprocessEntry({
     if (!isRecord(stdin) || typeof stdin.session !== 'string')
       throw new Error('session')
     const sessionId = stdin.session
+    const cwd = typeof stdin.cwd === 'string' && stdin.cwd.length > 0 ? stdin.cwd : null
     if (check === 'before-tool' || check === 'after-tool') {
       if (typeof stdin.tool !== 'string') throw new Error('tool')
       const input = isRecord(stdin.input) ? stdin.input : {}
       const command = typeof input.cmd === 'string' ? { command: input.cmd } : {}
       const tool = { name: stdin.tool, input, ...command }
-      if (check === 'before-tool') return { sessionId, tool }
+      if (check === 'before-tool') return { sessionId, cwd, tool }
       if (!Object.hasOwn(stdin, 'output')) throw new Error('output')
-      return { sessionId, tool, toolOutput: stdin.output }
+      return { sessionId, cwd, tool, toolOutput: stdin.output }
     }
     if (check === 'before-prompt') {
       if (typeof stdin.prompt !== 'string') throw new Error('prompt')
-      return { sessionId, prompt: stdin.prompt }
+      return { sessionId, cwd, prompt: stdin.prompt }
     }
-    return { sessionId }
+    return { sessionId, cwd }
   },
   skip(event, env) {
     return (

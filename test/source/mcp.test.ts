@@ -160,3 +160,56 @@ test('envVars：远程服务器写该字段、为空、元素不合规则或重�
     })
   }
 })
+
+test('mcpServers.<name>.targets：合法列表通过，为空、重复或未知目标名时失败（F-01-15）', async () => {
+  const valid = await read(
+    servers({
+      mcpServers: {
+        local: {
+          command: 'node',
+          targets: ['claude-code:subprocess', 'codex:subprocess'],
+        },
+        remote: { url: 'http://127.0.0.1:9/mcp', targets: ['agy:subprocess'] },
+      },
+    }),
+  )
+  assert.ok(valid.ok)
+  assert.deepEqual(valid.value.mcpServers, [
+    {
+      name: 'local',
+      kind: 'local',
+      command: 'node',
+      targets: ['claude-code:subprocess', 'codex:subprocess'],
+    },
+    {
+      name: 'remote',
+      kind: 'remote',
+      url: 'http://127.0.0.1:9/mcp',
+      targets: ['agy:subprocess'],
+    },
+  ])
+  const invalidCases: [unknown, string, RegExp][] = [
+    [{ command: 'x', targets: [] }, 'mcpServers.a.targets', /非空的目标名列表/],
+    [
+      { command: 'x', targets: 'codex:subprocess' },
+      'mcpServers.a.targets',
+      /非空的目标名列表/,
+    ],
+    [
+      { command: 'x', targets: ['codex:subprocess', 'codex:subprocess'] },
+      'mcpServers.a.targets[1]',
+      /与 mcpServers\.a\.targets\[0\] 重复/,
+    ],
+    [
+      { command: 'x', targets: ['unknown:target'] },
+      'mcpServers.a.targets[0]',
+      /未知目标名/,
+    ],
+  ]
+  for (const [config, field, message] of invalidCases) {
+    const result = await read(servers({ mcpServers: { a: config } }))
+    assert.ok(!result.ok)
+    assert.equal(result.issues[0]?.field, field)
+    assert.match(result.issues[0]?.message ?? '', message)
+  }
+})

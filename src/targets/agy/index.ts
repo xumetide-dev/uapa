@@ -17,6 +17,7 @@ import {
   MANIFEST_CONFLICT_HINT,
   manifest,
   manifestErrors,
+  manifestPathOf,
 } from './manifest.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { ruleFiles } from './rules.ts'
@@ -29,10 +30,10 @@ const STOP_COUNTER_RISK =
 // PreToolUse 的 stdout 不是含 decision 的 JSON 时宿主阻断（agy-local-tests.md「本地实测」）
 const PRE_TOOL_USE_RISK =
   '声明的 PreToolUse 命令须在 stdout 输出含 decision 的 JSON，否则 agy 阻断每次工具调用'
-// F-11-03：共用目录时 .claude-plugin/ 与 agy 的文件同在插件根目录
-const SHARED_CLAUDE_CODE_RISK =
-  '与 Claude Code 共用插件目录：agy 的安装命令是否把含 .claude-plugin/ 的目录按 Claude Code ' +
-  '插件转换未实测'
+// F-11-15：与 Codex 共用目录且显式写根 plugin.json 时，Codex 优先读根 plugin.json 而不加载 hooks
+const SHARED_CODEX_ROOT_MANIFEST_RISK =
+  '与 Codex 共用插件目录且写根 plugin.json：Codex 优先读取根 plugin.json（AgentPlugin 格式）' +
+  '并忽略 .codex-plugin/plugin.json，不加载任何 hooks'
 
 // 安装时把 commands/ 转换为技能（F-11-11；agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」）
 const COMMANDS_RISK =
@@ -93,6 +94,7 @@ export const agy: HostModule = {
     if (nameErrors.length > 0) return failAll(input.plans, nameErrors)
     const plan = input.plans.find(p => p.target === TARGET)
     const guard = input.guard
+    const manifestPath = manifestPathOf(input.config, input.sharedWith)
     // 有守卫且 checks 非空时才生成入口；checks 与 commandHooks 都为空时不生成 hooks.json
     const withEntry = plan !== undefined && plan.checks.length > 0 && guard !== null
     const pluginManifest = manifest(input.config)
@@ -101,13 +103,13 @@ export const agy: HostModule = {
         ? null
         : hooksConfig(input.config.name, withEntry ? plan.checks : [], plan)
     const mcp = mcpConfig(plan?.mcpServers ?? [])
-    const errors = fieldErrors(pluginManifest, hooks, mcp.config)
+    const errors = fieldErrors(pluginManifest, hooks, mcp.config, manifestPath)
     if (errors.length > 0) return failAll(input.plans, errors)
     const files: OutputFile[] = [
       {
-        path: MANIFEST,
+        path: manifestPath,
         content: json(pluginManifest),
-        conflictHint: MANIFEST_CONFLICT_HINT,
+        ...(manifestPath === MANIFEST ? { conflictHint: MANIFEST_CONFLICT_HINT } : {}),
       },
     ]
     if (hooks !== null) files.push({ path: HOOKS_FILE, content: json(hooks) })
@@ -119,7 +121,7 @@ export const agy: HostModule = {
       plan === undefined
         ? []
         : [
-            ...risks(input, plan, rules.risks),
+            ...risks(input, plan, manifestPath, rules.risks),
             ...mcp.risks.map((message): TargetNote => ({ target: TARGET, message })),
           ]
     return { ok: true, files, skipped: mcp.skipped, residualRisks }
@@ -129,6 +131,7 @@ export const agy: HostModule = {
 function risks(
   input: HostInput,
   plan: TargetPlan,
+  manifestPath: string,
   ruleRisks: readonly string[],
 ): TargetNote[] {
   const messages: string[] = []
@@ -136,7 +139,9 @@ function risks(
   if (plan.commandHooks.some(hook => hook.event === 'PreToolUse')) {
     messages.push(PRE_TOOL_USE_RISK)
   }
-  if (input.sharedWith.includes('claude-code')) messages.push(SHARED_CLAUDE_CODE_RISK)
+  if (input.sharedWith.includes('codex') && manifestPath === MANIFEST) {
+    messages.push(SHARED_CODEX_ROOT_MANIFEST_RISK)
+  }
   const optionCount = input.guard?.options.length ?? 0
   if (plan.checks.length > 0 && optionCount > 0) messages.push(OPTIONS_RISK)
   messages.push(...ruleRisks)

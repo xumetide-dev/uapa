@@ -17,7 +17,11 @@ export default defineConfig({
   author: { name: 'Example Team' },
   targets: ['claude-code:subprocess', 'codex:subprocess', 'agy:subprocess'],
   commandHooks: [
-    { event: 'SessionStart', command: 'node "{pluginRoot}/scripts/session-start.mjs"' },
+    {
+      event: 'SessionStart',
+      command: 'node "{pluginRoot}/scripts/session-start.mjs"',
+      timeout: 10,
+    },
   ],
 })
 ```
@@ -27,8 +31,11 @@ export default defineConfig({
 | `event` | 是 | `SessionStart`、`SessionEnd`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Stop` 之一 |
 | `command` | 是 | 非空的单行命令，原样写入；插件根目录写作 `{pluginRoot}` |
 | `targets` | 否 | 只写入列出的目标；省略时适用于全部已配置目标 |
+| `timeout` | 否 | 单条命令超时（秒），正整数；省略时取目标的 `hookTimeoutSeconds`（30 秒） |
 
-- 不支持 `matcher` 与超时字段，写了按未知字段报错。工具事件上的命令对全部工具触发。
+- 不支持 `matcher`，写了按未知字段报错。工具事件上的命令对全部工具触发。
+- Codex 的 `SessionEnd` 超时上限为 3 秒：单条命令写 `Math.min(timeout ?? 30, 3)`；省略 `timeout`
+  或 `timeout > 3` 时构建报告写 3 秒截断残余风险，`timeout <= 3` 时按原值写出且不报该风险。
 - UAPA 不读取、不换算命令的 stdin、stdout、stderr 与退出码；各宿主的输入输出协议见
   [宿主调研](../research/coding-agent-plugin-manifests/README.md)的 hooks 一节，由插件作者负责。
 - 命令引用的脚本不由 UAPA 复制，放在 `overrides/<宿主>/` 下的同一相对路径，每个宿主各放一份，
@@ -67,8 +74,8 @@ overrides/
 | `codex:subprocess` | `${PLUGIN_ROOT}` | `node "${PLUGIN_ROOT}/scripts/session-start.mjs"` |
 | `agy:subprocess` | `.`（hook 以插件目录为工作目录） | `node "./scripts/session-start.mjs"` |
 
-命令的其余文本原样写入。生成的条目与守卫条目结构相同、超时同为 30 秒，同一事件下排在守卫条目
-之后，按声明顺序。
+命令的其余文本原样写入。生成的条目与守卫条目结构相同，超时取单条 `timeout ?? 30`（Codex 的
+`SessionEnd` 为 `Math.min(timeout ?? 30, 3)`），同一事件下排在守卫条目之后，按声明顺序。
 
 ## 参考
 

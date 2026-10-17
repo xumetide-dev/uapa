@@ -77,7 +77,8 @@ export function hooksConfig(
   for (const hook of plan.commandHooks) {
     const event = hostEvent(plan, hook)
     const command = hook.command.split('{pluginRoot}').join(PLUGIN_ROOT)
-    events[event] = [...(events[event] ?? []), element(event, command, timeout)]
+    const limit = hook.timeout ?? timeout
+    events[event] = [...(events[event] ?? []), element(event, command, limit)]
   }
   return Object.keys(events).length === 0 ? null : { [pluginName]: events }
 }

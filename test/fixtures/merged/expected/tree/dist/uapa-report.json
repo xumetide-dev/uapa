@@ -95,7 +95,7 @@
       "units": [
         {
           "kind": "plugin",
-          "path": "dist/agy"
+          "path": "."
         }
       ],
       "skipped": [],

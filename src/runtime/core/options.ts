@@ -70,7 +70,10 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 // 传给检查方法的 GuardContext；取值无效时为守卫出错的原因（F-04-09），两种入口都在
 // callGuard 中据此不调用守卫，按守卫出错收口
-export function guardContext(result: OptionsResult): Checked<GuardContext> {
+export function guardContext(
+  result: OptionsResult,
+  cwd: string | null = null,
+): Checked<GuardContext> {
   if (!result.ok) return { ok: false, reason: `uapa: 守卫选项无效: ${result.name}` }
-  return { ok: true, value: { options: result.options } }
+  return { ok: true, value: { options: result.options, cwd } }
 }

@@ -361,3 +361,29 @@ test('执行后检查：守卫抛错、返回值无效与输入无法解析时�
   const noCommand = ran('Bash', {}, bash)
   assert.deepEqual(after(noCommand), stdoutOf({ block: reason('tool.command') }))
 })
+
+test('子进程入口把 event.cwd 传入 GuardContext.cwd；缺失或空串时为 null（F-04-10）', () => {
+  expectDeny(
+    runEntry(
+      entries.full,
+      ['before-tool'],
+      JSON.stringify({
+        session: 's1',
+        cwd: '/work/dir',
+        tool: 'Bash',
+        input: { cmd: 'cwd' },
+      }),
+    ),
+    'cwd=/work/dir',
+  )
+  for (const cwd of [undefined, '', 123]) {
+    expectDeny(
+      runEntry(
+        entries.full,
+        ['before-tool'],
+        JSON.stringify({ session: 's1', cwd, tool: 'Bash', input: { cmd: 'cwd' } }),
+      ),
+      'cwd=null',
+    )
+  }
+})

@@ -97,7 +97,7 @@
   [安装与分发「Codex」](install.md#codex)。
 - 含 hooks 的插件不能进入 Codex 的公开插件目录（构建报告的残余风险）。
 - `allow_managed_hooks_only = true` 或 `[features].hooks = false` 时插件的 hooks 不运行（残余
-  风险）。声明的 `SessionEnd` 命令写 `timeout: 3`：Codex 把更大的值压到 3 秒。
+  风险）。声明的 `SessionEnd` 命令写 `Math.min(timeout ?? 30, 3)`：Codex 把更大的值压到 3 秒。
 - 技能名超过 64 个字符或 `<插件名>:<技能名>` 超过 129 个字符时 Codex 不加载，UAPA 把该 skill 或
   rule 记为跳过；skill 目录中嵌套的 `SKILL.md` 被 Codex 另注册为一个技能（残余风险）。
 - 只对执行成功的工具调用触发 `PostToolUse`；处理器报错与 MCP 结果 `isError` 为真的调用不受执行后
@@ -115,6 +115,8 @@
 ## agy
 
 - 全局安装的插件对本机该用户的全部 agy 会话生效，hooks 也是（agy 1.3.4 本地实测）。
+- 默认布局写根 `plugin.json`，与其他宿主共用目录（合并布局）时默认写
+  `.antigravity-plugin/plugin.json`（可通过 `hosts.agy.manifest` 显式指定；agy 1.3.5 容器实测）。
 - 安装插件时把 `commands/` 中的命令转换为技能，以 `/<插件名>:<命令名>` 调用；模型也按
   `description` 自动选用转换后的技能（agy 1.3.5 容器实测）。
 - 没有提示提交与会话结束事件；执行后 hook 不能替换或扣留输出，因此不生成。
@@ -129,7 +131,8 @@
   rules。单个规则文件上限 24,000 字节，超出部分被截断，生成的规则超过
   上限时构建报告写为残余风险。
 - `agy plugin validate` 对结构错误的插件也报告 `[ok]`，不能作为校验手段；UAPA 在生成时对
-  `plugin.json`、`hooks.json` 与 `mcp_config.json` 做字段白名单检查。
+  manifest（`plugin.json` 或 `.antigravity-plugin/plugin.json`）、`hooks.json` 与 `mcp_config.json`
+  做字段白名单检查。
 
 ## 参考
 

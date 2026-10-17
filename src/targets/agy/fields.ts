@@ -89,14 +89,15 @@ function mcpErrors(config: Readonly<Record<string, unknown>>, errors: string[]):
   }
 }
 
-// hooks 或 mcp 为 null 时不生成 hooks.json 或 mcp_config.json，只检查生成的文件与 plugin.json
+// hooks 或 mcp 为 null 时不生成 hooks.json 或 mcp_config.json，只检查生成的文件与清单
 export function fieldErrors(
   manifest: Readonly<Record<string, unknown>>,
   hooks: Readonly<Record<string, unknown>> | null,
   mcp: Readonly<Record<string, unknown>> | null = null,
+  manifestFile: string = MANIFEST,
 ): string[] {
   const errors: string[] = []
-  checkKeys(manifest, MANIFEST_FIELDS, MANIFEST, errors)
+  checkKeys(manifest, MANIFEST_FIELDS, manifestFile, errors)
   if (hooks !== null) hooksErrors(hooks, errors)
   if (mcp !== null) mcpErrors(mcp, errors)
   return errors

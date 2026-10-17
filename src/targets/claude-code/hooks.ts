@@ -79,7 +79,8 @@ export function hooksKey(
     for (const hook of plan.commandHooks) {
       const event = hostEvent(plan, hook)
       const command = hook.command.split('{pluginRoot}').join(PLUGIN_ROOT)
-      hooks[event] = [...(hooks[event] ?? []), { hooks: [handler(command, timeout)] }]
+      const limit = hook.timeout ?? timeout
+      hooks[event] = [...(hooks[event] ?? []), { hooks: [handler(command, limit)] }]
     }
   }
   return Object.keys(hooks).length === 0 ? null : hooks

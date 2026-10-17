@@ -3,11 +3,13 @@
     "probe": {
       "command": "node",
       "args": ["{pluginRoot}/scripts/server.mjs"],
+      "env": { "UAPA_API_KEY": "${user_config.UAPA_API_KEY}" },
       "envVars": ["UAPA_PROBE_TOKEN"]
     },
     "remote": {
       "url": "http://127.0.0.1:9/mcp",
-      "headers": { "Authorization": "Bearer ${TOKEN}" }
+      "headers": { "Authorization": "Bearer ${TOKEN}" },
+      "targets": ["claude-code:subprocess", "codex:subprocess", "agy:subprocess"]
     }
   }
 }

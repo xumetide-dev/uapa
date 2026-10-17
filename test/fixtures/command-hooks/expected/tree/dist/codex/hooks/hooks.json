@@ -17,7 +17,7 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/scripts/session.mjs\"",
-            "timeout": 30
+            "timeout": 10
           }
         ]
       }

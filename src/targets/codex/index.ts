@@ -66,7 +66,7 @@ function manifestHooks(
   return input.sharedWith.length > 0 ? NO_HOOKS : null
 }
 
-// manifest 的 mcpServers：生成了 mcp.json 时指向它；源项目有服务器而全部跳过、且与其他宿主
+// manifest 的 mcpServers：生成了 mcp.json 时指向它；源项目有服务器而本目标无写出服务器、且与其他宿主
 // 共用目录时写 NO_MCP_SERVERS，使 Codex 不读取 Claude Code 为这些服务器写出的 .mcp.json。
 // 源项目没有服务器时其他宿主也不生成 MCP 配置，不写，v0.1.0 的产物保持不变
 function manifestMcp(
@@ -75,7 +75,8 @@ function manifestMcp(
   config: Readonly<Record<string, unknown>> | null,
 ): string | typeof NO_MCP_SERVERS | null {
   if (config !== null) return `./${MCP_FILE}`
-  const shadowed = plan.mcpServers.length > 0 && input.sharedWith.length > 0
+  const hasMcp = plan.mcpServers.length > 0 || input.hasMcpServers === true
+  const shadowed = hasMcp && input.sharedWith.length > 0
   return shadowed ? NO_MCP_SERVERS : null
 }
 

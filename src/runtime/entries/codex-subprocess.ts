@@ -36,18 +36,19 @@ await runSubprocessEntry({
       throw new Error('session_id')
     }
     const sessionId = stdin.session_id
-    if (check === 'before-tool') return { sessionId, tool: hostTool(stdin) }
+    const cwd = typeof stdin.cwd === 'string' && stdin.cwd !== '' ? stdin.cwd : null
+    if (check === 'before-tool') return { sessionId, cwd, tool: hostTool(stdin) }
     if (check === 'after-tool') {
       const tool = hostTool(stdin)
       // 值可为任意 JSON，按形状取文本（入口与打包接口第 4 节）
       if (!Object.hasOwn(stdin, 'tool_response')) throw new Error('tool_response')
-      return { sessionId, tool, toolOutput: stdin.tool_response }
+      return { sessionId, cwd, tool, toolOutput: stdin.tool_response }
     }
     if (check === 'before-prompt') {
       if (typeof stdin.prompt !== 'string') throw new Error('prompt')
-      return { sessionId, prompt: stdin.prompt }
+      return { sessionId, cwd, prompt: stdin.prompt }
     }
-    return { sessionId }
+    return { sessionId, cwd }
   },
   allow: () => ({ exitCode: 0 }),
   deny: (_check, reason) => ({ exitCode: 2, stderr: `${reason}\n` }),

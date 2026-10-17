@@ -168,8 +168,10 @@ targets: [agy:subprocess]
 }
 ```
 
-- 本地服务器写 `command`（必填）、`args`、`env`、`envVars`；远程服务器写 `url`（必填）、
-  `headers`。两类字段不能混用，其他字段为输入错误。
+- 本地服务器写 `command`（必填）、`args`、`env`、`envVars`、`targets`；远程服务器写 `url`（必填）、
+  `headers`、`targets`。两类字段不能混用，其他字段为输入错误。
+- `targets` 可选，规则与组件的 `targets` 相同：写了只进入列出的目标，不进入其他目标的 MCP 配置，
+  也不记入 `skipped`；显式列出不能承载 MCP 的目标时该目标构建失败。
 - `{pluginRoot}` 表示安装后的插件目录，只能用在本地服务器的 `command`、`args`、`env` 中。它引用
   的文件（上例的 `mcp/server.mjs`）放在[共用文件](#共用文件)中，每个插件目录各复制一份；只给
   某个宿主的放在该宿主的[覆盖文件](#覆盖文件)中。
@@ -194,14 +196,18 @@ targets: [agy:subprocess]
 
 各宿主中本地服务器的环境与 MCP 配置中的 `${…}`：
 
-| 宿主 | 本地服务器的环境 | `envVars` | `${…}` |
-|---|---|---|---|
-| Claude Code | 继承会话环境 | 不写入 | 由宿主展开 |
-| Codex | 只有 `HOME`、`PATH` 等少数变量，加上 `env` 与 `env_vars` 中的变量 | 写为 `env_vars` | 不展开，按字面传递 |
-| agy | 继承会话环境 | 不写入 | 不展开，按字面传递 |
+| 宿主 | 本地服务器的环境 | `envVars` | `env` 中的 `${user_config.<KEY>}` | 其他 `${…}` |
+|---|---|---|---|---|
+| Claude Code | 继承会话环境 | 不写入 | 原样保留，由宿主展开 | 由宿主展开 |
+| Codex | 只有 `HOME`、`PATH` 等少数变量，加上 `env` 与 `env_vars` 中的变量 | 写为 `env_vars` | 从 `env` 剥离并记残余风险；整值匹配的 `<KEY>` 并入 `env_vars` | 不展开，按字面传递 |
+| agy | 继承会话环境 | 不写入 | 从 `env` 剥离并记残余风险，由子进程从宿主环境继承同名变量 | 不展开，按字面传递 |
 
-- Codex 中未声明 `envVars` 的本地服务器拿不到令牌、代理等会话变量，构建报告列出这些服务器。
-- Codex 与 agy 中含 `${` 的字段（如请求头 `Bearer ${TOKEN}`）按字面传递，构建报告列出这些字段。
+- Codex 与 agy 不展开 `${user_config.<KEY>}`，若保留在 `env` 中会以字面量覆盖宿主环境中的同名
+  变量；UAPA 在生成本地服务器时从 `env` 中剥离含 `${user_config.` 的键（剥离后为空时省略 `env`），
+  并在 Codex 中把整值匹配的 `<KEY>` 并入 `env_vars`。
+- Codex 中未声明 `envVars`（且未由 `${user_config.<KEY>}` 导出 `env_vars`）的本地服务器拿不到
+  令牌、代理等会话变量，构建报告列出这些服务器。
+- Codex 与 agy 中其余含 `${` 的字段（如请求头 `Bearer ${TOKEN}`）按字面传递，构建报告列出这些字段。
   Codex 另有 `bearer_token_env_var` 与 `env_http_headers` 从环境变量取请求头，UAPA 不生成；需要
   时用 `overrides/codex/mcp.json` 提供整个文件。
 

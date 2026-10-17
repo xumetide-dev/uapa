@@ -239,3 +239,24 @@ test('执行后检查：守卫出错与 tool_response 缺失时扣留', () => {
   const stdin = ran('Bash', command, thrown)
   assert.deepEqual(runEntry(entries.deduped, ['after-tool'], stdin, env), allowed)
 })
+
+test('从 stdin.cwd 提取工作目录，缺失、空串或非字符串时退化为 null（F-05-27）', () => {
+  const withCwd = (cwd: unknown) =>
+    JSON.stringify({
+      session_id: 's1',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_input: { command: 'cwd' },
+      ...(cwd === undefined ? {} : { cwd }),
+    })
+  assert.deepEqual(
+    runEntry(entries.plain, ['before-tool'], withCwd('/work/claude')),
+    denied('cwd=/work/claude'),
+  )
+  for (const invalid of [undefined, '', 42, []]) {
+    assert.deepEqual(
+      runEntry(entries.plain, ['before-tool'], withCwd(invalid)),
+      denied('cwd=null'),
+    )
+  }
+})

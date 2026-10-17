@@ -17,7 +17,7 @@ import type {
 import { CAPABILITIES } from '../../src/runtime/core/types.ts'
 
 // 没有声明选项时入口传入的 GuardContext
-const NO_OPTIONS: GuardContext = { options: {} }
+const NO_OPTIONS: GuardContext = { options: {}, cwd: null }
 
 test('Capability 含五项能力，与 CAPABILITIES 一致', () => {
   const all: readonly Capability[] = [
@@ -82,7 +82,7 @@ test('afterTool 接收调用与输出文本，返回 AfterTool（F-02-04）', as
   assert.deepEqual(await guard.afterTool?.(call, 'ok', NO_OPTIONS), { kind: 'keep' })
 })
 
-test('检查方法从最后一个参数 GuardContext 读取选项取值（F-02-05）', () => {
+test('检查方法从最后一个参数 GuardContext 读取选项取值与工作目录（F-02-05、F-02-06）', () => {
   const limit: GuardOption = {
     type: 'number',
     title: '上限',
@@ -95,15 +95,15 @@ test('检查方法从最后一个参数 GuardContext 读取选项取值（F-02-0
     options: { limit },
     beforeTool: (call, ctx) =>
       String(call.input.command).length > Number(ctx.options.limit)
-        ? { kind: 'deny', reason: `超过 ${ctx.options.limit}` }
+        ? { kind: 'deny', reason: `超过 ${ctx.options.limit} (${ctx.cwd ?? 'none'})` }
         : { kind: 'allow' },
   }
   const call = { sessionId: 's', tool: 'shell', input: { command: 'echo 12345' } }
-  assert.deepEqual(guard.beforeTool?.(call, { options: { limit: 5 } }), {
+  assert.deepEqual(guard.beforeTool?.(call, { options: { limit: 5 }, cwd: '/work' }), {
     kind: 'deny',
-    reason: '超过 5',
+    reason: '超过 5 (/work)',
   })
-  assert.deepEqual(guard.beforeTool?.(call, { options: { limit: 10 } }), {
+  assert.deepEqual(guard.beforeTool?.(call, { options: { limit: 10 }, cwd: null }), {
     kind: 'allow',
   })
 })

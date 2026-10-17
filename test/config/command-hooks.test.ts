@@ -63,14 +63,20 @@ test('targets 为空、重复、未知或未配置', () => {
   assert.deepEqual(issues(hook(['agy:subprocess', 'codex:subprocess'])), [
     at('commandHooks[1].targets[1]', 'codex:subprocess 不在 targets 中'),
   ])
+  assert.deepEqual(issues([{ event: 'Stop', command: 'echo', timeout: 10 }]), [])
 })
 
-test('matcher、timeout 等字段按未知字段拒绝；commandHooks 不是数组时报类型错误', () => {
+test('timeout 须为正整数；matcher 等字段按未知字段拒绝；commandHooks 不是数组时报类型错误', () => {
+  for (const timeout of [0, -1, 1.5, '10', null]) {
+    assert.deepEqual(issues([{ event: 'Stop', command: 'echo', timeout }]), [
+      at('commandHooks[0].timeout', '应为正整数'),
+    ])
+  }
   assert.deepEqual(
-    issues([{ event: 'PreToolUse', command: 'echo', matcher: 'Bash', timeout: 5 }]),
+    issues([{ event: 'PreToolUse', command: 'echo', matcher: 'Bash', extra: 1 }]),
     [
       at('commandHooks[0].matcher', '未知字段'),
-      at('commandHooks[0].timeout', '未知字段'),
+      at('commandHooks[0].extra', '未知字段'),
     ],
   )
   assert.deepEqual(

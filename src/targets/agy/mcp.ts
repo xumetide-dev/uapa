@@ -14,9 +14,20 @@ const SKIP_REASON =
   'agy 不展开 MCP 配置中的插件根，command 的相对路径按哪个目录解析依赖平台，' +
   'command 中的 {pluginRoot} 不能换算'
 const LITERAL_RISK = '含 ${：agy 不展开 MCP 配置中的变量，按字面传递'
+const USER_CONFIG_PREFIX = '${user_config.'
+const USER_CONFIG_RISK = '含 ${user_config.：agy 不展开用户配置占位符，已从 env 中剥离'
 
 function withRoot(text: string): string {
   return text.split(PLUGIN_ROOT).join('.')
+}
+
+// 剥离含 ${user_config. 的 env 项（F-11-15，SD-49）
+function retainedEnv(
+  env: Readonly<Record<string, string>> | undefined,
+): [string, string][] {
+  return Object.entries(env ?? {}).filter(
+    ([, value]) => !value.includes(USER_CONFIG_PREFIX),
+  )
 }
 
 // 键序固定：本地服务器为 command、args、env，远程服务器为 serverUrl、headers
@@ -26,14 +37,15 @@ function entry(server: McpServer): Record<string, unknown> {
     return { serverUrl: url, ...(headers === undefined ? {} : { headers }) }
   }
   const { command, args, env } = server
+  const retained = retainedEnv(env)
   return {
     command,
     ...(args === undefined ? {} : { args: args.map(withRoot) }),
-    ...(env === undefined
+    ...(retained.length === 0
       ? {}
       : {
           env: Object.fromEntries(
-            Object.entries(env).map(([key, value]) => [key, withRoot(value)]),
+            retained.map(([key, value]) => [key, withRoot(value)]),
           ),
         }),
   }
@@ -61,15 +73,30 @@ export function mcpConfig(servers: readonly McpServer[]): McpOutput {
     written.length === 0
       ? null
       : { mcpServers: Object.fromEntries(written.map(s => [s.name, entry(s)])) }
-  const literal = written.flatMap(literalFields)
-  const risks =
-    literal.length === 0
-      ? []
-      : [`MCP 服务器的字段 ${literal.join('、')} ${LITERAL_RISK}`]
-  return { config, skipped, risks }
+  return { config, skipped, risks: risks(written) }
 }
 
-// 含 ${ 的字段，路径与读取 mcp/servers.json 时的错误相同，如 mcpServers.docs.args[0]
+function risks(written: readonly McpServer[]): string[] {
+  const messages: string[] = []
+  const stripped = written.flatMap(strippedFields)
+  if (stripped.length > 0) {
+    messages.push(`MCP 服务器的字段 ${stripped.join('、')} ${USER_CONFIG_RISK}`)
+  }
+  const literal = written.flatMap(literalFields)
+  if (literal.length > 0) {
+    messages.push(`MCP 服务器的字段 ${literal.join('、')} ${LITERAL_RISK}`)
+  }
+  return messages
+}
+
+function strippedFields(server: McpServer): string[] {
+  if (server.kind !== 'local') return []
+  return Object.entries(server.env ?? {})
+    .filter(([, text]) => text.includes(USER_CONFIG_PREFIX))
+    .map(([key]) => `mcpServers.${server.name}.env.${key}`)
+}
+
+// 含 ${ 的保留字段，路径与读取 mcp/servers.json 时的错误相同，如 mcpServers.docs.args[0]
 function literalFields(server: McpServer): string[] {
   const at = `mcpServers.${server.name}`
   const map = (field: string, values: Readonly<Record<string, string>> = {}) =>
@@ -82,7 +109,9 @@ function literalFields(server: McpServer): string[] {
       : [
           [`${at}.command`, server.command] as const,
           ...(server.args ?? []).map((text, i) => [`${at}.args[${i}]`, text] as const),
-          ...map('env', server.env),
+          ...retainedEnv(server.env).map(
+            ([key, text]) => [`${at}.env.${key}`, text] as const,
+          ),
         ]
   return fields.filter(([, text]) => text.includes('${')).map(([field]) => field)
 }

@@ -234,3 +234,54 @@ test('agy 原样复制 commands，不列为跳过，写模型自动选用的残�
     { targets: ['agy:subprocess'] },
   )
 })
+
+test('MCP 服务器按 targets 过滤；不能承载 MCP 的目标被显式限定时失败（F-03-20）', async () => {
+  let received: readonly string[] = []
+  const host = fakeHost(async input => {
+    received = input.plans[0]?.mcpServers.map(s => s.name) ?? []
+    return { ok: true, files: [], skipped: [], residualRisks: [] }
+  })
+  const mcpFile = {
+    'mcp/servers.json': JSON.stringify({
+      mcpServers: {
+        included: { command: 'node', targets: [TARGET] },
+        excluded: { command: 'node', targets: ['agy:subprocess'] },
+      },
+    }),
+  }
+  await buildIn(mcpFile, deps(host), async (_root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.equal(entry?.status, 'ok')
+    assert.deepEqual(entry?.skipped, [])
+    assert.deepEqual(received, ['included'])
+  })
+  const noMcp = deps(writesManifest, withComponents({ mcp: 'none' }))
+  await buildIn(mcpFile, noMcp, async (_root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.equal(entry?.status, 'failed')
+    assert.deepEqual(entry?.errors, [
+      'MCP 服务器 included 显式限定了本目标，但本目标不能承载 MCP 服务器',
+    ])
+  })
+})
+
+test("合并布局写回源项目根目录（dir: '.'）时，源项目 rules/<name>.md 与 agy 生成的同路径文件冲突报错（F-03-20）", async () => {
+  const files = { 'rules/style.md': RULE() }
+  await buildIn(
+    files,
+    deps(),
+    async (root, outcome) => {
+      const targets = done(outcome).report.targets
+      const agyEntry = targets.find(t => t.target === 'agy:subprocess')
+      assert.equal(agyEntry?.status, 'failed')
+      assert.deepEqual(agyEntry?.errors, [
+        '同路径冲突：rules/style.md 既由 agy 生成，又是源项目中的组件文件',
+      ])
+      assert.equal(await readFile(join(root, 'rules/style.md'), 'utf8'), RULE())
+    },
+    {
+      targets: ['claude-code:subprocess', 'agy:subprocess'],
+      hosts: { 'claude-code': { dir: '.' }, agy: { dir: '.' } },
+    },
+  )
+})

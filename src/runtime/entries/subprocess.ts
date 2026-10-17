@@ -22,6 +22,7 @@ export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop' | 'after-
 
 export interface HostEvent {
   readonly sessionId: string
+  readonly cwd?: string | null // 宿主给出的当前会话工作目录；缺失、非字符串或空串时为 null（F-04-10）
   readonly tool?: HostTool // parse 不按工具名判断；command 为宿主命令字段（是字符串时）
   readonly prompt?: string
   // after-tool 时必填：宿主 stdin 中的工具输出原值，文本由 outputText 取出
@@ -111,6 +112,7 @@ async function decide(
   if (protocol.skip?.(event, env) === true) return protocol.allow(check)
   const context = guardContext(
     optionsFromText(data.options, name => protocol.optionValue?.(name, env)),
+    event.cwd ?? null,
   )
   if (check === 'before-tool') return beforeTool(protocol, event, context)
   if (check === 'before-prompt') return beforePrompt(protocol, event, context)

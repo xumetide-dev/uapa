@@ -20,5 +20,5 @@
   },
   "exitCode": 2,
   "stdout": "",
-  "stderr": "拒绝标记命令 uapa-deny-probe\n"
+  "stderr": "拒绝标记命令 uapa-deny-probe（/project）\n"
 }

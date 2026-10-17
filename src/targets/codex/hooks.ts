@@ -76,7 +76,14 @@ export function hooksConfig(
   for (const hook of plan.commandHooks) {
     const event = hostEvent(plan, hook)
     const command = hook.command.split('{pluginRoot}').join(PLUGIN_ROOT)
-    const limit = hook.event === 'SessionEnd' ? SESSION_END_TIMEOUT_SECONDS : timeout
+    const requested = hook.timeout ?? timeout
+    const limit =
+      hook.event === 'SessionEnd'
+        ? Math.min(
+            requested ?? SESSION_END_TIMEOUT_SECONDS,
+            SESSION_END_TIMEOUT_SECONDS,
+          )
+        : requested
     hooks[event] = [...(hooks[event] ?? []), { hooks: [handler(command, limit)] }]
   }
   return Object.keys(hooks).length === 0 ? null : { hooks }

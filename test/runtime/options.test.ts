@@ -91,9 +91,13 @@ test('没有声明选项时 options 为空对象；无效时 GuardContext 为守
   assert.deepEqual(optionsFromValues([], { limit: 1 }), { ok: true, options: {} })
   assert.deepEqual(guardContext({ ok: true, options: { limit: 1 } }), {
     ok: true,
-    value: { options: { limit: 1 } },
+    value: { options: { limit: 1 }, cwd: null },
   })
-  assert.deepEqual(guardContext({ ok: false, name: 'limit' }), {
+  assert.deepEqual(guardContext({ ok: true, options: { limit: 1 } }, '/work/dir'), {
+    ok: true,
+    value: { options: { limit: 1 }, cwd: '/work/dir' },
+  })
+  assert.deepEqual(guardContext({ ok: false, name: 'limit' }, '/work/dir'), {
     ok: false,
     reason: 'uapa: 守卫选项无效: limit',
   })

@@ -28,7 +28,10 @@ await runSubprocessEntry({
       throw new Error('conversationId')
     }
     const sessionId = stdin.conversationId
-    if (check !== 'before-tool') return { sessionId }
+    const paths = stdin.workspacePaths
+    const first = Array.isArray(paths) ? paths[0] : undefined
+    const cwd = typeof first === 'string' && first !== '' ? first : null
+    if (check !== 'before-tool') return { sessionId, cwd }
     const call = stdin.toolCall
     if (!isRecord(call)) throw new Error('toolCall')
     if (typeof call.name !== 'string') throw new Error('toolCall.name')
@@ -36,7 +39,7 @@ await runSubprocessEntry({
     const input = call.args
     const command =
       typeof input.CommandLine === 'string' ? { command: input.CommandLine } : {}
-    return { sessionId, tool: { name: call.name, input, ...command } }
+    return { sessionId, cwd, tool: { name: call.name, input, ...command } }
   },
   allow: check => ({
     exitCode: 0,

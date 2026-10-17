@@ -5,6 +5,14 @@
   "author": {
     "name": "UAPA Fixtures"
   },
+  "userConfig": {
+    "UAPA_API_KEY": {
+      "type": "string",
+      "title": "测试令牌",
+      "description": "MCP 服务器的测试令牌",
+      "sensitive": true
+    }
+  },
   "homepage": "https://example.com/host-coverage",
   "license": "MIT"
 }

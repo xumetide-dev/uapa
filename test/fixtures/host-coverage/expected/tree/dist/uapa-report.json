@@ -100,6 +100,7 @@
         "含 hooks 的插件不能进入 Codex 的公开插件目录",
         "Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 hooks 不运行",
         "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效",
+        "MCP 服务器的字段 mcpServers.probe.env.UAPA_API_KEY 含 ${user_config.：Codex 不展开用户配置占位符，已从 env 中剥离",
         "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：Codex 不展开 MCP 配置中的变量，按字面传递"
       ]
     },
@@ -128,6 +129,7 @@
         "agy 安装时把 commands 转换为技能，以 /<插件名>:<命令名> 调用；转换后的技能也会被模型按 description 自动选用",
         "/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测",
         "agent reviewer 的 frontmatter 含 tools：agy 按自身的工具名与模型名解释，写错的工具名可能使子代理挂起",
+        "MCP 服务器的字段 mcpServers.probe.env.UAPA_API_KEY 含 ${user_config.：agy 不展开用户配置占位符，已从 env 中剥离",
         "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：agy 不展开 MCP 配置中的变量，按字面传递"
       ]
     }

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
 import { compare } from './files.ts'
+import { readMcpTargets } from './frontmatter.ts'
 import type { McpServer } from './types.ts'
 
 const FILE = 'mcp/servers.json'
@@ -13,6 +14,7 @@ const LOCAL_FIELDS = ['command', 'args', 'env']
 const REMOTE_FIELDS = ['url', 'headers']
 // 只用于本地服务器；不参与本地与远程的判断，远程服务器写它时单独报错
 const ENV_VARS = 'envVars'
+const TARGETS_FIELD = 'targets'
 const SERVER_NAME = /^[A-Za-z0-9_-]+$/
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
@@ -86,14 +88,12 @@ function readServer(name: string, config: unknown, issue: Issue): McpServer | nu
     issue(at, '应为对象')
     return null
   }
-  const keys = Object.keys(config)
-  for (const key of keys.filter(
-    k => ![...LOCAL_FIELDS, ...REMOTE_FIELDS, ENV_VARS].includes(k),
-  )) {
+  const allowed = [...LOCAL_FIELDS, ...REMOTE_FIELDS, ENV_VARS, TARGETS_FIELD]
+  for (const key of Object.keys(config).filter(k => !allowed.includes(k))) {
     issue(`${at}.${key}`, '未知字段')
   }
-  const local = keys.some(k => LOCAL_FIELDS.includes(k))
-  const remote = keys.some(k => REMOTE_FIELDS.includes(k))
+  const local = Object.keys(config).some(k => LOCAL_FIELDS.includes(k))
+  const remote = Object.keys(config).some(k => REMOTE_FIELDS.includes(k))
   if (local && remote) {
     issue(at, '本地服务器（command、args、env）与远程服务器（url、headers）的字段混用')
     return null
@@ -104,13 +104,15 @@ function readServer(name: string, config: unknown, issue: Issue): McpServer | nu
 function readLocal(name: string, config: Fields, issue: Issue): McpServer | null {
   const at = `mcpServers.${name}`
   const { command, args, env, envVars } = config
+  const targets = readMcpTargets(config.targets, `${at}.targets`, issue)
   const ok = [
     isText(command, `${at}.command`, issue),
     args === undefined || isTextList(args, `${at}.args`, issue),
     env === undefined || isTextMap(env, `${at}.env`, issue),
     envVars === undefined || isEnvVarList(envVars, `${at}.envVars`, issue),
+    targets !== false,
   ].every(Boolean)
-  if (!ok) return null
+  if (!ok || targets === false) return null
   return {
     name,
     kind: 'local',
@@ -118,6 +120,7 @@ function readLocal(name: string, config: Fields, issue: Issue): McpServer | null
     ...(args === undefined ? {} : { args: [...(args as string[])] }),
     ...(env === undefined ? {} : { env: { ...(env as Record<string, string>) } }),
     ...(envVars === undefined ? {} : { envVars: [...(envVars as string[])] }),
+    ...(targets === null ? {} : { targets }),
   }
 }
 
@@ -125,16 +128,17 @@ function readRemote(name: string, config: Fields, issue: Issue): McpServer | nul
   const at = `mcpServers.${name}`
   const { url, headers } = config
   if (config.envVars !== undefined) issue(`${at}.envVars`, '只用于本地服务器')
+  const targets = readMcpTargets(config.targets, `${at}.targets`, issue)
   const urlOk = isText(url, `${at}.url`, issue) && noPluginRoot(url, `${at}.url`, issue)
   let headersOk = headers === undefined || isTextMap(headers, `${at}.headers`, issue)
   if (headersOk && headers !== undefined) {
-    // 逐个检查，每个引用插件根的请求头各记一条
     const checks = Object.entries(headers as Record<string, string>).map(
       ([key, text]) => noPluginRoot(text, `${at}.headers.${key}`, issue),
     )
     headersOk = checks.every(Boolean)
   }
-  if (!urlOk || !headersOk || config.envVars !== undefined) return null
+  if (!urlOk || !headersOk || config.envVars !== undefined || targets === false)
+    return null
   return {
     name,
     kind: 'remote',
@@ -142,6 +146,7 @@ function readRemote(name: string, config: Fields, issue: Issue): McpServer | nul
     ...(headers === undefined
       ? {}
       : { headers: { ...(headers as Record<string, string>) } }),
+    ...(targets === null ? {} : { targets }),
   }
 }
 

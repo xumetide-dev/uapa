@@ -129,3 +129,34 @@ test('hooks 模块形态按 checks 替换 __UAPA_CHECKS__；未替换的打包�
   assert.match(code, /\[true, false\]/)
   await assert.rejects(bundle(base), /打包结果含未替换的打包时名称：__UAPA_CHECKS__/)
 })
+
+test('子进程守卫导入 node:fs 与 node:path 打包通过，in-process 守卫导入 node:fs 打包失败（F-04-06、F-04-07、F-04-10）', async () => {
+  const fsGuard = join(dir, 'fs-guard.ts')
+  await writeFile(
+    fsGuard,
+    "import { existsSync } from 'node:fs'\nimport { join } from 'node:path'\n" +
+      'export default {\n' +
+      "  name: 'fs-guard',\n" +
+      '  requires: [],\n' +
+      '  beforeTool(_call: unknown, ctx: { cwd: string | null }) {\n' +
+      "    if (ctx.cwd !== null && existsSync(join(ctx.cwd, '.lock'))) {\n" +
+      "      return { kind: 'deny', reason: 'locked' }\n" +
+      '    }\n' +
+      "    return { kind: 'allow' }\n" +
+      '  },\n' +
+      '}\n',
+  )
+  const subprocessCode = await bundle(request(fsGuard))
+  assert.match(subprocessCode, /node:fs/)
+  assert.match(subprocessCode, /node:path/)
+  await assert.rejects(
+    bundle({
+      entry: entryPath('claude-code-in-process'),
+      guardModule: fsGuard,
+      data: DATA,
+      external: 'claude-code',
+      checks: ['beforeTool'],
+    }),
+    /打包结果含不允许的外部导入：.*node:fs.*（只允许 'claude-code'）/,
+  )
+})
