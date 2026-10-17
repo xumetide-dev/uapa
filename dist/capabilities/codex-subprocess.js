@@ -1,0 +1,61 @@
+const allow = { error: 'allow', timeout: 'allow' };
+export const codexSubprocess = {
+    target: 'codex:subprocess',
+    host: {
+        name: 'codex',
+        version: '0.162.1',
+        checked: '2026-10-14',
+        source: 'codex-plugins.md', // TA-15 结论见其「源码核对（rust-v0.162.1）」
+    },
+    // skills/、mcp.json 与 hooks 配置都是插件包内的文件；插件清单没有 agents 字段（源码核对）
+    components: {
+        skills: 'package',
+        agents: 'none',
+        mcp: 'package',
+        hooks: 'package',
+        // 兼容格式的插件在安装时把 commands/*.md 转换为技能，不满足转换条件的命令被跳过，由宿主模块
+        // 逐个检查并列为跳过；转换后的技能以 $<插件名>:source-command-<命令名> 调用
+        // （codex-source-review.md「commands、rules 与用户配置」，rust-v0.162.1，2026-10-15 核对；
+        // codex-local-tests.md「容器实测（0.162.1）」）
+        commands: 'package',
+        // 插件不承载规则或指令文件（同上）。换算：model 与有 description 的 glob 规则写为技能，always
+        // 规则由 SessionStart 命令 hook 的纯文本 stdout 加入上下文（rust-v0.162.1
+        // hooks/src/events/session_start.rs，codex-source-review.md；会话中的效果未实测）
+        rules: 'converted',
+    },
+    capabilities: {
+        rewriteInput: true, // permissionDecision: "allow" 与 updatedInput
+        replaceOutput: false, // updatedMCPToolOutput 只解析、尚未生效；没有替换为任意文本的字段
+        // PostToolUse 返回 decision: "block" 与非空 reason 时以 reason 替换工具结果，只对成功的调用触发
+        withholdOutput: true,
+        stopGate: true, // Stop 返回 decision: "block" 与 reason
+        promptGate: true, // UserPromptSubmit 以退出码 2 阻断，不调用模型（TA-15；0.162.1 容器实测）
+    },
+    // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）；
+    // PostToolUse 失败时原输出保留（源码核对「PostToolUse」）。退出码 1、超时与 PreToolUse、
+    // PostToolUse 的无效输出于 0.162.1 容器实测（codex-local-tests.md「容器实测（0.162.1）」）
+    failureDefault: {
+        beforeTool: allow,
+        beforePrompt: allow,
+        beforeStop: allow,
+        afterTool: allow,
+    },
+    hookTimeoutSeconds: 30, // 处理器的 timeout 字段，单位秒（TA-15）
+    defaultTimeoutSeconds: 600,
+    // 读文件、按模式找文件、内容搜索与抓取网页没有独立工具；网络搜索不触发 hook
+    toolNames: {
+        Bash: 'shell',
+        apply_patch: 'edit_file', // 编辑与新建合为一个工具（hooks 适配第 3 节）
+        spawn_agent: 'subagent',
+        update_plan: 'todo',
+    },
+    // 六个事件均为同名宿主事件（command-hooks.md 第 2 节）
+    commandHookEvents: {
+        SessionStart: 'SessionStart',
+        SessionEnd: 'SessionEnd',
+        UserPromptSubmit: 'UserPromptSubmit',
+        PreToolUse: 'PreToolUse',
+        PostToolUse: 'PostToolUse',
+        Stop: 'Stop',
+    },
+};

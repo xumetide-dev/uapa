@@ -1,0 +1,34 @@
+const MAX_NAME_LENGTH = 64;
+const MAX_QUALIFIED_LENGTH = 129;
+// 名称按字符计；符合时为 null。规则换算出的技能同样适用
+export function skillNameReason(pluginName, name) {
+    if ([...name].length > MAX_NAME_LENGTH) {
+        return `技能名 ${name} 超过 64 个字符，Codex 不加载`;
+    }
+    const qualified = `${pluginName}:${name}`;
+    if ([...qualified].length > MAX_QUALIFIED_LENGTH) {
+        return `${qualified} 超过 129 个字符，Codex 不加载`;
+    }
+    return null;
+}
+export function skillSkips(target, pluginName, skills) {
+    return skills.flatMap(skill => {
+        const reason = skillNameReason(pluginName, skill.name);
+        return reason === null
+            ? []
+            : [{ target, component: `skills/${skill.name}`, reason }];
+    });
+}
+// 技能目录中嵌套的 SKILL.md（不含隐藏目录中的）各自注册为一个技能
+export function nestedSkillRisks(skills) {
+    return skills.flatMap(skill => {
+        const nested = skill.files.filter(file => file.endsWith('/SKILL.md') &&
+            !file.split('/').some(part => part.startsWith('.')));
+        if (nested.length === 0)
+            return [];
+        return [
+            `skill ${skill.name} 的目录中另有 ${nested.join('、')}：Codex 把每个 SKILL.md 各注册为` +
+                '一个技能',
+        ];
+    });
+}

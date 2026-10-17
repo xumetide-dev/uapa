@@ -1,0 +1,10 @@
+import { type TargetName } from '../config/targets.ts';
+export type Fields = Readonly<Record<string, unknown>>;
+export type Issue = (field: string | null, message: string) => void;
+export declare function isRecord(value: unknown): value is Fields;
+export declare function isText(value: unknown, field: string, issue: Issue): value is string;
+export declare function isTextList(value: unknown, field: string, issue: Issue): boolean;
+export declare function isTextMap(value: unknown, field: string, issue: Issue): boolean;
+export declare function isEnvVarList(value: unknown, field: string, issue: Issue): boolean;
+export declare function noPluginRoot(text: string, field: string, issue: Issue): boolean;
+export declare function readMcpTargets(value: unknown, field: string, issue: (field: string, message: string) => void): readonly TargetName[] | null | false;
