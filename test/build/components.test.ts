@@ -196,15 +196,22 @@ test('rules 换算的技能与源项目 skill 同名时写入该目录的全部�
     'rules/style.md':
       '---\nactivation: model\ndescription: 写代码时\n---\n\n使用中文。\n',
   }
-  await buildIn(files, deps(claudeCode), async (root, outcome) => {
-    const [entry] = done(outcome).report.targets
-    assert.equal(entry?.status, 'failed')
-    assert.deepEqual(entry?.errors, [
-      '同路径冲突：dist/claude-code/skills/style/SKILL.md 既由 claude-code 生成，' +
-        '又是复制的组件文件；rule style 写为同名技能，改名 rule 或 skill 之一',
-    ])
-    assert.ok(!existsSync(join(root, 'dist/claude-code')))
-  })
+  const hosts = [
+    ['claude-code', 'claude-code:subprocess'],
+    ['codex', 'codex:subprocess'],
+  ] as const
+  for (const [host, target] of hosts) {
+    const check = async (root: string, outcome: BuildOutcome) => {
+      const [entry] = done(outcome).report.targets
+      assert.equal(entry?.status, 'failed')
+      assert.deepEqual(entry?.errors, [
+        `同路径冲突：dist/${host}/skills/style/SKILL.md 既由 ${host} 生成，` +
+          '又是复制的组件文件；rule style 写为同名技能，改名 rule 或 skill 之一',
+      ])
+      assert.ok(!existsSync(join(root, `dist/${host}`)))
+    }
+    await buildIn(files, deps(claudeCode), check, { targets: [target] })
+  }
 })
 
 test('agy 原样复制 commands，不列为跳过，写模型自动选用的残余风险', async () => {

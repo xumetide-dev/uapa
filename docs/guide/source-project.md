@@ -141,10 +141,12 @@ targets: [agy:subprocess]
 ```
 
 - 未写 `targets` 时适用于全部已配置目标；写了就必须是非空的已登记目标名列表。
-- 列出的目标不能承载该组件时（如 agent 写 `targets: [codex:subprocess]`、rule 写
-  `targets: [claude-code:subprocess]`），该目标构建失败。
+- 列出的目标不能承载该组件时（如 agent 写 `targets: [codex:subprocess]`），该目标构建失败。
 - 宿主按目录加载组件。两个目标共用一个插件目录时（Claude Code 的两个目标，或合并布局），只适用
   于其中一个目标的组件仍会被另一个目标的宿主加载，构建报告把这种情况写为残余风险。
+- 合并布局中，Claude Code 与 Codex 由 rules 换算出的技能 `skills/<name>/` 也被共用该目录的其他
+  宿主当作技能加载：agy 会同时以 `rules/<name>.md` 与该技能加载同一条规则，只限部分目标的规则也
+  会进入其他宿主。构建报告不记录这种情况；规则只限部分目标时改用默认布局。
 
 ## MCP 服务器
 
