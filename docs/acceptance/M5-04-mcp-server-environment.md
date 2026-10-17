@@ -9,7 +9,7 @@
 | 覆盖功能点 | `F-01-13`、`F-05-26`、`F-06-12`、`F-11-12`（取自总览「工单构成」表） |
 | 验收日期 | 2026-10-15 |
 | 验收结论 | 通过 |
-| 判断范围 | 夹具与单元测试 |
+| 判断范围 | 夹具与单元测试 + 宿主实测 |
 | commit | `2a1f79a` |
 
 ## 0. 一票否决核对
@@ -44,7 +44,7 @@
 | `F-01-13` | 读取 MCP 服务器的环境变量声明 | 本地服务器可写 `envVars`：非空的字符串数组，元素匹配 `^[A-Za-z_][A-Za-z0-9_]*$` 且不重复；远程服务器写 `envVars`、元素不合规则或重复时失败，`field` 写到元素，如 `mcpServers.docs.envVars[1]`（SD-40） | ✅ | `mcp.test.ts`「本地服务器的 envVars 按声明顺序读取」与「envVars：远程服务器写该字段、为空、元素不合规则或重复时失败，字段写到元素」：远程服务器报 `mcpServers.a.envVars` 只用于本地服务器；空数组与字符串报非空的字符串数组；`1B`、`C-D`、`2` 依次报 `envVars[1]`～`[3]`；重复的 `A` 报 `envVars[2]` 与 `envVars[0]` 重复 |
 | `F-05-26` | MCP 服务器的环境变量声明 | 本地服务器继承会话环境（TA-25，2.1.296）：`envVars` 不写入 `.mcp.json`，不写残余风险；`${…}` 由宿主展开（SD-40） | ✅ | `mcp-environment.test.ts`「Claude Code：envVars 不写入 .mcp.json，占位符原样写出，不写残余风险」；`host-coverage` 的 `.mcp.json` 逐字比对，`Bearer ${TOKEN}` 原样写出，报告中两个 Claude Code 目标的残余风险为 0 |
 | `F-06-12` | MCP 服务器的环境变量与占位符 | 本地服务器的 `envVars` 写为 `env_vars`，字段白名单（F-06-05）允许该字段；有本地服务器未声明 `envVars` 时残余风险列出这些服务器，写明 Codex 只向本地服务器传递 `HOME`、`PATH` 等少数变量；服务器的字段含 `${` 时残余风险写明 Codex 按字面传递（SD-40） | ✅ | `mcp-environment.test.ts` 的 Codex 两个用例：`env_vars` 排在 `env` 之后、`cwd` 之前；未声明的 `plain` 与含 `${` 的四个字段各一条残余风险，逐字核对；全部声明且没有 `${` 时只有服务器名的风险；`codex.test.ts` 的字段白名单接受 `env_vars`；`components` 报告新增 `docs、plain` 未声明的风险；`host-coverage` 的 `mcp.json` 逐字比对 |
-| `F-11-12` | MCP 服务器的插件根与环境变量 | agy 1.3.5 不展开 MCP `command` 中的 `${extensionPath}` 与 `${PLUGIN_ROOT}`（TA-25），`command` 含 `{pluginRoot}` 的服务器照常列为跳过（F-11-08）；本地服务器继承会话环境，`envVars` 不写入 `mcp_config.json`；服务器的字段含 `${` 时残余风险写明 agy 按字面传递（SD-40） | ✅ | `mcp-environment.test.ts`「agy：envVars 不写入 mcp_config.json；列出含 ${ 的字段」；`agy.test.ts` 中 `command` 含 `{pluginRoot}` 的服务器照常跳过，原因不变；`host-coverage` 的 `mcp_config.json` 逐字比对，报告写明 `mcpServers.remote.headers.Authorization` 按字面传递 |
+| `F-11-12` | MCP 服务器的插件根与环境变量 | agy 1.3.5 不展开 MCP `command` 中的 `${extensionPath}` 与 `${PLUGIN_ROOT}`（TA-25），`command` 含 `{pluginRoot}` 的服务器照常列为跳过（F-11-08）；本地服务器继承会话环境，`envVars` 不写入 `mcp_config.json`；服务器的字段含 `${` 时残余风险写明 agy 按字面传递（SD-40） | ✅ | `mcp-environment.test.ts`「agy：envVars 不写入 mcp_config.json；列出含 ${ 的字段」；`agy.test.ts` 中 `command` 含 `{pluginRoot}` 的服务器照常跳过，原因不变；`host-coverage` 的 `mcp_config.json` 逐字比对，报告写明 `mcpServers.remote.headers.Authorization` 按字面传递；`args` 中 `${UAPA_ARG_PROBE}` 按字面传递与环境变量继承已在 agy 1.3.5 会话中确认（宿主实测，见 M5-07） |
 
 ## 3. 自动化验证汇总（可复跑）
 
@@ -99,8 +99,8 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | agy 中 `args`、`env` 与请求头的 `${…}` 按字面传递为推断，1.3.5 只实测了 `command` | 若 agy 实际展开这些字段，残余风险多报 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 2 节 |
-| 2 | 产物中的 `env_vars` 与会话环境的继承未在宿主中运行 | 依据为 Codex 源码与 M5-01 的容器审查 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 1、3 节（Codex 须维护者确认） |
+| 1 | agy 中 `args`、`env` 与请求头的 `${…}` 按字面传递为推断，1.3.5 只实测了 `command` | 若 agy 实际展开这些字段，残余风险多报 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 2 节（`args` 中 `${UAPA_ARG_PROBE}` 按字面传递已于 2026-10-17 在 agy 1.3.5 容器中实测核实） |
+| 2 | 产物中的 `env_vars` 与会话环境的继承未在宿主中运行 | 依据为 Codex 源码与 M5-01 的容器审查 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 1、3 节（agy 1.3.5 中 `host-coverage` 产物的会话环境继承已于 2026-10-17 实测通过；Codex 须维护者确认） |
 | 3 | Codex 的 `bearer_token_env_var` 与 `env_http_headers` 不生成 | 需要从环境变量取请求头的远程服务器在 Codex 中按字面发送 | 帮助文档写明以 `overrides/codex/mcp.json` 提供（本单） |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。

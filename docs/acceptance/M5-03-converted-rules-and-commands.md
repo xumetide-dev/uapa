@@ -9,7 +9,7 @@
 | 覆盖功能点 | `F-03-19`、`F-05-19`、`F-06-11`、`F-06-13`、`F-11-11`（取自总览「工单构成」表） |
 | 验收日期 | 2026-10-15 |
 | 验收结论 | 通过 |
-| 判断范围 | 夹具与单元测试 |
+| 判断范围 | 夹具与单元测试 + 宿主实测 |
 | commit | `15afb6e`、`92264a1` |
 
 ## 0. 一票否决核对
@@ -45,10 +45,10 @@
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
 | `F-03-19` | 换算承载的组件 | `Carrier` 增加 `converted`：组件由宿主模块按 `TargetPlan` 换成宿主承载的其他组件；构建编排按 F-03-02 筛选后放进 `TargetPlan`，不为该目标原样复制；同一插件目录中另有目标原样承载该组件时，原样复制照常进行（SD-38） | ✅ | `components.test.ts`「换算承载（converted）的组件交给宿主模块，构建编排不原样复制」：只有 `converted` 的目标时不复制，同目录另有 `package` 的目标时照常复制；`componentUnion` 只并入 `package` 的目标 |
-| `F-05-19` | rules 的换算承载 | 两个目标的 `components.rules` 为 `converted`；`model` 与 `glob` 规则写为 `skills/<name>/SKILL.md`，frontmatter 依次写 `name`、`description`（有值时）、`paths`（`glob` 时，YAML 列表，模式原样）与 `user-invocable: false`，正文为 `Rule.body`；`always` 规则按名称顺序由 `SessionStart` 命令 hook 输出正文，入口文件与命令按入口与打包接口，条目排在守卫条目之后、声明的命令 hooks 之前；与源项目 skill 同名时生成失败；`always` 规则的输出超过 10,000 字符时残余风险写明超出部分不进入上下文；只有 `claude-code:in-process` 进入 `plans` 时残余风险写明规则输出需要 Node（SD-38） | ✅ | `rule-conversion.test.ts`：frontmatter 的三种写法（有无 `description`、有无 `paths`）逐字核对；`SessionStart` 中规则条目排在声明的命令之前、守卫条目之后；超过 10,000 字符与只有 `claude-code:in-process` 时的残余风险逐字核对；`components.test.ts`「rules 换算的技能与源项目 skill 同名时写入该目录的全部目标失败」；`rules-commands` 夹具 |
+| `F-05-19` | rules 的换算承载 | 两个目标的 `components.rules` 为 `converted`；`model` 与 `glob` 规则写为 `skills/<name>/SKILL.md`，frontmatter 依次写 `name`、`description`（有值时）、`paths`（`glob` 时，YAML 列表，模式原样）与 `user-invocable: false`，正文为 `Rule.body`；`always` 规则按名称顺序由 `SessionStart` 命令 hook 输出正文，入口文件与命令按入口与打包接口，条目排在守卫条目之后、声明的命令 hooks 之前；与源项目 skill 同名时生成失败；`always` 规则的输出超过 10,000 字符时残余风险写明超出部分不进入上下文；只有 `claude-code:in-process` 进入 `plans` 时残余风险写明规则输出需要 Node（SD-38） | ✅ | `rule-conversion.test.ts`：frontmatter 的三种写法（有无 `description`、有无 `paths`）逐字核对；`SessionStart` 中规则条目排在声明的命令之前、守卫条目之后；超过 10,000 字符与只有 `claude-code:in-process` 时的残余风险逐字核对；`components.test.ts`「rules 换算的技能与源项目 skill 同名时写入该目录的全部目标失败」；`rules-commands` 夹具；三种换算规则的产物通过 `claude plugin validate --strict`（宿主实测，Claude Code 2.1.296，见 M5-07） |
 | `F-06-11` | rules 的换算承载 | `components.rules` 为 `converted`；`model` 规则与有 `description` 的 `glob` 规则写为 `skills/<name>/SKILL.md`，内容与 F-05-19 相同，共用插件目录时逐字一致；没有 `description` 的 `glob` 规则列为跳过，原因写明 Codex 的技能须有 `description`；有 `glob` 规则写为技能时残余风险写明 Codex 不按 `paths` 加载，由模型按描述决定；`always` 规则由 `SessionStart` 命令 hook 输出正文，残余风险写明 Codex 须先信任插件的 hooks；与源项目 skill 同名时生成失败（SD-38） | ✅ | `rule-conversion.test.ts`「Codex：规则技能与 Claude Code 逐字一致；没有 description 的 glob 规则跳过」：技能文件与 Claude Code 逐字相同，跳过原因逐字核对，`paths` 与信任两条残余风险；同名失败用例以 `codex:subprocess` 运行；夹具中两个宿主的 `skills/typescript/SKILL.md` 相同 |
 | `F-06-13` | 逐个检查 commands 的转换 | 按 rust-v0.162.1 `core-plugins/src/command_migration.rs` 的条件逐个检查 `TargetPlan.commands`：正文含模板写法、转换结果超过 4000 字节、名称超过 64 字符等会被 Codex 跳过的命令列为跳过（`component` 为 `commands/<name>.md`，原因写明条件）；代替 F-06-09 中笼统的残余风险（SD-43） | ✅ | `codex-commands.test.ts`：六种模板写法、`README`、65 个字符的技能名、`a-b` 与 `a_b` 重名、4185 字节的转换结果各列为跳过并写明原因，49 个字符的名称与普通命令不跳过；不再写笼统的残余风险，`rules-commands` 的报告中该风险已删去 |
-| `F-11-11` | commands 的承载 | `components.commands` 为 `package`：构建编排把 `commands/<name>.md` 原样复制到插件目录，agy 安装时把命令转换为技能，以 `/<插件名>:<命令名>` 调用，`$ARGUMENTS` 替换为参数文本（TA-25，1.3.5），命令不再列为跳过；能力数据的注释指向调研文档；有命令时残余风险写明转换后的技能也会被模型按 `description` 自动选用（SD-39） | ✅ | `components.test.ts`「agy 原样复制 commands，不列为跳过，写模型自动选用的残余风险」；`rules-commands` 的 `dist/agy/commands/review.md` 与源文件相同，报告中 agy 的 `skipped` 为空；能力数据注释见 §1 第 5 行 |
+| `F-11-11` | commands 的承载 | `components.commands` 为 `package`：构建编排把 `commands/<name>.md` 原样复制到插件目录，agy 安装时把命令转换为技能，以 `/<插件名>:<命令名>` 调用，`$ARGUMENTS` 替换为参数文本（TA-25，1.3.5），命令不再列为跳过；能力数据的注释指向调研文档；有命令时残余风险写明转换后的技能也会被模型按 `description` 自动选用（SD-39） | ✅ | `components.test.ts`「agy 原样复制 commands，不列为跳过，写模型自动选用的残余风险」；`rules-commands` 的 `dist/agy/commands/review.md` 与源文件相同，报告中 agy 的 `skipped` 为空；能力数据注释见 §1 第 5 行；`agy plugin install` 与 `/rules-commands:review` 会话调用生效（宿主实测，agy 1.3.5，见 M5-07） |
 
 ## 3. 自动化验证汇总（可复跑）
 
@@ -115,7 +115,7 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 |---|---|---|---|
 | 1 | 合并布局中，Claude Code 与 Codex 换算出的规则技能也被共用目录的其他宿主当作技能加载，构建报告不记录 | agy 以规则与技能各加载一次；只限部分目标的规则进入其他宿主 | 帮助文档 `source-project.md` 已写明，规则只限部分目标时改用默认布局（本单） |
 | 2 | Codex 中规则技能与 `always` 规则的会话效果未实测 | 能力数据注释标明未实测 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 3 节，须维护者确认 |
-| 3 | UAPA 产物中的规则技能、规则条目与 agy 的命令未在宿主中复测 | 宿主行为已在 M5-01 的容器审查中确认，产物本身未安装运行 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 1、2 节 |
+| 3 | UAPA 产物中的规则技能、规则条目与 agy 的命令未在宿主中复测 | 宿主行为已在 M5-01 的容器审查中确认，产物本身未安装运行 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) 第 1、2 节（agy `rules-commands` 命令调用与 Claude Code 三种规则 `validate --strict` 已于 2026-10-17 实测通过；Claude Code 会话复测待订阅就绪后补测） |
 | 4 | Codex 信任风险的“守卫不生效”对没有守卫的插件不准确 | 只影响报告文字 | [M5-05](../workorders/M5-05-guard-reliability-and-risks.md) 第 2 节 |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。

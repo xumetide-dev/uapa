@@ -9,7 +9,7 @@
 | 覆盖功能点 | `F-03-18`、`F-05-24`、`F-06-15`（取自总览「工单构成」表） |
 | 验收日期 | 2026-10-17 |
 | 验收结论 | 通过 |
-| 判断范围 | 夹具与单元测试 |
+| 判断范围 | 夹具与单元测试 + 宿主实测 |
 | commit | `ae73911` |
 
 ## 0. 一票否决核对
@@ -42,7 +42,7 @@
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
 | `F-03-18` | 写出 marketplace 文件 | 配置 `marketplace` 时，宿主模块按模块接口 §5 返回本宿主的 marketplace 文件，路径相对 `marketplace.dir`；构建编排在写出插件目录之后，只为有成功目标的宿主写出，不清空所在目录；与写入的插件目录中的文件同路径时该宿主的目标失败；写出时该宿主每个成功目标的报告 `units` 追加 `{ kind: 'marketplace', path }`；`--check` 比对，差异路径的写法同模块接口 §2（SD-41） | ✅ | `src/build/marketplace.ts`、`src/build/generate.ts`、`src/build/compare.ts`、`src/build/run.ts`、`src/build/report.ts`；`test/build/marketplace.test.ts` 5 个单元测试覆盖子目录与同目录相对路径、保留所在目录已有文件、生成失败与宿主校验失败时不写、`--check` 的 `added`/`modified` 比对、与插件目录文件同路径冲突时该宿主失败且不写其插件目录 |
-| `F-05-24` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.claude-plugin/marketplace.json`：`name`、`owner`、`metadata.description`（取配置的 `description`），`plugins` 只含本插件一项（`name`、`source`、`description`），不写 `version`（版本以 `plugin.json` 为准）；`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径，两者相同时为 `"./"`；产物通过 `claude plugin validate --strict`，按 TA-25（2.1.296）能添加并安装（SD-41） | ✅ | `src/targets/claude-code/marketplace.ts`；`test/build/marketplace.test.ts` 覆盖 `./claude-code` 与 `./` 两种 `source` 及 `owner.email` 可选字段；`host-coverage` 夹具产物在容器中运行 `claude plugin validate test/fixtures/host-coverage/expected/tree/dist/.claude-plugin/marketplace.json --strict` 输出 `✔ Validation passed` |
+| `F-05-24` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.claude-plugin/marketplace.json`：`name`、`owner`、`metadata.description`（取配置的 `description`），`plugins` 只含本插件一项（`name`、`source`、`description`），不写 `version`（版本以 `plugin.json` 为准）；`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径，两者相同时为 `"./"`；产物通过 `claude plugin validate --strict`，按 TA-25（2.1.296）能添加并安装（SD-41） | ✅ | `src/targets/claude-code/marketplace.ts`；`test/build/marketplace.test.ts` 覆盖 `./claude-code` 与 `./` 两种 `source` 及 `owner.email` 可选字段；`host-coverage` 夹具产物在容器中运行 `claude plugin validate test/fixtures/host-coverage/expected/tree/dist/.claude-plugin/marketplace.json --strict` 输出 `✔ Validation passed`，`marketplace add` 与 `plugin install host-coverage@uapa-fixtures` 成功（宿主实测，Claude Code 2.1.296，见 M5-07） |
 | `F-06-15` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.agents/plugins/marketplace.json`：`name`，`plugins` 只含本插件一项（`name` 与 `source`），`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的路径字符串，两者相同时为 `"./"`；不写 `policy` 与 `category`（可省略，默认 `AVAILABLE` 与 `ON_INSTALL`）；字段按 rust-v0.162.1 `core-plugins/src/marketplace.rs`，会话中的添加与安装待维护者确认后实测（SD-41） | ✅ | `src/targets/codex/marketplace.ts`；`test/build/marketplace.test.ts` 覆盖 `./codex` 与 `./` 两种 `source`；`test/fixtures/host-coverage/expected/tree/dist/.agents/plugins/marketplace.json` |
 
 ## 3. 自动化验证汇总（可复跑）
@@ -96,7 +96,7 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | `host-coverage` 产物的 marketplace 添加与安装在宿主会话中的端到端复测归入 M5-07 | 本单已在容器中验证 `claude plugin validate --strict` 通过，会话实测在 M5-07 集中执行 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md) |
+| 1 | `host-coverage` 产物的 marketplace 添加与安装在宿主会话中的端到端复测归入 M5-07 | 本单已在容器中验证 `claude plugin validate --strict` 通过，会话实测在 M5-07 集中执行 | [M5-07](../workorders/M5-07-v0-4-0-live-tests.md)（Claude Code 2.1.296 的 `marketplace add` 与 `plugin install host-coverage@uapa-fixtures` 已于 2026-10-17 容器实测通过；Codex CLI 安装待维护者确认） |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
 
