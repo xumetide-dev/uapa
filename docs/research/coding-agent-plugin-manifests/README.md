@@ -42,7 +42,8 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 - CodeBuddy 2.163.0 起默认开启 Mods（Beta），同样以 `hooks.json` 的 `modules` 键启用。
 - 从一份插件源项目构建多宿主插件包的方案见 [UAPA 设计提案](unified-agent-plugin-architecture.md)
   与 [UAPA hooks 适配](uapa-hook-adapters.md)；实现以 `docs/architecture/` 与 `docs/feature-list/`
-  为准，冲突时的依据见[仓库 README](../../../README.md#文档冲突时的依据)。
+  为准，冲突时的依据见
+  [开发 UAPA](../../guide/developing-uapa.md#文档冲突时的依据)。
 
 ## 文档
 

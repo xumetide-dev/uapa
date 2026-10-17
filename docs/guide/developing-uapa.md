@@ -24,6 +24,37 @@
 
 一次构建的调用顺序见[架构 §1](../architecture/architecture.md#1-组成与模块)。
 
+## 设计文档
+
+1. [架构](../architecture/architecture.md)：术语、目标、模块与依赖方向、构建调用顺序、目录结构、
+   发布方式。
+2. [模块接口](../architecture/module-interfaces.md)：构建配置字段、宿主模块接口、能力数据、
+   写出与退出码、命令行调用构建的契约；[入口与打包接口](../architecture/runtime-interfaces.md)：
+   打包请求、入口文件与子进程协议；[构建报告](../architecture/build-report.md)：报告字段与填写规则；
+   [命令 hooks 声明](../architecture/command-hooks.md)：原样声明的命令 hooks 的字段、事件与
+   写入规则。
+3. [功能清单](../feature-list/README.md)：按功能模块列出要实现的功能、验收标准、依赖与建议
+   实现顺序。
+4. [hooks 适配](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md)：守卫公共
+   类型与规范工具名（v0.1.0 的唯一定义处）、各目标的决策输出、能力缺失与失败处理。
+5. [设计提案](../research/coding-agent-plugin-manifests/unified-agent-plugin-architecture.md)：
+   定位、与 uni-app 的对照、后续目标的形态与组件承载。
+6. [宿主调研](../research/coding-agent-plugin-manifests/README.md)：各宿主的 manifest 与
+   hooks 事实；宿主行为只以这些文档为准。调研结论只依据官方文档、公开仓库源码（注明 tag 或
+   提交）与可复现的本地实测。
+
+[ARCH-001](../architecture/ARCH-001-agent-plugin-build-tool.md) 记录选型理由、被否决的方案与
+复议条件；其结论已回填到架构文档，后续变更只记在架构文档与
+[范围决策](../feature-list/scope-decisions.md) 中。
+
+### 文档冲突时的依据
+
+- 数据类型、文件位置、写出与退出码以模块接口、入口与打包接口、构建报告、命令 hooks 声明为准。
+- 模块职责与依赖方向以架构为准。
+- 验收标准以功能清单为准。
+- 宿主行为以宿主调研为准。
+- hooks 适配与设计提案中与以上文档不一致的内容不再适用。
+
 ## 环境与检查
 
 需要 Node ≥ 22.18 与 pnpm 12。安装依赖：

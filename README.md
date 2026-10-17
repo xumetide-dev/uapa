@@ -1,36 +1,124 @@
 # UAPA
 
-UAPA（Unified Agent Plugin Architecture）是编码代理插件的多目标构建工具（TypeScript 命令行）：
-从一份插件源项目，构建出各宿主可安装的插件目录，并输出构建报告。
+一份源项目，构建 Claude Code、Codex 与 Antigravity CLI（agy）三个编码代理的插件。
 
-**状态：** v0.3.0 以 tag `v0.3.0` 发布，按
-[Sprint M1](docs/workorders/M1-00-v0-1-0-three-host-build.md)、
-[Sprint M2](docs/workorders/M2-00-v0-2-0-three-host-completion.md) 与
-[Sprint M4](docs/workorders/M4-00-v0-3-0-rules-commands-guard-options.md) 的施工单实现；三个宿主的
-安装与会话实测见 [M2-05 验收](docs/acceptance/M2-05-three-host-live-tests.md)，v0.3.0 新增部分的
-实测见 [M4-05 验收](docs/acceptance/M4-05-v0-3-0-live-tests.md)。技术选型见
-[ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md)。
+UAPA（Unified Agent Plugin Architecture）是一个 TypeScript 命令行工具。团队给编码代理准备的
+skills、agents、rules、commands、MCP 服务器，以及拦截高危操作的守卫（guard），只在一个源项目中
+写一次；`uapa build` 按各宿主的插件格式与 hooks 协议生成可以直接安装的插件目录，并在构建报告中
+写明每个宿主做不到的部分。
 
-## v0.3.0 范围
+## 为什么用 UAPA
 
-- 目标：`claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、
-  `agy:subprocess`，覆盖 Claude Code、Codex、Antigravity CLI（agy）三个宿主。GitHub Copilot CLI
-  与 Kimi Code 的设计保留为预留，见[范围决策 SD-26、SD-27](docs/feature-list/scope-decisions.md)。
-- 组件：skills、agents、MCP 服务器、rules 与 commands。宿主不承载的组件写入构建报告的跳过项，
-  各宿主承载哪些见[目标与宿主差异](docs/guide/targets.md#组件与能力)。
-- 守卫 hooks：执行前、提示提交前、停机前与执行后检查。守卫可以声明选项：Claude Code 中由使用者
-  设置，Codex 与 agy 取声明的默认值，见[编写守卫](docs/guide/guards.md)。
-- 命令 hooks：配置中原样声明、不经守卫逻辑的命令，由子进程目标按宿主事件名写入 hooks 配置，见
-  [命令 hooks 声明](docs/architecture/command-hooks.md)。
-- 对外接口：命令 `uapa build` 与 `uapa build --check`；包入口导出 `defineConfig` 与公共类型。
-- Cursor、Kiro、CodeBuddy、OpenCode、DSH 在后续版本逐个增加，见
-  [范围决策 SD-01](docs/feature-list/scope-decisions.md)。
+- **一份规则，三个宿主。** 三个宿主的插件清单、hooks 事件名与输入输出格式各不相同。“不许跳过
+  git hooks”这样一条规则，手写插件要写三份、维护三份；用 UAPA 只写一个 TypeScript 守卫。
+- **能力缺失不会静默放行。** agy 没有提示提交事件，Codex 不能替换工具输出。UAPA 按每个目标的
+  能力数据处理守卫的决策：能降级的降级（如不能改写入参时改为拒绝），守卫声明为必需的能力缺失时
+  该目标构建失败，两种情况都写入构建报告。
+- **产物自包含。** 守卫被打包进每个宿主的入口文件，插件目录不依赖 UAPA 或任何 npm 包；
+  `uapa build --check` 可以在持续集成中确认已提交的产物与源项目一致。
+- **宿主行为有出处。** 每个目标的能力取值都来自官方文档、公开源码或可复现的宿主实测，并注明
+  核对时的宿主版本。
+
+## 快速上手
+
+需要 Node ≥ 22.18 与 git。在源项目目录中安装（其他安装方式见下文「安装」）：
+
+```bash
+pnpm add -D github:xumetide-dev/uapa#v0.3.0
+```
+
+`uapa.config.ts` 声明插件与要构建的目标；`skills/`、`agents/`、`rules/`、`commands/` 等目录按约定
+读取：
+
+```ts
+import { defineConfig } from 'uapa'
+
+export default defineConfig({
+  name: 'team-rules',
+  version: '0.1.0',
+  description: '团队的提交与依赖约定',
+  author: { name: 'Example Team' },
+  targets: [
+    'claude-code:in-process',
+    'claude-code:subprocess',
+    'codex:subprocess',
+    'agy:subprocess',
+  ],
+  guard: 'guard.ts',
+})
+```
+
+`guard.ts` 实现守卫：拒绝含 `--no-verify` 的命令，把 `npm install` 改写为 `pnpm install`：
+
+```ts
+import type { GuardPlugin } from 'uapa'
+
+const guard: GuardPlugin = {
+  name: 'team-rules',
+  requires: [],
+  beforeTool: call => {
+    const command = call.tool === 'shell' ? String(call.input.command) : ''
+    if (command.includes('--no-verify')) {
+      return { kind: 'deny', reason: '不要跳过 git hooks：去掉 --no-verify 后重试' }
+    }
+    if (command.startsWith('npm install')) {
+      return {
+        kind: 'rewrite',
+        input: { command: command.replace('npm install', 'pnpm install') },
+        fallbackReason: '本仓库使用 pnpm：请改用 pnpm install',
+      }
+    }
+    return { kind: 'allow' }
+  },
+}
+
+export default guard
+```
+
+构建：
+
+```bash
+pnpm exec uapa build
+```
+
+```text
+成功 claude-code:in-process：跳过 0，降级 0，残余风险 0
+成功 claude-code:subprocess：跳过 0，降级 0，残余风险 1
+成功 codex:subprocess：跳过 0，降级 0，残余风险 3
+成功 agy:subprocess：跳过 0，降级 0，残余风险 0
+构建报告：dist/uapa-report.json
+```
+
+`dist/claude-code/`、`dist/codex/`、`dist/agy/` 各是一个插件目录，可直接加载，例如
+`claude --plugin-dir dist/claude-code`。残余风险是守卫在某些条件下不生效的情况，如运行宿主的
+机器缺少 Node、Codex 须先信任插件的 hooks，逐条写在构建报告中。完整步骤见
+[快速上手](docs/guide/getting-started.md)。
+
+## 支持的宿主
+
+| | Claude Code | Codex | Antigravity CLI（agy） |
+|---|---|---|---|
+| 目标 | `claude-code:in-process`、`claude-code:subprocess` | `codex:subprocess` | `agy:subprocess` |
+| skills | ✓ | ✓ | ✓ |
+| agents | ✓ | — | ✓ |
+| rules | — | — | ✓ |
+| commands | ✓ | ✓（安装时转换为技能） | — |
+| MCP 服务器 | ✓ | ✓ | ✓ |
+| 执行前检查：拒绝、改写入参 | ✓ | ✓ | ✓ |
+| 提示提交前检查 | ✓ | ✓ | — |
+| 执行后检查：扣留、替换输出 | 扣留与替换 | 扣留 | — |
+| 停机前检查 | ✓ | ✓ | ✓ |
+| 守卫选项 | 使用者设置 | 取默认值 | 取默认值 |
+| 核对的宿主版本 | 2.1.296 | codex-cli 0.162.1 | 1.3.4 / 1.3.5 |
+
+“—”表示宿主不承载：组件写入构建报告的跳过项，检查按降级或残余风险处理。各项的细节与出处见
+[目标与宿主差异](docs/guide/targets.md)。
 
 ## 安装
 
-UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装：`package.json` 中写作
-`"uapa": "github:xumetide-dev/uapa#vX.Y.Z"`，不引用分支。tag 对应的提交含编译后的 `dist/`，
-包中没有生命周期脚本，安装时不运行任何脚本；解析 tag 需要本机有 git。以下以 `v0.3.0` 为例。
+UAPA 不发布到 npm registry，以固定到 tag 的 git 依赖安装，不引用分支：
+`"uapa": "github:xumetide-dev/uapa#vX.Y.Z"`。tag 对应的提交含编译后的 `dist/`，包中没有生命周期
+脚本，安装时不运行任何脚本。
 
 pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
 
@@ -38,9 +126,7 @@ pnpm 12 对项目直接声明的 git 依赖不需要额外设置：
 pnpm add -D github:xumetide-dev/uapa#v0.3.0
 ```
 
-npm 12 默认禁止 git 依赖（`allow-git` 的默认值为 `none`，取值 `none`、`root`、`all`）。在项目的
-`.npmrc` 中写入 `allow-git=root`，只放行项目直接声明的 git 依赖，之后的 `npm install`、`npm ci`
-也按此放行：
+npm 12 默认禁止 git 依赖，先在项目的 `.npmrc` 中只放行项目直接声明的 git 依赖：
 
 ```bash
 npm config set allow-git=root --location=project
@@ -50,84 +136,46 @@ npm config set allow-git=root --location=project
 npm install -D github:xumetide-dev/uapa#v0.3.0
 ```
 
-升级时改 tag 后重新安装，锁文件记录 tag 对应的提交。
+升级时改 tag 后重新安装，锁文件记录 tag 对应的提交。运行宿主的机器上需要 Node ≥ 22：
+`subprocess` 目标的 hooks 以 `node` 运行入口文件。
 
-## 使用要点
+## 文档
 
-- MCP 服务器（`mcp/servers.json`）与命令 hooks 声明可以用 `{pluginRoot}` 引用插件目录中的文件。
-  构建只复制 skills、agents 与覆盖文件，被引用的脚本放在 `overrides/<宿主>/` 下的同一相对路径
-  （如 `overrides/codex/mcp/server.mjs`），每个用到它的宿主各放一份。
-- 在 Codex 中安装插件后，须在 TUI 启动时出现的 hooks 审核对话框中信任插件的 hooks；信任之前
-  Codex 静默跳过这些 hooks，守卫不生效。
-- Codex 安装插件时把 commands 转换为技能，以 `$<插件名>:source-command-<命令名>` 调用；正文含
-  `$ARGUMENTS` 等模板写法的命令被跳过。agy 按文件的绝对路径匹配规则的 `globs`，含目录的模式
-  生成时加 `**/` 前缀。
-- 每次构建的跳过项、降级与残余风险写在构建报告（默认 `dist/uapa-report.json`）中，见
-  [构建报告](docs/architecture/build-report.md)。
+| 页面 | 内容 |
+|---|---|
+| [快速上手](docs/guide/getting-started.md) | 从最小的源项目构建三个宿主的插件并加载 |
+| [源项目结构](docs/guide/source-project.md) | skills、agents、rules、commands、MCP 服务器与覆盖文件的位置 |
+| [构建配置](docs/guide/configuration.md) | `uapa.config.ts` 的字段、宿主选项与产物布局 |
+| [编写守卫](docs/guide/guards.md) | 四种检查的写法、守卫选项与测试 |
+| [目标与宿主差异](docs/guide/targets.md) | 各目标的能力、降级与残余风险 |
+| [构建、检查与报告](docs/guide/build-and-check.md) | `uapa build` 与 `--check`、构建报告、持续集成 |
+| [安装与分发](docs/guide/install.md) | 在各宿主中加载产物、信任 hooks、分发给团队 |
+| [常见错误](docs/guide/troubleshooting.md) | 错误信息、原因与处理办法 |
 
-## 阅读顺序
+## 版本与路线图
 
-使用 UAPA 构建插件时先读[帮助文档](docs/guide/README.md)：快速上手、源项目结构、构建配置、
-编写守卫、安装与分发、常见错误。以下是设计与实现的文档：
+| 版本 | 内容 |
+|---|---|
+| v0.1.0 | 四个目标；skills；执行前、提示提交前与停机前检查；命令 hooks |
+| v0.2.0 | agents、MCP 服务器；执行后检查 |
+| v0.3.0 | rules、commands；守卫选项 |
 
-1. [架构](docs/architecture/architecture.md)：术语、v0.1.0 目标、模块与依赖方向、构建调用顺序、
-   目录结构、发布方式。
-2. [模块接口](docs/architecture/module-interfaces.md)：构建配置字段、宿主模块接口、能力数据、
-   写出与退出码、命令行调用构建的契约；[入口与打包接口](docs/architecture/runtime-interfaces.md)：
-   打包请求、入口文件与子进程协议；[构建报告](docs/architecture/build-report.md)：报告字段与填写规则；
-   [命令 hooks 声明](docs/architecture/command-hooks.md)：原样声明的命令 hooks 的字段、事件与写入规则。
-3. [功能清单](docs/feature-list/README.md)：按功能模块列出要实现的功能、验收标准、依赖与建议
-   实现顺序。
-4. [hooks 适配](docs/research/coding-agent-plugin-manifests/uapa-hook-adapters.md)：守卫公共
-   类型与规范工具名（v0.1.0 的唯一定义处）、各目标的决策输出、能力缺失与失败处理。
-5. [设计提案](docs/research/coding-agent-plugin-manifests/unified-agent-plugin-architecture.md)：
-   定位、与 uni-app 的对照、后续目标的形态与组件承载。
-6. [宿主调研](docs/research/coding-agent-plugin-manifests/README.md)：各宿主的 manifest 与
-   hooks 事实；宿主行为只以这些文档为准。
+Cursor、Kiro、CodeBuddy、OpenCode、DSH 计划在后续版本逐个增加；GitHub Copilot CLI 与 Kimi Code
+的设计已保留，暂不实现。
 
-### 文档冲突时的依据
-
-- 数据类型、文件位置、写出与退出码以模块接口、入口与打包接口、构建报告、命令 hooks 声明为准。
-- 模块职责与依赖方向以架构为准。
-- 验收标准以功能清单为准。
-- 宿主行为以宿主调研为准。
-- hooks 适配与设计提案中与以上文档不一致的内容不再适用。
-
-[ARCH-001](docs/architecture/ARCH-001-agent-plugin-build-tool.md) 记录选型理由、被否决的方案与
-复议条件；其结论已回填到架构文档，后续变更只记在架构文档与
-[范围决策](docs/feature-list/scope-decisions.md) 中。关系检查脚本为
-`scripts/check-feature-list.mjs`。
-
-## 本地检查
-
-需要 Node ≥ 22.18 与 pnpm 12（版本由 `package.json` 的 `packageManager` 字段指定）。安装依赖：
+## 参与开发
 
 ```bash
 pnpm install --frozen-lockfile
 ```
 
-运行检查（两套 `tsc` 配置、Biome、`node --test` 与功能清单关系检查，任一失败即以非零退出码
-结束）：
-
 ```bash
 pnpm check
 ```
 
-同样的检查也可以在一次性容器中运行，本机只需要 bash、git 与 Docker；宿主实测（真实代理会话）
-也在容器中进行，见[容器测试](test/container/README.md)：
-
-```bash
-test/container/run.sh check
-```
-
-仓库不配置 CI，提交前在本地运行。施工顺序见[施工单](docs/workorders/README.md)，验收证据见
-[验收记录](docs/acceptance/README.md)。
-
-## 约定
-
-- UAPA 不包含使用方的业务逻辑；使用方的守卫判断留在使用方仓库，经公共类型接入。
-- 调研结论只依据官方文档、公开仓库源码（注明 tag 或提交）与可复现的本地实测。
-- 发布以 git tag 标记，tag 对应的提交包含构建后的 JS，安装时不运行构建脚本。
+`pnpm check` 运行两套 `tsc` 配置、Biome、`node --test` 与功能清单关系检查；同样的检查也可以在
+一次性容器中以 `test/container/run.sh check` 运行。仓库结构、夹具、设计文档的阅读顺序与测试的
+安全规则见[开发 UAPA](docs/guide/developing-uapa.md)。
 
 ## 许可证
 

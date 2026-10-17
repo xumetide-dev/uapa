@@ -6,7 +6,8 @@
 模块之间的数据类型见 [模块接口](../architecture/module-interfaces.md) 与
 [入口与打包接口](../architecture/runtime-interfaces.md)，守卫公共类型与各目标的 hooks 输出见
 [hooks 适配](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md)。文档冲突时的依据见
-[README](../../README.md#文档冲突时的依据)。术语见[架构「术语」](../architecture/architecture.md#术语)。
+[开发 UAPA](../guide/developing-uapa.md#文档冲突时的依据)。术语见
+[架构「术语」](../architecture/architecture.md#术语)。
 本清单不含估时。
 
 ## 阶段

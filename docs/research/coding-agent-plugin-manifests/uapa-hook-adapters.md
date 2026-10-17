@@ -7,7 +7,8 @@ Codex、agy）的行，是 v0.1.0 的实现依据，功能清单逐条引用；�
 版本的设计，尚未排期；第 9 节的测试分层以功能清单的技术验收为准。文件位置与数据结构以
 [模块接口](../../architecture/module-interfaces.md) 为准，验收以
 [功能清单](../../feature-list/README.md) 为准，冲突时的依据见
-[仓库 README](../../../README.md#文档冲突时的依据)。文中代码为示意写法，实现以 `src/` 为准。
+[开发 UAPA「文档冲突时的依据」](../../guide/developing-uapa.md#文档冲突时的依据)。
+文中代码为示意写法，实现以 `src/` 为准。
 
 本文与 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md) 配套，
 说明守卫逻辑（阻断危险命令、检查用户提交的提示、扣留含密钥的工具输出、停机前检查）的公共类型，以及它在各构建

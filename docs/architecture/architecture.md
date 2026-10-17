@@ -15,7 +15,7 @@
 [hooks 适配](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md)；后续目标（Cursor、
 Kiro、CodeBuddy、OpenCode、DSH）的设计见
 [设计提案](../research/coding-agent-plugin-manifests/unified-agent-plugin-architecture.md)。
-文档冲突时的依据见 [README](../../README.md#文档冲突时的依据)。
+文档冲突时的依据见 [开发 UAPA「文档冲突时的依据」](../guide/developing-uapa.md#文档冲突时的依据)。
 
 ## 术语
 
