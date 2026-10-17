@@ -97,6 +97,8 @@ test/container/run.sh exec node --test test/fixtures/fixtures.test.ts
   已不成立，改为只举 agent 的例子。
 - 核对 M5-07 时发现 `rules-commands` 的 `model` 规则只限 agy，已在 M5-07 写明实测时的处理；
   `README.md` 的宿主矩阵描述已发布的 v0.3.0，在 M5-00 的发布说明中写明发布时更新。
+- 夹具表要求 `host-coverage` 含一个正文含 `$ARGUMENTS` 的命令（F-06-13），本单未加，由 M5-04
+  补入（见 M5-04 验收 §5）。
 
 ## 6. 技术决策
 

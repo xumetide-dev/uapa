@@ -99,7 +99,8 @@
   - Codex 的 `SessionEnd` 超时。
   - 每条新增残余风险的触发条件。
 - 夹具与入口用例：
-  - `host-coverage` 配置 `onFailure`。
+  - `host-coverage` 按夹具表加入实现 `beforeTool` 与 `beforePrompt` 的守卫、`onFailure`，以及
+    frontmatter 含 `tools` 的 agent（F-05-23、F-11-14 的残余风险）。
   - `Monitor` 的入参运行标记命令，期望拒绝（入参形状以 TA-25 为准）。
 
 ## 验收
