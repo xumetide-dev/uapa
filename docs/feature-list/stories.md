@@ -38,12 +38,18 @@
 | US-19 | P-01 | v0.3.0 | `rules/`、`commands/` | 在源项目中加入 rules 与 commands，构建到三个宿主 | 承载的目标按自身格式写出（agy 写 rules，Claude Code 与 Codex 写 commands）；不承载的目标列为跳过，frontmatter 显式限定该目标时该目标失败 | F-01-10, F-01-11, F-03-16, F-05-16, F-06-09, F-11-09 |
 | US-20 | P-01 | v0.3.0 | 守卫逻辑 | 在守卫中声明可配置的选项（如阈值），在检查中读取取值 | Claude Code 产物把选项写为 `userConfig`；Codex 与 agy 取默认值，构建报告写明 | F-02-05, F-04-09, F-05-17, F-05-18, F-06-10, F-11-10 |
 | US-21 | P-04 | v0.3.0 | Claude Code 的插件设置 | 在 Claude Code 中设置插件选项后继续使用 | 守卫按设置的取值判断；取值无效时执行前检查按拒绝处理 | F-04-09, F-05-17, F-05-18 |
+| US-22 | P-01 | v0.4.0 | `files/` | 把 MCP 服务器与命令 hooks 用到的脚本放进 `files/`，构建到三个宿主 | 每个插件目录都有同样的文件；与生成文件或组件文件同名时构建失败，并提示改用覆盖目录 | F-01-12, F-03-17 |
+| US-23 | P-01 | v0.4.0 | `rules/`、`commands/` | 同一份 rules 与 commands 构建到三个宿主 | Claude Code 与 Codex 以技能和会话开始时的上下文承载 rules，agy 承载 commands；不能换算的条目列为跳过，语义差异写入残余风险 | F-03-19, F-05-19, F-06-11, F-06-13, F-11-11 |
+| US-24 | P-01 | v0.4.0 | `mcp/servers.json` | 为本地 MCP 服务器声明它需要的环境变量 | Codex 产物写入 `env_vars`；宿主不展开的占位符与未声明变量的服务器写入残余风险 | F-01-13, F-05-26, F-06-12, F-11-12 |
+| US-25 | P-02 | v0.4.0 | `marketplace` 配置 | 为团队生成 Claude Code 与 Codex 的 marketplace 文件并提交 | 团队按安装指南添加 marketplace 并安装插件；门禁中的 `uapa build --check` 发现 marketplace 文件与配置不一致 | F-01-14, F-03-18, F-05-24, F-06-15 |
+| US-26 | P-01 | v0.4.0 | `hosts['claude-code']` | 透传 Claude Code 专有的 manifest 字段，并让守卫入口出错时阻断 | `plugin.json` 含透传字段并通过 `validate --strict`；`PreToolUse` 与 `UserPromptSubmit` 的守卫条目写 `onFailure: "block"`，构建报告写明缺少 Node 时的后果；含保留词的插件名在构建时失败 | F-01-14, F-05-20, F-05-21, F-05-25 |
+| US-27 | P-04 | v0.4.0 | 三个宿主中的插件 | 安装 v0.4.0 构建的插件后日常使用 | 守卫检查 `Monitor` 启动的命令；构建报告列出宿主可能使守卫不运行的情形；Codex 会话开始时不出现超时告警 | F-05-22, F-05-23, F-06-14, F-06-16, F-11-13, F-11-14 |
 
 ## 角色审计
 
 | 角色 | 结论 | 路径 | 发现 | 修复建议 | 关闭条件 |
 |---|---|---|---|---|---|
-| P-01 | PASS | US-01～US-08、US-18～US-20 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04）；US-19 的 rules 与 commands 已在 agy 与 Claude Code 会话中生效，agy 按绝对路径匹配 `globs`，含目录的模式生成时加 `**/` 前缀（TA-24） | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败 | [TA-15](technical-acceptance.md) 通过 |
-| P-02 | PASS | US-09～US-11 | 安装、门禁比对与升级路径闭合；npm 12 默认禁止 git 依赖，README「安装」一节已写明 `allow-git=root`（M1-08） | 发布 v0.1.0 时在 README 写明安装方式与 npm 的 `allow-git` 设置 | README 的安装一节含 `github:xumetide-dev/uapa#vX.Y.Z` 写法、npm 12 的 `allow-git` 设置与 pnpm 安装命令 |
+| P-01 | RISK | US-01～US-08、US-18～US-20、US-22～US-24、US-26 | 功能链路闭合；提示提交前检查依赖各宿主提示事件的阻断能力，Claude Code 与 Codex 已实测可阻断；agy 没有提示事件，守卫的 `requires` 声明 `promptGate` 时该目标构建失败（TA-04）；US-19 的 rules 与 commands 已在 agy 与 Claude Code 会话中生效，agy 按绝对路径匹配 `globs`，含目录的模式生成时加 `**/` 前缀（TA-24）；US-23、US-24 依赖待实测的宿主行为（SD-38～SD-40）：换算后的规则与命令在会话中是否生效、本地 MCP 服务器是否继承会话环境 | 实测结果写入能力数据；不能阻断的目标在守卫声明 `promptGate` 时构建失败；v0.4.0 的换算按 TA-25 的结论实现，不成立的换算改为预留 | [TA-15](technical-acceptance.md) 通过；[TA-25](technical-acceptance.md) 通过 |
+| P-02 | RISK | US-09～US-11、US-25 | 安装、门禁比对与升级路径闭合；US-25 依赖生成的 marketplace 能被 Claude Code 与 Codex 添加并安装（SD-41，待实测）；npm 12 默认禁止 git 依赖，README「安装」一节已写明 `allow-git=root`（M1-08） | 发布 v0.1.0 时在 README 写明安装方式与 npm 的 `allow-git` 设置 | README 的安装一节含 `github:xumetide-dev/uapa#vX.Y.Z` 写法、npm 12 的 `allow-git` 设置与 pnpm 安装命令；TA-25 中 marketplace 的各项通过 |
 | P-03 | PASS | US-12～US-13 | 能力数据更新与发布路径闭合；夹具比对与安装冒烟承接回归 | — | — |
-| P-04 | RISK | US-14～US-17、US-21 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测；US-21 的设置路径已在 Claude Code 2.1.296 中实测，两种形态在设置前后分别读到默认值与设置的值（TA-24） | 完成 TA-15 实测 | TA-15 通过 |
+| P-04 | RISK | US-14～US-17、US-21、US-27 | 主要路径闭合；默认放行的宿主在缺少 Node 时守卫失效，由构建报告列为残余风险；agy 的停机计数存于系统临时目录（[SD-06](scope-decisions.md)），被清理时归零，由构建报告列为残余风险；TA-15 中三个宿主的各项已实测；US-21 的设置路径已在 Claude Code 2.1.296 中实测，两种形态在设置前后分别读到默认值与设置的值（TA-24） | 完成 TA-15 实测 | TA-15 通过 |
