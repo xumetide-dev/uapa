@@ -283,7 +283,7 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 
 | 目标 | 默认行为 | 默认超时 |
 |---|---|---|
-| `claude-code:subprocess` | 放行 | 600 秒 |
+| `claude-code:subprocess` | 放行；处理器写 `onFailure: "block"`（2.1.295 起）时 `PreToolUse` 与 `UserPromptSubmit` 改为阻断；2.1.299 起 Windows 上未设 `shell` 且缺少 Git for Windows 的 `PreToolUse` 阻断 | 600 秒 |
 | `codex:subprocess` | 放行：非 0 非 2 退出码、超时、启动失败、非法 JSON 均放行 | 600 秒 |
 | `copilot-cli:subprocess` | `preToolUse` 非零退出码拒绝；超时对所有事件放行 | 30 秒 |
 | `cursor:subprocess` | 放行；生成的配置设 `failClosed: true`，崩溃、超时、无输出均阻断 | 未核实 |
@@ -301,6 +301,10 @@ hook 进程未能启动、崩溃或超时时，由宿主的默认行为决定：
 - 在默认放行的目标上，守卫在入口无法启动时失效（例如缺少解释器），构建报告列为残余风险。
   子进程入口以 Node 运行，打包为 ES2022 ESM 单文件，见
   [ARCH-001](../../architecture/ARCH-001-agent-plugin-build-tool.md)。
+- Claude Code 的 `onFailure: "block"` 把入口无法启动、非 0 非 2 退出码、超时与无效输出都按退出码 2
+  处理，对 `Stop` 与 async hooks 无效（2.1.296 容器实测入口缺失时阻断，见
+  [Claude Code hooks](claude-code-hooks.md#失败处理与-onfailure)）。缺少 Node 时它会阻断每次工具调用
+  与提示，即使 hooks 模块已生效，因此只能作为插件作者显式选择的选项。
 
 ## 8. 状态与存储
 

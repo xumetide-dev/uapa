@@ -177,7 +177,7 @@ targets: [agy:subprocess]
   报告的残余风险）；agy 以 `<插件名>_<服务器名>` 命名。
 
 宿主事实的出处（codex-cli 0.162.1、agy 1.3.5）：
-[Codex「容器实测」](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)、
+[Codex「容器实测」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)、
 [agy「组件」](../research/coding-agent-plugin-manifests/agy-plugins.md#组件)。
 
 ## 覆盖文件

@@ -27,7 +27,7 @@
 | 2 | [夹具表](../feature-list/modules/10-repo-release.md#夹具) 的全部夹具（含 `rules-commands`、`guard-options`）比对与入口用例通过 | 20 个夹具测试全部通过，含 `rules-commands` 与 `guard-options` 的 9 个入口用例；夹具与 hooks 模块测试单独运行 23 pass / 0 fail | `test/container/run.sh check`；[M4-04 验收](M4-04-guard-options.md) §3 | ✅ | — |
 | 3 | 能力数据的 `components.rules`、`components.commands` 注明实测或源码核对出处 | Claude Code 两个目标的 commands 指向「commands 与 userConfig」与「UAPA 夹具产物」实测；agy 的 rules 指向「rules（1.3.5，容器）」与「UAPA 夹具产物（1.3.5，容器）」；Codex 的 commands 与 rules 指向源码核对「commands、rules 与用户配置」，commands 另指向「容器实测（0.162.1）」（2026-10-15 补） | `src/capabilities/` 四个文件 | ✅ | — |
 | 4 | TA-24：rules、commands 与守卫选项在宿主会话中按调研结论生效 | agy 的三种规则生效（`glob` 在 `04328f0` 修正后）；Claude Code 的两个命令可调用；`guard-options` 两种形态在设置前后分别读到默认值与设置的值 | [M4-05 验收](M4-05-v0-3-0-live-tests.md)（宿主实测，Claude Code 2.1.296、agy 1.3.5） | ✅ | — |
-| 5 | M4-01～M4-05 的验收结论均为通过，表头有 commit 号 | 4 张为通过；M4-02 为有条件通过，其 §7 两项已关闭：会话效果由 M4-05 实测，Codex 转换命令的调用由 2026-10-15 的容器实测（codex-cli 0.162.1）核实；5 张表头都有 commit 号 | 各验收文件表头与 §7；[Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)（宿主实测） | ⚠️ M4-02 为有条件通过（条件已关闭） | — |
+| 5 | M4-01～M4-05 的验收结论均为通过，表头有 commit 号 | 4 张为通过；M4-02 为有条件通过，其 §7 两项已关闭：会话效果由 M4-05 实测，Codex 转换命令的调用由 2026-10-15 的容器实测（codex-cli 0.162.1）核实；5 张表头都有 commit 号 | 各验收文件表头与 §7；[Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)（宿主实测） | ⚠️ M4-02 为有条件通过（条件已关闭） | — |
 
 ## 2. 工单一览
 

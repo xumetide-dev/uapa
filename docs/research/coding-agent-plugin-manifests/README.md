@@ -57,7 +57,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | [dsh-plugins.md](dsh-plugins.md) | DeepSeek Harness 插件 manifest 与扩展点 | 已核实 |
 | [dsh-cordis-plugin-guide.md](dsh-cordis-plugin-guide.md) | DSH Cordis 插件开发指南 | 已核实；示意代码未编译 |
 | [kimi-code-plugins.md](kimi-code-plugins.md) | Kimi Code CLI | 已核实 |
-| [agy-plugins.md](agy-plugins.md) | Antigravity CLI（agy） | 已核实；文档未写明处以 1.3.4 本地实测补充 |
+| [agy-plugins.md](agy-plugins.md) | Antigravity CLI（agy） | 已核实；文档未写明处以实测补充 |
 | [workbuddy-codebuddy-plugins.md](workbuddy-codebuddy-plugins.md) | 腾讯 CodeBuddy / WorkBuddy | 已核实 |
 | [github-copilot-plugins.md](github-copilot-plugins.md) | GitHub Copilot（VS Code、Copilot CLI） | 已核实 |
 | [cursor-plugins.md](cursor-plugins.md) | Cursor | 已核实 |
@@ -66,6 +66,9 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | v0.1.0 目标的部分为实现依据；其余为设计提案 |
 | [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；UAPA v0.1.0 尚未实现 |
 | [claude-code-local-tests.md](claude-code-local-tests.md) | Claude Code 本地实测记录 | 可复现 |
+| [agy-local-tests.md](agy-local-tests.md) | agy 实测记录（1.3.4 本地，1.3.5 容器） | 可复现 |
+| [codex-local-tests.md](codex-local-tests.md) | Codex 实测记录（0.162.1 容器） | 可复现 |
+| [claude-code-hooks.md](claude-code-hooks.md) | Claude Code hooks：控制语义、失败处理与上下文注入 | 已核实 |
 | [codex-source-review.md](codex-source-review.md) | Codex hooks 源码核对记录（rust-v0.162.1） | 源码与上游测试核对；未在宿主中运行 |
 
 平台文档中未能核实或只有社区来源的内容，在原处标注“未核实”“经搜索摘要核对”或【社区】。
@@ -74,8 +77,9 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 
 - 官方文档与官方仓库为主证据；源码结论注明 tag 或提交，DSH 以上游提交 `d743267388` 为准。
 - Claude Code 的部分行为以 2.1.296 本地实测为准，见 [本地实测记录](claude-code-local-tests.md)；
-  agy 的部分行为以 1.3.4 本地实测为准，见 [agy](agy-plugins.md#本地实测)；Codex 的 hooks 行为以
-  rust-v0.162.1 源码核对为准，见 [Codex hooks 源码核对记录](codex-source-review.md)。
+  agy 的部分行为以 1.3.4 本地实测与 1.3.5 容器实测为准，见 [agy 实测记录](agy-local-tests.md)；
+  Codex 的 hooks 行为以 rust-v0.162.1 源码核对为准，见
+  [Codex hooks 源码核对记录](codex-source-review.md)。
 - 社区来源标注【社区】，仅用于版本差异与实践补充。
 
 ## 维护

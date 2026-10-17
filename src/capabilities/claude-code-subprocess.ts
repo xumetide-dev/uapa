@@ -1,5 +1,5 @@
 // claude-code:subprocess 的能力数据（F-05-01）。取值依据 hooks 适配第 4、6、7、8 节、
-// 跨平台对比「工具名差异」与 Claude Code「命令 hooks 的本地实测」（TA-15）；执行后检查与组件
+// 跨平台对比「工具名差异」与 claude-code-hooks.md「命令 hooks 的本地实测」（TA-15）；执行后检查与组件
 // 依据 claude-code-local-tests.md「执行后检查」「MCP 服务器与 agents」（2.1.296 实测）；
 // 宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
@@ -12,7 +12,7 @@ export const claudeCodeSubprocess: TargetCapabilities = {
     name: 'claude-code',
     version: '2.1.296',
     checked: '2026-10-14',
-    source: 'claude-code-plugins.md', // TA-15 结论见其「命令 hooks 的本地实测」
+    source: 'claude-code-plugins.md', // TA-15 结论见 claude-code-hooks.md「命令 hooks 的本地实测」
   },
   // skills/、agents/、.mcp.json 与 hooks/hooks.json 都是插件包内的文件
   components: {

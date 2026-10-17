@@ -16,7 +16,7 @@
 - 已有且够用：容器 `shell` 中有 Claude Code 2.1.296 与 agy 1.3.5，认证方式见
   [容器测试「认证」](../../test/container/README.md#认证)；以产物副本做会话实测的先例见
   [Claude Code「UAPA 夹具产物」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#uapa-夹具产物)
-  与 [agy「UAPA 夹具产物（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#uapa-夹具产物135容器)。
+  与 [agy「UAPA 夹具产物（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-local-tests.md#uapa-夹具产物135容器)。
 - 完全没有：v0.3.0 产物（agy 的 rules、Claude Code 的 commands 与 `userConfig`）在宿主会话中的
   记录。
 - 宿主事实：调研时的探测插件为手写，本单以 UAPA 的产物复测。

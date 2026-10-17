@@ -31,7 +31,7 @@
 
 | # | 判定条目 | 预期 | 实际 | 证据 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 硬约束：守卫不静默失效 | 宿主实测：三个宿主中拒绝的标记命令不执行且原因可见；执行后检查扣留含标记的输出，模型读不到原文 | 拒绝：Codex 与 agy 中 `echo uapa-deny-probe > deny.txt` 不执行、`deny.txt` 不存在，原因出现在日志与模型的回复中；Claude Code 的模块与命令入口都拒绝（嵌套会话一项与 `claude plugin test`）。扣留：Claude Code 两种形态与 Codex 中模型只读到扣留原因或替换文本（`uapa-replaced`），读不到原输出。Codex 信任前插件 hooks 被静默跳过，属宿主的信任机制，已写入调研文档 | 调研文档：[Claude Code](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#uapa-夹具产物)、[Codex](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)、[agy](../research/coding-agent-plugin-manifests/agy-plugins.md#uapa-夹具产物135容器)（宿主实测：Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.5） | ✅ |
+| 1 | 硬约束：守卫不静默失效 | 宿主实测：三个宿主中拒绝的标记命令不执行且原因可见；执行后检查扣留含标记的输出，模型读不到原文 | 拒绝：Codex 与 agy 中 `echo uapa-deny-probe > deny.txt` 不执行、`deny.txt` 不存在，原因出现在日志与模型的回复中；Claude Code 的模块与命令入口都拒绝（嵌套会话一项与 `claude plugin test`）。扣留：Claude Code 两种形态与 Codex 中模型只读到扣留原因或替换文本（`uapa-replaced`），读不到原输出。Codex 信任前插件 hooks 被静默跳过，属宿主的信任机制，已写入调研文档 | 调研文档：[Claude Code](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#uapa-夹具产物)、[Codex](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)、[agy](../research/coding-agent-plugin-manifests/agy-local-tests.md#uapa-夹具产物135容器)（宿主实测：Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.5） | ✅ |
 | 2 | 硬约束：能力数据有出处 | 实测结论写入调研文档后，能力数据的注释指向该小节；结论与能力数据不一致时先改调研文档再改能力数据，并重跑 TA-09 | 实测结论都写入调研文档；与能力数据一致（Codex `replaceOutput: false` 的替换降级为扣留、agy 不生成执行后检查、三个宿主的 `components.mcp`），能力数据未改；TA-09 通过 | `fca0d18`；`pnpm check` 247 pass | ✅ |
 
 ## 2. 功能点逐条验收

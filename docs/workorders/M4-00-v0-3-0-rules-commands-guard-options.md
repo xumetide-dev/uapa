@@ -44,7 +44,7 @@ Sprint 编号 `M4` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 | JSON 合并 | 已有但不对：`OutputFile.merge`（`src/targets/types.ts`）已定义；`generatedFile`（`src/build/outputs.ts`）丢弃该标记，`mergeViews` 只逐字节比较 |
 | 守卫选项 | 完全没有：`GuardPlugin`、`GuardDeclaration`、`TargetRuntimeData`、`SubprocessProtocol` 都没有选项；`hosts['claude-code'].userConfig` 的类型为 `unknown`，由 `src/targets/claude-code/manifest.ts` 原样写入 |
 | 文件长度 | `src/build/outputs.ts` 266 行，`src/runtime/entries/subprocess.ts` 350 行，`claude-code-in-process.ts` 224 行；新增逻辑前先按职责拆分 |
-| 宿主事实 | agy 1.3.5 的 rules、Claude Code 2.1.296 的 commands 与 `userConfig` 已在容器中实测，见 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#rules135容器) 与 [Claude Code「commands 与 userConfig」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)；Codex 按 rust-v0.162.1 源码核对：安装时把 commands 转换为技能，不承载 rules，没有插件用户配置，见[源码核对记录「commands、rules 与用户配置」](../research/coding-agent-plugin-manifests/codex-source-review.md#commandsrules-与用户配置) |
+| 宿主事实 | agy 1.3.5 的 rules、Claude Code 2.1.296 的 commands 与 `userConfig` 已在容器中实测，见 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-local-tests.md#rules135容器) 与 [Claude Code「commands 与 userConfig」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)；Codex 按 rust-v0.162.1 源码核对：安装时把 commands 转换为技能，不承载 rules，没有插件用户配置，见[源码核对记录「commands、rules 与用户配置」](../research/coding-agent-plugin-manifests/codex-source-review.md#commandsrules-与用户配置) |
 | 宿主版本 | 容器 `shell` 中：Claude Code 2.1.296、codex-cli 0.162.1、agy 1.3.5 |
 
 ## 关键落地约束（必须先验证）

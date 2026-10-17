@@ -48,7 +48,7 @@ Sprint 编号 `M1` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 | TA-15 中 Claude Code 的入口前提（SD-22）：stdin 中会话 id、工具入参与提示文本的字段名，改写输出是否另需 `permissionDecision` | 在 M1-03 之前，用 `claude -p --plugin-dir` 加载记录输入的临时插件，不安装 | M1-03 不开始实现 |
 | TA-15 中 Codex 的入口前提：stdin 字段名、决策 JSON 层级、插件 hooks 文件的 JSON 结构 | 插件 hooks 只对 Codex 桌面端手动安装的插件生效，需要维护者在桌面端安装记录插件并信任 hooks | M1-05 停在该步；其余工单照常推进 |
 | SD-23 的两项：Codex 命令是否经 shell 执行；省略 matcher 时 Claude Code 与 Codex 的执行前 hook 是否匹配全部工具 | 与上两项一起实测 | 不发布 v0.1.0 |
-| agy 的入口前提与失败默认 | 已于 1.3.4 实测（[agy「本地实测」](../research/coding-agent-plugin-manifests/agy-plugins.md#本地实测)） | — |
+| agy 的入口前提与失败默认 | 已于 1.3.4 实测（[agy「本地实测」](../research/coding-agent-plugin-manifests/agy-local-tests.md#本地实测)） | — |
 | TypeScript 7 的 `tsc` 支持两套配置与 `--noEmit` | M1-01 中实测 | 按 ARCH-001 复议 |
 | TA-14 需要 Node 22.0.0 的可执行文件 | M1-08 前由维护者确认下载 | 不发布 v0.1.0 |
 

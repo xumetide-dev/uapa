@@ -9,6 +9,8 @@
 
 本文是 UAPA 的权威架构文档：由哪些模块组成、模块之间的依赖方向、各层的硬约束、目录与发布方式。
 模块之间交换的数据类型见 [模块接口](module-interfaces.md)、
+[宿主模块接口](host-module-interface.md)、
+[写出、比对与退出码](build-output.md)、
 [入口与打包接口](runtime-interfaces.md)、[构建报告](build-report.md) 与
 [命令 hooks 声明](command-hooks.md)。选型理由与被否决的方案见
 [ARCH-001](ARCH-001-agent-plugin-build-tool.md)。守卫公共类型与各目标的 hooks 输出见
@@ -93,10 +95,11 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
    宿主模块生成 manifest 与 hooks 配置，经 `bundle` 把守卫逻辑、`runtime/core` 与该目标的
    入口源码打包为单文件；没有可靠宿主校验命令的宿主对生成的文件做字段白名单检查；返回文件
    列表，同一宿主的目标合成一套文件。
-5. `build` 放置 skills、agents 与 commands，用 `overrides/<宿主>/` 覆盖同名文件，再按产物布局
-   写出：合并布局下，同名文件必须逐字一致，宿主模块标为可合并的 JSON 文件按命名空间合并
-   （F-03-07，`src/build/merge.ts`）。写出后，对提供宿主校验命令的宿主调用该命令。`--check`
-   模式只比对，不写文件，也不调用宿主校验命令。
+5. `build` 放置 skills、agents、commands 与 v0.4.0 起的 `files/`，用 `overrides/<宿主>/` 覆盖
+   同名文件，再按产物布局写出：合并布局下，同名文件必须逐字一致，宿主模块标为可合并的 JSON
+   文件按命名空间合并（F-03-07，`src/build/merge.ts`）。写出后，对提供宿主校验命令的宿主调用
+   该命令；v0.4.0 起配置 `marketplace` 时，再为有成功目标的宿主写出 marketplace 文件。
+   `--check` 模式只比对，不写文件，也不调用宿主校验命令。
 6. `build` 按 `src/report/types.ts` 填充构建报告，写出 `<outDir>/uapa-report.json`（`--check`
    不写），并把结果返回 `cli`；`cli` 调用 `report` 的 `formatSummary` 打印摘要，按模块接口 §8
    设置退出码。
@@ -106,7 +109,7 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 | `cli` | 命令、参数、终端输出与退出码 | `config`、`build`、`report` | 构建器中只有它读取命令行参数、向终端输出与设置退出码；插件产物中的入口不受此限 |
 | `config` | `defineConfig`、配置加载与校验、目标名与宿主标识 | zod | 校验失败给出文件与字段位置 |
 | `source` | 读取源项目组件、覆盖目录与守卫声明 | `config`（类型与目标名列表）、`runtime/core` 的类型、yaml、zod | 只读，不写文件 |
-| `build` | 能力检查、按宿主调用宿主模块、放置 skills、agents、commands 与覆盖文件、产物布局与合并、写出与比对、调用宿主校验、写出构建报告 | `config`、`source`、`runtime/core` 的类型、`capabilities`（只经 `src/capabilities/index.ts` 与 `types.ts`）、`targets`（只经 `src/targets/index.ts` 与 `src/targets/types.ts`）、`bundle`、`report` | 不包含宿主格式知识；守卫 `requires` 中的能力目标不具备时该目标失败，其余缺失按 [hooks 适配 §6](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#6-能力缺失时的处理) 降级或记为残余风险；只写入各宿主的插件目录与 `<outDir>/uapa-report.json`：默认布局写入前清空该宿主的插件目录，合并布局不删除目录中的其他文件；`--check` 模式不写文件 |
+| `build` | 能力检查、按宿主调用宿主模块、放置 skills、agents、commands 与覆盖文件、产物布局与合并、写出与比对、调用宿主校验、写出构建报告 | `config`、`source`、`runtime/core` 的类型、`capabilities`（只经 `src/capabilities/index.ts` 与 `types.ts`）、`targets`（只经 `src/targets/index.ts` 与 `src/targets/types.ts`）、`bundle`、`report` | 不包含宿主格式知识；守卫 `requires` 中的能力目标不具备时该目标失败，其余缺失按 [hooks 适配 §6](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#6-能力缺失时的处理) 降级或记为残余风险；只写入各宿主的插件目录、`<outDir>/uapa-report.json` 与 v0.4.0 起的 marketplace 文件：默认布局写入前清空该宿主的插件目录，合并布局不删除目录中的其他文件；`--check` 模式不写文件 |
 | `capabilities` | 各目标的能力数据 | `config` 与 `runtime/core` 的类型 | 只含数据；每个模块写明宿主版本、核对日期与出处 |
 | `targets/<host>` | 生成一个宿主的产物文件；有可靠宿主校验命令的宿主实现 `verify`（v0.1.0 为 Claude Code），其余宿主在生成时做字段白名单检查 | `src/targets/types.ts`；`config`、`source`、`runtime/core`、`capabilities` 与 `bundle` 的类型；yaml | `generate` 不读写磁盘，文件交给 `build` 写出；只为传入的目标生成；能力数据只经 `TargetPlan` 取得；打包经 `build` 传入的函数调用 `bundle`；宿主模块之间互不引用 |
 | `runtime/core` | 公共类型、目标数据类型、工具名换算、守卫返回值检查、守卫选项取值的解析 | 无 | 不做 I/O，不引用 Node 类型，由 `tsconfig.runtime-core.json` 检查 |
@@ -144,7 +147,8 @@ uapa/
 │   └── fixtures/            源项目夹具与各目标的期望产物
 ├── scripts/                 发布与检查脚本；仓库中只有这里允许手写 .mjs
 ├── docs/
-│   ├── architecture/        本文、模块接口、入口与打包接口、构建报告、命令 hooks 声明、选型文档
+│   ├── architecture/        本文、模块接口（含宿主模块接口与写出比对两个子页）、入口与打包接口、
+│   │                        构建报告、命令 hooks 声明、选型文档
 │   ├── feature-list/        功能清单
 │   └── research/coding-agent-plugin-manifests/   宿主调研与设计提案
 ├── dist/                    只出现在发布提交中

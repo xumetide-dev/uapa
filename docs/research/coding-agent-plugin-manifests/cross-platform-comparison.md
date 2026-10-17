@@ -41,12 +41,12 @@ skills、hooks 控制能力、MCP 配置与分发方式，并给出跨平台发�
 | 平台 | marketplace 文件 | 安装命令 |
 |---|---|---|
 | Claude Code | `.claude-plugin/marketplace.json` | `claude plugin install p@m` |
-| Codex | `.agents/plugins/marketplace.json`；兼容 `.claude-plugin/marketplace.json` | `codex plugin add p@m` |
+| Codex | 依次读取 `.agents/plugins/marketplace.json`、`.agents/plugins/api_marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json` | `codex plugin add p@m` |
 | CodeBuddy | `.codebuddy-plugin/marketplace.json`（文档未列其他位置） | `codebuddy plugin install p@m` |
 | GitHub Copilot | `.github/plugin/marketplace.json`；CLI 兼容 `.claude-plugin/marketplace.json` | `copilot plugin install p@m` |
 | Cursor | `.cursor-plugin/marketplace.json` | 客户端内安装；公开发布需审核 |
 | Kimi Code | 自定义 JSON（`version: "2"`、`plugins[].id/source`） | `/plugins install` |
-| agy | 官方 marketplace `antigravity-plugins-official`；GitHub 仓库 URL、本地目录 | `agy plugin install p@m` |
+| agy | 只支持官方 marketplace `antigravity-plugins-official`；另可装 GitHub 仓库 URL（含子路径）与本地目录 | `agy plugin install p@m` |
 | Kiro | kiro.dev/powers 目录、GitHub URL | Powers 面板 |
 | DSH | npm 注册表 / git / 本地链接 | `dsh plugin --profile <n> add` |
 | OpenCode | npm 注册表 | 写入 `opencode.json` 的 `plugin` |
@@ -104,7 +104,8 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 
 ## 工具名差异
 
-执行前 hook 收到的内置工具名（核对日期 2026-10-13，agy 为 2026-10-14；“未查到”指官方文档与
+执行前 hook 收到的内置工具名（核对日期 2026-10-13，agy 为 2026-10-14，Claude Code 于 2026-10-15
+补充；“未查到”指官方文档与
 对应版本源码中均未找到）：
 
 | 能力 | Claude Code | Codex 0.162.1 | Copilot CLI | Cursor | Kimi Code 2.1.1 | Kiro IDE / CLI V3 | CodeBuddy | OpenCode 1.19.0 | DSH | agy 1.3.4 |
@@ -118,12 +119,17 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 | 抓取网页 | `WebFetch` | 未查到 | `web_fetch` / `WebFetch` | 未查到 | `FetchURL` | `web_fetch` | `WebFetch` | `webfetch` | `web_fetch` | `read_url_content` |
 | 网络搜索 | `WebSearch` | 不触发 hook | `web_search` / `WebSearch` | 未查到 | `WebSearch` | `remote_web_search` | `WebSearch` | `websearch` | `web_search` | `search_web` |
 | 子代理 | `Agent` | `spawn_agent` | `task` / `Agent` | `Task` | `Agent` | `invoke_sub_agent` | `Agent` | `task` | `subagent` | `invoke_subagent` |
+| 监视命令输出 | `Monitor` | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 |
+| 编辑 notebook | `NotebookEdit` | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 | 未查到 |
 | 待办 | `TaskCreate` 等 | `update_plan` | `update_todo` / `TodoWrite` | 未查到 | `TodoList` | 未查到 | `TaskCreate` 等 | `todowrite` | `todo_write` | 未查到 |
 | 名称所在字段 | stdin `tool_name`；模块 `e.tool` | `tool_name` | `toolName` / `tool_name` | `tool_name` | `tool_name` | `tool_name` | `tool_name` | `input.tool` | `exec.name` | `toolCall.name` |
 
 - Claude Code：`Task` 于 v2.1.63 改名为 `Agent`，设置中的 `Task(...)` 仍作为别名生效；
   `TodoWrite` 默认关闭，由 `TaskCreate`、`TaskGet`、`TaskList`、`TaskUpdate` 取代
-  [官方工具参考](https://code.claude.com/docs/en/tools-reference)。
+  [官方工具参考](https://code.claude.com/docs/en/tools-reference)。`Monitor` 运行命令，与 `Bash`
+  使用相同的权限规则，入参含 `command`；`NotebookEdit` 使用 `Edit(...)` 的权限格式；另有
+  `Workflow`、`CronCreate`、`Skill` 等。macOS、Linux 与 WSL 上默认没有 `Glob` 与 `Grep` 工具，
+  搜索经 `Bash` 运行。入参见 [Claude Code hooks](claude-code-hooks.md#上下文注入与事件)。
 - Codex：模型侧的 shell 工具名为 `exec_command`，hook 收到 `Bash`；`Edit`、`Write`、`Agent`
   只是 matcher 别名，stdin 中仍是 `apply_patch`、`spawn_agent`；托管的 `web_search` 不触发
   `PreToolUse`（`codex-rs/core/src/tools/hook_names.rs`，tag `rust-v0.162.1`）。
@@ -150,7 +156,7 @@ hook 配置文件格式各平台不同，不能共用。VS Code 中的 Copilot �
 | 平台 | 文件 | 根键 | 本地命令写法 |
 |---|---|---|---|
 | Claude Code 插件 | `.mcp.json` 或 `plugin.json` 的 `mcpServers` | `mcpServers` | `command` + `args`，`env` |
-| Codex | `config.toml`；插件内 `mcp.json`（兼容 manifest 默认读 `.mcp.json`） | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env`；字段为 snake_case，远程服务器的请求头为 `http_headers` |
+| Codex | `config.toml`；插件内 `mcp.json`（兼容 manifest 默认读 `.mcp.json`） | `[mcp_servers.<id>]`；`mcpServers` | `command` + `args`，`env`；字段为 snake_case，远程服务器的请求头为 `http_headers`；本地服务器只得到少数默认变量与 `env_vars` 列出的变量，见 [Codex 源码核对](codex-source-review.md#插件中的-mcp-服务器) |
 | OpenCode | `opencode.json` | `mcp` | `command` 数组，`environment` |
 | DSH | Cordis 配置中的 `@deepseek-ai/dsh-mcp-client` 行 | 不适用 | 见 mcp-client README |
 | Kimi Code | `~/.kimi-code/mcp.json`、`.kimi-code/mcp.json` | 未逐字核实 | 未逐字核实 |
@@ -182,7 +188,8 @@ Copilot 展开 `${PLUGIN_ROOT}`，Cursor 不展开；没有一个变量能在所
 - **需要单独适配的平台**：Kimi Code 需要 `kimi.plugin.json`；DSH 与 OpenCode 需要代码层适配
   （Cordis 插件或 JS 模块），只能复用 skills 与 MCP 服务器本身。
 - **hooks 按平台分别生成**：各宿主 hooks 格式互不兼容；Kiro 的 Power 不能携带 hooks；
-  Codex 插件携带的 hooks 只对桌面端手动安装的插件生效，含 hooks 的插件不能公开发布。
+  Codex 插件携带的 hooks 在用户信任后于 TUI 与 `codex exec` 中运行（0.162.1 容器实测），含 hooks
+  的插件不能进入公开目录。
   生成方式见 [统一代理插件架构（UAPA）设计提案](unified-agent-plugin-architecture.md)。
 - **格式各异的部分**：agents、commands、rules / steering 在各平台格式不同，按平台分别维护。
 

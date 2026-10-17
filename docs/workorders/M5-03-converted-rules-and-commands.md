@@ -3,7 +3,7 @@
 > 能力数据的承载方式增加 `converted`：组件由宿主模块换成宿主承载的其他组件。
 > - Claude Code 与 Codex：`model`、`glob` 规则写为技能，`always` 规则由 `SessionStart` 命令 hook
 >   输出。
-> - agy：commands 写为技能。
+> - agy：commands 改为原样复制，agy 安装时转换为技能（SD-39）。
 > - Codex：逐个检查 commands 的转换条件，会被跳过的命令列为跳过。
 
 | 项 | 内容 |
@@ -37,11 +37,11 @@
 
 - **TA-25 的结论**：
   - Claude Code 的 `paths` 技能与 `SessionStart` 输出生效，才实现 F-05-19。
-  - agy 的 `/<插件名>:<skill>` 可调用，才实现 F-11-11。
-  - 不成立的功能已在 M5-01 改为预留，本单跳过；agy 安装时直接加载 `commands/` 时，F-11-11 按
-    `package` 原样复制。
-- **共用插件目录时逐字一致**：Claude Code 与 Codex 为同一条规则生成的 `SKILL.md` 与入口文件内容
-  相同，合并布局中不产生冲突；Codex 不读 `paths`，但不拒绝该键。
+  - M5-01 的结论（2.1.296、1.3.5）：Claude Code 的 `SessionStart` 输出与规则技能生效；agy 安装时
+    把 `commands/` 转换为技能，F-11-11 按 `package` 原样复制。
+- **共用插件目录时逐字一致**：Claude Code 与 Codex 为同一条规则生成的 `SKILL.md` 内容相同，合并
+  布局中不产生冲突；Codex 不读 `paths`，但不拒绝该键。规则输出脚本按宿主分别命名
+  （`hooks/uapa-rules-claude-code.mjs`、`hooks/uapa-rules-codex.mjs`，入口与打包接口 §2）。
 - **入口文件零依赖**：输出 `always` 规则的入口只导入 `node:` 内置模块或不导入任何模块，规则正文
   在打包时写成字面量，文件名与命令以入口与打包接口为准。
 
@@ -84,7 +84,8 @@
 
 ### 4. agy（`src/targets/agy/`、`src/capabilities/agy-subprocess.ts`）
 
-- 按 F-11-11 与 TA-25 的结论，把 commands 写为技能，或原样复制。
+- 按 F-11-11 把 `components.commands` 改为 `package`，注释指向 agy 实测记录；命令不再列为跳过，
+  补模型自动选用的残余风险。宿主模块不生成命令文件。
 
 ### 5. 帮助文档（`docs/guide/`）
 
@@ -104,7 +105,7 @@
   - 规则技能的 frontmatter（三种 `activation`、有无 `description`）。
   - 与源项目 skill 同名时失败。
   - Codex 的命令检查覆盖每一条跳过条件，并有一条不跳过的对照。
-  - agy 命令技能的 frontmatter。
+  - agy 的命令原样复制，不列为跳过；有命令时写自动选用的残余风险。
 - 夹具：更新 `rules-commands` 的期望产物；规则入口加入入口用例（空 stdin，期望 stdout 为规则
   正文）。
 

@@ -75,6 +75,9 @@ export interface CommandHookDecl {
 - 生成（F-05-15、F-06-08、F-11-06）：宿主模块按 `TargetPlan.commandHooks` 在该目标的
   hooks 配置中写入条目，事件名取 `commandHookEvents`，条目结构与超时同该目标的守卫条目，不写
   matcher（agy 的工具事件同其守卫条目写 `"matcher": ""`）；同一事件下排在守卫条目之后，按声明顺序。
+  例外（v0.4.0，F-06-14）：Codex 的 `SessionEnd` 写 `timeout: 3`，宿主把更大的值压到 3 秒并在每次
+  会话开始时告警（rust-v0.162.1 `hooks/src/engine/discovery.rs`）。v0.4.0 起 Claude Code 与 Codex
+  的 `SessionStart` 中，规则输出脚本的条目排在声明的命令之前（宿主模块接口「v0.4.0 的生成规则」）。
 - `TargetPlan.checks` 为空而 `commandHooks` 非空时，宿主模块只生成 hooks 配置与 manifest 中指向它
   的字段，不生成入口。
 - Claude Code 双形态去重（F-05-08）只作用于守卫入口；声明的命令只写在 `hooks/hooks.json` 的

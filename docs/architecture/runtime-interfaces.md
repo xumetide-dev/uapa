@@ -105,6 +105,18 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   生成的 `hooks/register.ts` 写作 `(on, options) => guard(on, options)`；hooks 模块入口在
   `register` 中以 `guardContext(optionsFromValues(data.options, options))`（第 3 节）得出各检查
   共用的取值，无效时与守卫抛错相同处理（F-05-06），原因为 `uapa: 守卫选项无效: <选项名>`。
+- 规则输出脚本（v0.4.0，F-05-19、F-06-11）：宿主模块直接生成，不经 `bundle`，不导入任何模块。
+  内容为一行 `process.stdout.write(<文本>)`，文本以 `JSON.stringify` 写成字面量：`always` 规则
+  按名称排序，各自的 `Rule.body` 去掉结尾换行后以一个空行连接，末尾一个换行。文件与命令：
+
+  | 宿主 | 产物中的文件 | `SessionStart` 命令 |
+  |---|---|---|
+  | Claude Code | `hooks/uapa-rules-claude-code.mjs` | `node "${CLAUDE_PLUGIN_ROOT}/hooks/uapa-rules-claude-code.mjs"` |
+  | Codex | `hooks/uapa-rules-codex.mjs` | `node "${PLUGIN_ROOT}/hooks/uapa-rules-codex.mjs"` |
+
+  两个宿主的脚本不同名：按目标筛选后的 `always` 规则可能不同，合并布局中不因此冲突。宿主把
+  该 hook 以 0 退出的纯文本 stdout 作为上下文加入（Claude Code 2.1.296 容器实测；Codex 按
+  rust-v0.162.1 `hooks/src/events/session_start.rs`）。
 - 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
   其他宿主的根 `plugin.json` 合并（F-11-02）。
 
@@ -212,9 +224,9 @@ export function guardContext(result: OptionsResult): Checked<GuardContext>
   输出 `{}`（F-11-04）。以 stdout JSON 表达的决策（改写、agy 的放行与拒绝，Claude Code、Codex 与
   agy 的停机继续）退出码为 0，stdout 为不缩进的 `JSON.stringify` 结果加一个换行；写入 stderr 的
   原因以一个换行结尾。
-- `dataDir` 只读取宿主的插件数据目录变量，不用于判断宿主。agy 没有插件数据目录，
-  `agy-subprocess.ts` 的 `dataDir` 返回 `<os.tmpdir()>/uapa-<encodeURIComponent(插件名)>`
-  （SD-06）。
+- `dataDir` 只读取宿主的插件数据目录变量，不用于判断宿主。agy 的 hook 进程中没有插件数据目录
+  变量（1.3.4 与 1.3.5 实测，SD-46），`agy-subprocess.ts` 的 `dataDir` 返回
+  `<os.tmpdir()>/uapa-<encodeURIComponent(插件名)>`（SD-06）。
 
 ## 4. 守卫返回值与执行后输出
 

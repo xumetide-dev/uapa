@@ -15,7 +15,7 @@
 
 - 已有且够用：Codex 0.162.1 中安装 `full` 与 `after-tool` 产物、在 TUI 中信任 hooks 后，执行前
   检查、改写、停机继续与执行后检查生效，见
-  [Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)。
+  [Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)。
 - 已有但只有源码核对：`UserPromptSubmit` 以退出码 2 且 stderr 非空阻断、不调用模型；退出码 2 而
   stderr 为空、其他退出码、超时、启动失败按放行处理；`PostToolUse` 失败时原输出保留，见
   [Codex 源码核对](../research/coding-agent-plugin-manifests/codex-source-review.md)。

@@ -16,7 +16,7 @@
 
 - 已有且够用：`agents/*.md` 按 frontmatter 的 `name` 加载（M2-05，agy 1.3.5）；`PreToolUse` 的
   出错、超时与无效输出，`Stop` 的退出码 1 已实测，见
-  [agy「本地实测」](../research/coding-agent-plugin-manifests/agy-plugins.md#本地实测)。
+  [agy「本地实测」](../research/coding-agent-plugin-manifests/agy-local-tests.md#本地实测)。
 - 已有但不对：M2-05 试过的三种 `agents.json` 写法（`[{"path": "extra"}]`、
   `{"agents": [{"path": "extra"}]}`、`["extra"]`）都不是 agy 的格式，结论记为“格式未能确定”。
   agy 1.3.5 内嵌文档写明 `skills.json`、`agents.json` 等共用一种格式：顶层 `entries` 与

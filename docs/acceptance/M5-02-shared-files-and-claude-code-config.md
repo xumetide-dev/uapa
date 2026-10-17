@@ -42,8 +42,8 @@
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
 | `F-01-12` | 读取共用文件 | 递归列出 `files/` 下的文件，路径相对 `files/`、POSIX 分隔、按字典序；没有 `files/` 时为空；本模块不复制文件（SD-37） | ⏳ | |
-| `F-01-14` | 校验 v0.4.0 的配置字段 | `hosts['claude-code']` 可写 `manifest`（对象，不得含 SD-42 列出的键）与 `onFailure`（只取 `'block'`）；顶层可写 `marketplace`：`name` 为 kebab-case，`owner.name` 为非空字符串，`owner.email` 可省略，`dir` 相对配置文件所在目录、默认 `outDir`，不得位于默认布局的插件目录内；违反时配置校验失败，`field` 写到键，如 `hosts.claude-code.manifest.name`（SD-41～SD-43） | ⏳ | |
-| `F-03-17` | 放置共用文件 | 构建编排把 `files/` 的全部文件复制到每个写出文件的插件目录，在宿主模块生成与组件放置之后、应用覆盖文件之前；与生成文件或组件文件同路径时，写入该目录的全部目标失败，错误写明文件并提示改用 `overrides/<宿主>/`；覆盖文件可以替换共用文件，该文件写入报告的 `overridden`；`--check` 一并比对（SD-37） | ⏳ | |
+| `F-01-14` | 校验 v0.4.0 的配置字段 | `hosts['claude-code']` 可写 `manifest`（对象，不得含 SD-42 列出的键）与 `onFailure`（只取 `'block'`）；顶层可写 `marketplace`：`name` 为 kebab-case，`owner.name` 为非空字符串，`owner.email` 可省略，`dir` 相对配置文件所在目录、默认 `outDir`，不得等于或位于默认布局的插件目录内；`targets` 中没有 Claude Code 或 Codex 的目标时不得配置 `marketplace`；这两个宿主的插件目录须等于或位于 `marketplace.dir` 之内；违反时配置校验失败，`field` 写到键，如 `hosts.claude-code.manifest.name`（SD-41～SD-43） | ⏳ | |
+| `F-03-17` | 放置共用文件 | 构建编排把 `files/` 的全部文件复制到每个写出文件的插件目录，在宿主模块生成与组件放置之后、应用覆盖文件之前；与生成文件或组件文件同路径时，写入该目录的全部目标失败，错误写明文件并提示改用 `overrides/<宿主>/`；生成文件与组件文件同路径时同样失败；插件目录是源项目根目录而 `files/` 非空时，写入该目录的全部目标失败，错误提示把共用文件直接放在根目录或改用默认布局；覆盖文件可以替换共用文件，该文件写入报告的 `overridden`；`--check` 一并比对（SD-37） | ⏳ | |
 | `F-05-20` | manifest 透传字段 | `hosts['claude-code'].manifest` 的字段按写入顺序追加在生成的字段之后，产物通过 `claude plugin validate --strict`（F-05-09）；透传字段引用的文件由 `files/` 或 `overrides/claude-code/` 提供（SD-42） | ⏳ | |
 | `F-05-25` | 插件名按段检查保留词 | 名称中以 `-` 分隔的任一段为 `claude`、`anthropic`、`anthropics`，或名称以 `cc-plugin-` 开头时生成失败，原因写明 `claude plugin validate --strict` 拒绝；代替 F-05-02 中按前缀与全名的检查（Claude Code 文档「manifest reference」，SD-43） | ⏳ | |
 

@@ -1,9 +1,10 @@
 # Claude Code 插件：开发方式与 manifest
 
 本文说明 Claude Code 插件（plugin）的目录结构、`plugin.json` 与 `marketplace.json`
-的字段、两种 hooks 形态的控制语义、开发调试命令与分发方式。事实核对日期为
-2026-10-13（「命令 hooks 的本地实测」一节为 2026-10-14），以官方文档与 Claude Code 2.1.296
-本地实测为准。进程内 hooks 模块（mod）
+的字段、MCP 服务器、开发调试命令与分发方式。事实核对日期为 2026-10-13，2026-10-15 按
+Claude Code 2.1.300 的文档与 CHANGELOG 补充（2.1.300 于 2026-10-14 发布；stable 渠道为
+2.1.292）；实测为 2.1.296。hooks 见 [Claude Code hooks](claude-code-hooks.md)，进程内 hooks
+模块（mod）
 的开发细节见 [Claude Code Mods 开发指南](claude-code-mods-guide.md)，横向对比见
 [跨平台对比](cross-platform-comparison.md)。
 
@@ -25,8 +26,8 @@
 |---|---|---|
 | Manifest | `.claude-plugin/plugin.json` | 可选 |
 | Skills | `skills/<name>/SKILL.md` | 根目录直接有 `SKILL.md` 且无 `skills/` 时整体作为单个 skill |
-| Commands | `commands/*.md` | 新插件建议改用 skills；以 `/<插件名>:<文件名>` 调用，frontmatter 中文档未列的键不影响加载（2.1.296 本地实测） |
-| Agents | `agents/*.md` | 子目录计入 agent 名 |
+| Commands | `commands/*.md` | 新插件建议改用 skills；以 `/<插件名>:<文件名>` 调用，子目录计入名称（`commands/db/migrate.md` 为 `/<插件名>:db:migrate`）[C9]；frontmatter 中文档未列的键不影响加载（2.1.296 本地实测） |
+| Agents | `agents/*.md` | 递归加载，子目录计入名称：`agents/review/security.md` 为 `<插件>:review:security`；插件 agent 的 `permissionMode`、`hooks`、`mcpServers`、`initialPrompt` 被忽略 [C9] |
 | Hooks | `hooks/hooks.json` | 顶层 `"hooks"` 声明命令 hooks，`"modules"` 声明 hooks 模块，二者可并存 |
 | MCP 服务器 | `.mcp.json` | |
 | LSP 服务器 | `.lsp.json` | |
@@ -38,6 +39,12 @@
 | 默认设置 | `settings.json` | 仅 `agent` 与 `subagentStatusLine` 生效 |
 
 插件根目录的 `CLAUDE.md` 不会作为上下文加载，`claude plugin validate` 会对此告警 [C1]。
+
+skill 的 frontmatter 中，`paths` 为 glob 列表，限定按匹配的文件自动加载；`user-invocable: false`
+使 skill 不进入 `/` 菜单，模型仍可调用 [C7]。skill、command 与 agent 的正文中可写
+`${CLAUDE_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_DATA}`、`${CLAUDE_SKILL_DIR}` 与 `${user_config.KEY}`，
+加载时替换 [C1][C7]。会话中的效果见
+[本地实测记录「v0.4.0 覆盖审查」](claude-code-local-tests.md#v040-覆盖审查21296容器)。
 
 ## plugin.json 字段
 
@@ -81,7 +88,10 @@
   `anthropic`、`claude-code`、`claude-mods` 等保留名时，`validate` 报错（2.1.296 本地实测）。
 - 名称中某个以 `-` 分隔的段为 `claude` 或 `anthropic` 时（如 `my-claude`、`demo-claude-plugin`、
   `tool-anthropic`），`validate` 告警，`--strict` 下判为失败；`claudebot`、`myclaude` 不受影响
-  （2.1.296 本地实测，2026-10-14）。
+  （2.1.296 本地实测，2026-10-14）。文档另列：名称等于 `anthropics` 为错误，`official` 紧挨
+  `claude` 或 `anthropic` 为错误，`anthropics` 作为整段出现时告警 [C1]。
+- 目录展示字段（`icon` 等）在 2.1.281 之前的版本触发 `Unknown field` 告警，`--strict` 因此失败；
+  `skills: "."` 在 2.1.221 之前校验失败 [C1]。
 - 非 kebab-case 名称（如 `@org/foo`）在 `validate` 中为告警，但按路径加载
   （`--plugin-dir`）时被拒绝，也无法从 marketplace 按此名安装（本地实测）。
 
@@ -103,7 +113,10 @@
   （`5`、`false`）。只有用户设置过的选项才导出，默认值不导出。
 - hooks 模块的 `options` 总是含全部选项：未设置时为 `default`，没有 `default` 时为空字符串；值的
   类型与选项的 `type` 一致。
-- 取值以 `<插件>@<marketplace>` 为键保存，`--plugin-dir` 加载的插件读不到，只有默认值。
+- 取值以 `<插件>@<marketplace>` 为键保存，`--plugin-dir` 加载的插件读不到，只有默认值。文档另写
+  `pluginConfigs` 可以 `<name>@inline` 为键 [C5]，对 `--plugin-dir` 加载的插件是否生效未实测。
+- 文档写明每个选项都导出为环境变量 [C1]，与上面“默认值不导出”的实测不一致。
+- 写了 `options` 的插件在 2.1.271 之前的版本中无法加载 [C1]。
 - `claude plugin configure <插件> --values-stdin` 按 `type` 校验取值，不合格时拒绝保存。
 - 文档写明选项名只含字母、数字与下划线，不以数字开头 [C1]。
 
@@ -133,67 +146,25 @@
 配合 `skills/<name>/SKILL.md` 与 `hooks/hooks.json` 即可构成可用插件；
 不需要在 manifest 中声明默认位置的组件。
 
-## Hooks：命令 hooks 与 hooks 模块
+## Hooks
 
-`hooks/hooks.json` 承载两种形态，可单独使用，也可在同一文件中并存 [C4][C5]：
+命令 hooks 与 hooks 模块的控制语义、事件、失败处理与本地实测结论见
+[Claude Code hooks](claude-code-hooks.md)。
 
-| 形态 | 声明方式 | 执行方式 | 引入版本 |
-|---|---|---|---|
-| 命令 hooks（command hooks，文档亦称 settings hooks） | `"hooks": { "<Event>": [...] }` | 每次事件启动一个子进程，stdin 传 JSON，以退出码与 stdout JSON 回传决定 | 早期版本即有 |
-| hooks 模块（function hooks，即 mod） | `"modules": ["./register.ts"]`，一个相对路径 | 模块导出 `register(on, options)`，在宿主提供的独立环境中常驻，以 `($, e, next)` 链式处理事件 | v2.1.287 起终端版默认启用（CHANGELOG） |
+## MCP 服务器
 
-### 命令 hooks 的控制语义
+`.mcp.json` 的顶层键为 `mcpServers` [C8]：
 
-依据 [C4]：
-
-- 退出码 0：解析 stdout JSON。退出码 2：阻断，stderr 回传给 Claude；stdout JSON 仍被读取，
-  但不能推翻阻断。其他非零退出码：非阻断错误，流程继续。
-- `PreToolUse`：`hookSpecificOutput.permissionDecision` 取 `allow` / `deny` / `ask` / `defer`；
-  `hookSpecificOutput.updatedInput` 整体替换工具入参（v2.0.10+）。顶层
-  `decision: "approve" | "block"` 已标为 deprecated。
-- `PostToolUse`：工具已执行。stdin 中工具输出字段为 `tool_response`。
-  `hookSpecificOutput.updatedToolOutput` 可替换任意工具的输出（v2.1.121+，此前仅
-  `updatedMCPToolOutput` 支持 MCP 工具），取值须符合该工具的输出 schema，不符时被静默忽略；
-  退出码 2 与 `decision: "block"` 只把原因附加给 Claude，不阻止其读到原始输出。工具报错时
-  触发 `PostToolUseFailure` 而不是 `PostToolUse`。
-- `Stop`：退出码 2 或 `decision: "block"` + `reason` 使 Claude 继续工作；连续阻断 8 次后
-  强制结束，上限可由 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` 调整。
-- 默认超时 600 秒（v2.1.3 起由 60 秒调整），`UserPromptSubmit` 等少数事件更短。
-- hook 进程可读取 `CLAUDE_PROJECT_DIR`、`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA`、
-  `CLAUDE_PLUGIN_OPTION_<KEY>`、`CLAUDECODE=1`；`SessionStart` 另有 `CLAUDE_ENV_FILE`。
-
-### 命令 hooks 的本地实测
-
-2.1.296 本地实测结论（`claude -p` + `--plugin-dir`），做法见
-[Claude Code 本地实测记录](claude-code-local-tests.md#命令-hooks)：
-
-- stdin 中会话 id 为 `session_id`，工具名为 `tool_name`，工具入参为 `tool_input`（Bash 的命令为
-  `tool_input.command`），提示文本为 `prompt`。
-- `PreToolUse` 只输出 `hookSpecificOutput.updatedInput`、不带 `permissionDecision` 时改写同样生效。
-- `PreToolUse` 条目省略 matcher 时对全部工具触发。
-- `UserPromptSubmit` 以退出码 2 或 `decision: "block"` 拦下提示，不调用模型。
-- 条目的 `timeout` 字段以秒为单位；超时后 hook 进程被结束，工具照常运行。
-- `SessionEnd` 在 `-p` 模式下也触发。
-- `PostToolUse` 的 `updatedToolOutput` 为复制原 `tool_response` 后改动的对象时生效（Bash 改
-  `stdout`，Read 改 `file.content`）；字符串或缺字段的对象被忽略。出错、超时与
-  `decision: "block"` 都保留原输出。命令以非零退出码结束时只触发 `PostToolUseFailure`，它的
-  输出不能替换结果。做法见[执行后检查](claude-code-local-tests.md#执行后检查)。
-- `.mcp.json` 中 `command`、`args` 与 `env` 的 `${CLAUDE_PLUGIN_ROOT}` 展开为插件目录，服务器的
-  工作目录为会话的工作目录；agent 的 frontmatter 含 `targets` 等其他键时 `validate --strict`
-  通过。做法见 [MCP 服务器与 agents](claude-code-local-tests.md#mcp-服务器与-agents)。
-
-### hooks 模块与命令 hooks 并存
-
-2.1.296 本地实测结论（`claude -p` + `--plugin-dir`，同一插件同时声明二者）：
-
-- `validate` 通过；同一事件上，模块的 hook 与命令 hook **都会执行**。需要两种形态互为
-  兜底时，必须自行去重，做法见 [UAPA hooks 适配 §5](uapa-hook-adapters.md#5-claude-code-双形态去重)。
-- 模块在 `session.start` 中调用 `$.env.set(...)` 设置的环境变量，会出现在随后启动的
-  命令 hook 进程环境中；`$.session.id()` 与命令 hook stdin 中的 `session_id` 一致。
-
-调用链顺序为 managed 设置 hooks、各插件的 hooks 模块、其余设置 hooks；模块不调用
-`next` 直接作答时，其下的用户设置 hooks 不再参与该次决定 [C5]。`disableAllHooks` 与
-`--safe-mode` 会关闭第三方 hooks 模块，但不关闭 Claude Code 内置的 mods [C4]。
+- 传输：本地服务器写 `command`、`args`、`env`；远程服务器写 `type`（`http`、`sse`、`ws`）、`url`、
+  `headers`，另可写 `headersHelper`（运行命令生成请求头）与 `oauth`（`clientId`、`callbackPort`、
+  `scopes`、`authServerMetadataUrl`）。有 `url` 而未写 `type` 的条目被跳过。
+- 每个服务器另可写 `timeout` 与 `alwaysLoad`。
+- 配置中的 `${VAR}` 与 `${VAR:-default}` 按环境变量展开；插件中另可写 `${CLAUDE_PLUGIN_ROOT}`、
+  `${CLAUDE_PLUGIN_DATA}` 与 `${user_config.KEY}`。凭据类变量在 `url` 与 `headers` 中读为空 [C1]。
+- 2.1.299 起 OAuth 请求也发送 `headers` 与 `headersHelper` 的请求头（CHANGELOG）。
+- 本地服务器继承会话的环境变量，未在 `env` 中声明的变量也能读到；工作目录为会话的工作目录
+  （2.1.296 容器实测，见
+  [本地实测记录「v0.4.0 覆盖审查」](claude-code-local-tests.md#v040-覆盖审查21296容器)）。
 
 ## marketplace.json 字段
 
@@ -234,6 +205,15 @@
 `strict` 决定条目中的组件字段与插件自带 `plugin.json` 的关系：`true` 时追加
 （`hooks` 按事件替换），`false` 时出现组件字段即冲突，插件不加载 [C1][C3]。
 条目 `name` 应与插件 `plugin.json` 的 `name` 一致，否则按 manifest 名安装会找不到 [C2]。
+插件自带 `plugin.json` 时，条目中的 `mcpServers`、`lspServers`、`userConfig`、`channels`
+不生效 [C3]。
+
+2.1.296 容器实测，见
+[本地实测记录「v0.4.0 覆盖审查」](claude-code-local-tests.md#v040-覆盖审查21296容器)：
+
+- `source` 为 `./<子目录>` 与 `"./"`（插件即 marketplace 根目录）时，都能
+  `claude plugin marketplace add` 并安装；条目不写 `version` 也能安装。
+- 缺少 marketplace 的描述时 `validate` 只告警；写 `metadata.description` 后 `--strict` 通过。
 
 ## 开发与调试
 
@@ -269,12 +249,18 @@ claude plugin details my-plugin
 - `validate` 结果分为 `Validation passed`、`passed with warnings`、`failed`；
   `--strict` 把告警升级为失败，适合 CI；`--json` 输出结构化报告（v2.1.259+）[C6]。
 - `claude plugin test` 运行 hooks 模块的 `*.test.ts` / `*.test.tsx` [C6]。
+- `--plugin-dir` 也接受 `.zip`，另有 `--plugin-url`；`plugin eval`（2.1.269 起）运行插件的评测，
+  `plugin tag` 为发布打标签 [C6]。
 
 ## 分发与组织管控
 
 - 分享单个插件可直接发送目录或 zip；面向团队建立 marketplace 并推送到 git 托管；
   面向所有用户可提交到 Anthropic 插件目录 [C2]。
 - 用户设置中的 `enabledPlugins` 记录启用状态，键为 `<entry-name>@<marketplace>` [C2]。
+- 团队分发：项目 `.claude/settings.json` 写 `extraKnownMarketplaces` 与 `enabledPlugins`；项目级插件
+  须先信任工作区，MCP 服务器逐个审批，monitors 不加载 [C10]。
+- 写了 `version` 的插件，在作者修改版本号之前用户不会收到更新；本地路径的 marketplace 原地加载，
+  不受此影响 [C1][C10]。
 - `extraKnownMarketplaces`（名称 → `{source}`）用于预登记 marketplace；
   管理员用 `strictKnownMarketplaces`（白名单）与 `blockedMarketplaces`（黑名单）管控来源，
   支持 `hostPattern`、`pathPattern`、`owner/*` 等仅限策略列表的写法 [C3]。
@@ -284,8 +270,8 @@ claude plugin details my-plugin
 ## 安全提示
 
 - 命令 hooks、hooks 模块、LSP、monitors、MCP stdio 服务器与 `bin/` 以当前用户权限在本机运行。
-- hooks 模块位于用户设置 hooks 之上，可代替其作答（见上文调用链顺序），审查第三方插件时
-  需同时审查 `modules` 指向的代码。
+- hooks 模块位于用户设置 hooks 之上，可代替其作答（见 [hooks](claude-code-hooks.md) 的调用链顺序），
+  审查第三方插件时需同时审查 `modules` 指向的代码。
 - `npm` 来源不执行 install 脚本；`archive` 来源可用 `sha256` 固定内容；git 来源可用
   `sha` 固定提交 [C3]。
 - 保留名与冒充检测只在 `init`、`tag`、`validate` 时检查，不能替代来源审查 [C1]。
@@ -299,5 +285,9 @@ claude plugin details my-plugin
 - [C4] Hooks reference：<https://code.claude.com/docs/en/hooks>
 - [C5] Mods reference：<https://code.claude.com/docs/en/plugins/mods/reference>
 - [C6] Plugin CLI reference：<https://code.claude.com/docs/en/plugins/cli-reference>
+- [C7] Skills：<https://code.claude.com/docs/en/skills>
+- [C8] MCP：<https://code.claude.com/docs/en/mcp>
+- [C9] Plugin components：<https://code.claude.com/docs/en/plugins/components>
+- [C10] Plugin loading：<https://code.claude.com/docs/en/plugins/loading>
 - Claude Code CHANGELOG：<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
-  （版本号引用截至 v2.1.296）
+  （版本号引用截至 v2.1.300）

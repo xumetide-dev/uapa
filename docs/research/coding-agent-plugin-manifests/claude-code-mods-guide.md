@@ -92,7 +92,7 @@ declare module 'claude-code' {
 
 | 事件（matcher） | `e` 的主要字段 | 改写 | 拒绝或直接作答 |
 |---|---|---|---|
-| `tool.call`（`{ tool }`） | `tool`、`tool_use_id`，以及工具入参字段（Bash 为 `e.command`，Edit 为 `e.file_path`） | `next({ ...e, command })` | 调用 `next` 前返回 `{ deny }` 拒绝执行；调用后返回 `{ deny }` 扣留已产生的结果；返回自有 `{ result }` 时须符合该工具的输出 schema |
+| `tool.call`（`{ tool }`） | `tool`、`tool_use_id`，以及工具入参字段（Bash 为 `e.command`，Edit 为 `e.file_path`） | 任意工具都可把改动后的入参传给 `next`，如 `next({ ...e, command })` [M7]；`$.ui.ask` 暂停调用并询问用户 | 调用 `next` 前返回 `{ deny }` 拒绝执行；调用后返回 `{ deny }` 扣留已产生的结果；返回自有 `{ result }` 时须符合该工具的输出 schema |
 | `prompt.submit` | `text`、`context`、`attachments` | `next({ ...e, text })`；`context` 中的条目只给模型看 | 返回 `{ drop: reason }` 丢弃本次输入 |
 | `classic.<Event>`（如 `classic.Stop`） | 对应命令 hook 的 stdin 字段，如 `stop_hook_active` | — | `{ block: reason }` 等同命令 hook 的退出码 2 |
 | `session.start` / `session.end` | `session.end` 带 `reason`（`/clear` 时为 `clear`） | — | `session.start` 在首个提示前被等待，适合注册命令与工具 |
@@ -116,6 +116,13 @@ declare module 'claude-code' {
   由 `command.run` 作答；返回的 `text` 写入对话记录，模型在后续轮次可读到。
 - 模型可调用的工具以 `$.tool.register` 注册，名称为 `mcp__<plugin>__<name>`，默认置于
   ToolSearch 之后（`isDeferred: false` 可直接列出），由匹配该名称的 `tool.call` 钩子作答。
+- 事件表 [M7] 另有 `tool.check`（返回 `allow`、`ask` 或 `deny`）、`tool.describe`、`prompt.mention`
+  （2.1.290 起，可拒绝 `@` 引用的文件）、`prompt.change`、`skill.prompt`、`session.append`、
+  `session.compact`、`agent.spawn`（可拒绝子代理；2.1.300 起可改写 prompt 与 model）、
+  `agent.offer`、`config.set`、`turn.start`、`turn.step`、`plugin.register`、`engine.create`。
+- 限制 [M2]：每个钩子 10 秒，`.catch` 处理器 1 秒，`drop` 的原因至多 4,096 字符。
+- 2.1.299 起，用户安装的 mod 调用 `$.env.set` 不再改变 managed 设置中命令 hooks 的环境；hook 拿不到
+  或交不回值时，能阻断的动作改为拒绝（CHANGELOG 2.1.299）。
 
 ## 失败处理与 `.catch`
 
@@ -272,4 +279,5 @@ export const register: Register = on => {
 - [M4] Testing mods：<https://code.claude.com/docs/en/plugins/mods/test>
 - [M5] Create a mod：<https://code.claude.com/docs/en/plugins/mods/create>
 - [M6] Draw in the interface（Keep state）：<https://code.claude.com/docs/en/plugins/mods/interface>
+- [M7] Mods events：<https://code.claude.com/docs/en/plugins/mods/events>
 - 本地实测：[Claude Code 本地实测记录](claude-code-local-tests.md)

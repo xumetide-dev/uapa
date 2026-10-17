@@ -1,6 +1,6 @@
 // mcp_config.json（F-11-08，SD-30）：插件根的 MCP 配置，顶层为 mcpServers。服务器以插件目录为
 // 工作目录，参数与环境变量中的插件根写作 .；远程服务器的地址字段为 serverUrl，不支持 url
-// （agy-plugins.md「组件」与「agents 与 MCP 服务器（1.3.5，容器）」）。
+// （agy-plugins.md「组件」与 agy-local-tests.md「agents 与 MCP 服务器（1.3.5，容器）」）。
 import type { McpServer } from '../../source/types.ts'
 import type { TargetSkip } from '../types.ts'
 

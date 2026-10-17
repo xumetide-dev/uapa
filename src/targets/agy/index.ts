@@ -26,7 +26,7 @@ const TARGET = 'agy:subprocess'
 // 停机计数目录取系统临时目录（SD-06），宿主没有插件数据目录变量
 const STOP_COUNTER_RISK =
   '停机计数存放在系统临时目录下的 uapa-<插件名>/，该目录被清理时停机计数归零'
-// PreToolUse 的 stdout 不是含 decision 的 JSON 时宿主阻断（agy-plugins.md「本地实测」）
+// PreToolUse 的 stdout 不是含 decision 的 JSON 时宿主阻断（agy-local-tests.md「本地实测」）
 const PRE_TOOL_USE_RISK =
   '声明的 PreToolUse 命令须在 stdout 输出含 decision 的 JSON，否则 agy 阻断每次工具调用'
 // F-11-03：共用目录时 .claude-plugin/ 与 agy 的文件同在插件根目录

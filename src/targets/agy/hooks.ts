@@ -1,7 +1,7 @@
 // 根 hooks.json（F-11-03、F-11-06）：顶层只有一个键，为插件名，其值按 TargetPlan.checks 写守卫
 // 事件，再按 TargetPlan.commandHooks 写声明的命令。PreToolUse、PostToolUse 的元素为
 // { matcher, hooks }，matcher 为 "" 时匹配全部工具；SessionStart、Stop 的元素直接是处理器。
-// hook 以插件目录为工作目录，命令写相对路径（agy-plugins.md「本地实测」）。
+// hook 以插件目录为工作目录，命令写相对路径（agy-local-tests.md「本地实测」）。
 import type { CommandHookDecl } from '../../config/types.ts'
 import type { GuardCheck } from '../../runtime/core/types.ts'
 import type { TargetPlan } from '../types.ts'

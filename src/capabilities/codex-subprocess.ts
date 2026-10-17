@@ -22,7 +22,7 @@ export const codexSubprocess: TargetCapabilities = {
     // 兼容格式的插件在安装时把 commands/*.md 转换为技能，部分命令被跳过，由宿主模块写残余风险；
     // 插件不承载规则或指令文件（codex-source-review.md「commands、rules 与用户配置」，
     // rust-v0.162.1，2026-10-15 核对）；转换后的技能以 $<插件名>:source-command-<命令名>
-    // 调用（codex-plugins.md「容器实测（0.162.1）」）
+    // 调用（codex-local-tests.md「容器实测（0.162.1）」）
     commands: 'package',
     rules: 'none',
   },
@@ -36,7 +36,7 @@ export const codexSubprocess: TargetCapabilities = {
   },
   // 非 0 非 2 的退出码、超时、启动失败与无效输出都记为 hook 失败并放行（TA-15）；
   // PostToolUse 失败时原输出保留（源码核对「PostToolUse」）。退出码 1、超时与 PreToolUse、
-  // PostToolUse 的无效输出于 0.162.1 容器实测（codex-plugins.md「容器实测（0.162.1）」）
+  // PostToolUse 的无效输出于 0.162.1 容器实测（codex-local-tests.md「容器实测（0.162.1）」）
   failureDefault: {
     beforeTool: allow,
     beforePrompt: allow,

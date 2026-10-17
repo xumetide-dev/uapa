@@ -1,5 +1,5 @@
 // agy 的 rules（F-11-09，SD-32）：按 TargetPlan.rules 生成 rules/<name>.md。frontmatter 换为
-// agy 的写法，正文为 Rule.body 原文；依据 agy-plugins.md「rules（1.3.5，容器）」与文档 [A5]。
+// agy 的写法，正文为 Rule.body 原文；依据 agy-local-tests.md「rules（1.3.5，容器）」与 agy-plugins.md [A5]。
 import { stringify } from 'yaml'
 import type { Rule, RuleActivation } from '../../source/types.ts'
 import type { OutputFile } from '../types.ts'
@@ -38,7 +38,7 @@ export function ruleFiles(rules: readonly Rule[]): {
   return { files, risks }
 }
 
-// agy 按被读文件的绝对路径匹配 globs（agy-plugins.md「rules（1.3.5，容器）」）：不含 / 的模式
+// agy 按被读文件的绝对路径匹配 globs（agy-local-tests.md「rules（1.3.5，容器）」）：不含 / 的模式
 // 匹配文件名，原样写出；按工作区相对路径写的含 / 的模式（如 src/**/*.tsx）不生效，加 **/ 前缀。
 // 已以 / 或 **/ 开头的模式原样写出，开头的 ./ 先去掉
 export function agyGlob(pattern: string): string {

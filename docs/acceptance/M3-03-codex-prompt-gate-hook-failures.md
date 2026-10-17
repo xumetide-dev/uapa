@@ -31,7 +31,7 @@
 
 | # | 判定条目 | 预期 | 实际 | 证据 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 硬约束：守卫不静默失效 | 宿主实测：`full` 的提示阻断不调用模型且原因可见；hook 出错与超时时的处理与构建报告的残余风险一致 | 含 `API_KEY=uapa-prompt-probe` 的提示：只有 `turn.started` 与 `turn.completed`，输入与输出 token 为 0；exec 输出 `hook: UserPromptSubmit Blocked`，TUI 显示 `Blocked by hook` 与原因 `提示中含疑似密钥`；对照提示得到模型回复。探测插件以 1 退出、超时：四个事件都放行，命令执行、提示送达、工具输出保留、本轮结束，与“宿主在 hook 出错时放行”的残余风险一致 | [Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-plugins.md#容器实测01621)（宿主实测，codex-cli 0.162.1） | ✅ |
+| 1 | 硬约束：守卫不静默失效 | 宿主实测：`full` 的提示阻断不调用模型且原因可见；hook 出错与超时时的处理与构建报告的残余风险一致 | 含 `API_KEY=uapa-prompt-probe` 的提示：只有 `turn.started` 与 `turn.completed`，输入与输出 token 为 0；exec 输出 `hook: UserPromptSubmit Blocked`，TUI 显示 `Blocked by hook` 与原因 `提示中含疑似密钥`；对照提示得到模型回复。探测插件以 1 退出、超时：四个事件都放行，命令执行、提示送达、工具输出保留、本轮结束，与“宿主在 hook 出错时放行”的残余风险一致 | [Codex「容器实测（0.162.1）」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)（宿主实测，codex-cli 0.162.1） | ✅ |
 | 2 | 硬约束：能力数据有出处 | `codex-subprocess.ts` 的 `promptGate` 与 `failureDefault` 注释指向本单的实测小节；取值改动时重跑 TA-09 与夹具比对 | `promptGate` 注释加“0.162.1 容器实测”，`failureDefault` 注释写明退出码 1、超时与工具事件的无效输出已实测并指向「容器实测（0.162.1）」；取值未改，TA-09 与夹具比对照常通过 | `671d4f6`；`pnpm check` 247 pass | ✅ |
 
 ## 2. 功能点逐条验收

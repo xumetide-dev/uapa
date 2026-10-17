@@ -4,8 +4,8 @@
 「命令 hooks」与「实测会话的工具权限」两节于 2026-10-14 实测，其余各节于 2026-10-13 实测。
 「hooks 模块的静态校验」「双形态去重的会话实测」「执行后检查」「MCP 服务器与 agents」四节于
 2026-10-14 在 Linux 测试容器中实测（同为 2.1.296），其中标注 2026-10-15 的条目为 UAPA 夹具产物的
-实测；「commands 与 userConfig」一节于 2026-10-15 在同一容器中实测。测试插件均为最小示例，不含
-业务逻辑。
+实测；「commands 与 userConfig」「v0.4.0 覆盖审查」两节于 2026-10-15 在同一容器中实测。测试插件
+均为最小示例，不含业务逻辑。
 
 ## hooks 模块（mod）
 
@@ -220,6 +220,34 @@ string，没有默认值），以及同一 `hooks/hooks.json` 中的 hooks 模�
 | 守卫选项：命令 hooks | 副本去掉 `modules`；`--permission-mode default --allowedTools "Bash(echo uapa-deny-probe)"`，要求运行该命令；再以 `claude plugin configure ... --values-stdin` 输入 `{"maxLength":"64","strict_mode":"false","label":"x y=z"}`，运行第二次会话 | 设置前模型读到 `PreToolUse:Bash hook error: [node ".../uapa-claude-code.mjs" before-tool]: uapa-guard: 拒绝标记命令 uapa-deny-probe（maxLength=200，strict_mode=true）`；`configure` 输出 `Configuration saved. Restart Claude Code to apply it.`，下一个会话的原因为 `x y=z: 拒绝标记命令 uapa-deny-probe（maxLength=64，strict_mode=false）` |
 | 守卫选项：hooks 模块 | 副本去掉 `hooks`，其余同上 | 设置前模型读到 `<tool_use_error>uapa-guard: 拒绝标记命令 uapa-deny-probe（maxLength=200，strict_mode=true）</tool_use_error>`；设置后的原因为 `x y=z: …（maxLength=64，strict_mode=false）`，与命令 hooks 一致 |
 | agents 与 MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器（与覆盖文件的放置方式相同） | 初始化信息列出 `components:reviewer`，不含只限 agy 的 `agy-helper`；`docs` 与 `launcher` 为 `connected`，`plain`（命令不存在）与 `remote`（地址不可达）为 `failed`；桩服务器日志中参数与 `UAPA_DATA` 已展开为插件目录，工作目录为会话的工作目录 |
+
+## v0.4.0 覆盖审查（2.1.296，容器）
+
+2026-10-15，测试容器中的 Claude Code 2.1.296；`claude -p --model haiku --permission-mode default`，
+每项写 `--allowedTools` 与 `--plugin-dir`，`--output-format stream-json --verbose` 记录初始化信息与
+工具调用。探测插件 `uapa-probe` 含：
+
+- `PreToolUse` 记录器：记录工具名与 `tool_input` 的键名，`Monitor` 与 `NotebookEdit` 另记入参
+  （只含标记）。
+- `SessionStart` 命令 hook：以纯文本输出一条规则，要求被问到会话探测词时回答固定的词。
+- 本地 MCP 服务器：启动时只记录标记变量 `UAPA_PROBE_ENV` 是否存在与工作目录。
+- 两个技能：`model-rule`（`user-invocable: false`，`description` 说明何时使用）与 `glob-rule`
+  （另写 `paths: ["**/*.probe"]`）。
+
+会话前在 shell 中导出 `UAPA_PROBE_ENV`；`validate --strict` 通过。提示只要求运行标记命令。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| `SessionStart` 的纯文本输出 | 不允许调用工具，询问会话探测词 | 回复为规则中的词：输出作为上下文加入 |
+| MCP 服务器的环境 | 同一会话 | 服务器连接成功；进程中有 `UAPA_PROBE_ENV`（未在 `env` 中声明），工作目录为会话的工作目录 |
+| `model` 规则技能 | 允许 `Skill`，询问技能正文中的标记 | 模型调用 `Skill`（`uapa-probe:model-rule`）后回答标记；初始化信息的斜杠命令中没有该技能 |
+| `glob` 规则技能 | 读取 `data.probe` 后询问 `.probe` 文件的标记；对照会话读取 `data.txt` | 两个会话中模型都调用了 `Skill`（`uapa-probe:glob-rule`）；前者回答标记，对照回答 `NONE`。`paths` 的自动加载与模型调用无法据此区分 |
+| `Monitor` 的入参 | 要求用 `Monitor` 运行 `echo uapa-monitor-probe` | 先经 `ToolSearch` 加载工具，`PreToolUse` 的 `tool_input` 为 `command`、`description`、`timeout_ms` |
+| `NotebookEdit` 的入参 | 要求替换 `probe.ipynb` 首个单元的源码 | 先经 `ToolSearch` 加载工具，`tool_input` 为 `notebook_path`、`cell_id`、`new_source`、`edit_mode` |
+| `onFailure: "block"` | 插件的 `PreToolUse` 指向不存在的入口文件，要求运行 `echo uapa-onfailure-probe` | 工具结果为 `hook error … blocking because onFailure is "block"`，命令未运行；去掉该字段的对照中命令照常运行 |
+| marketplace，插件在子目录 | `source` 为 `./uapa-probe`，条目写 `version` | `validate` 通过并告警；`marketplace add` 与 `install` 成功，插件从子目录读取 |
+| marketplace，插件在根目录 | `source` 为 `"./"`，插件目录即 marketplace 根目录 | `marketplace add` 与 `install` 成功，插件从根目录读取 |
+| marketplace 的描述 | 子目录的 marketplace 去掉条目的 `version`，加 `metadata.description` | 不加时只告警缺少 marketplace 的描述；加后 `validate` 与 `--strict` 都通过 |
 
 ## 使用的命令
 

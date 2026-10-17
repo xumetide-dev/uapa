@@ -3,7 +3,7 @@
 > 在测试容器中，用 v0.4.0 的产物复测本 Sprint 的换算与新字段（TA-27）：
 > - Claude Code：经生成的 marketplace 安装 `host-coverage`；复测共用文件、三种规则、`Monitor` 的
 >   守卫与 `onFailure`。
-> - agy：安装 `rules-commands` 并调用换算的命令，复测停机计数的位置。
+> - agy：安装 `rules-commands` 并调用复制的命令。
 > - Codex：同类实测须维护者确认后进行。
 
 | 项 | 内容 |
@@ -66,8 +66,7 @@
 
 ### 2. agy（容器，1.3.5）
 
-- 安装 `rules-commands`，以 `/<插件名>:<命令名>` 调用换算的命令。
-- 有停机前检查时，确认计数文件的位置。
+- 安装 `rules-commands`，以 `/<插件名>:<命令名>` 调用复制的命令。
 
 ### 3. Codex（须维护者确认）
 

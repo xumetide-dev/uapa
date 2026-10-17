@@ -41,9 +41,9 @@
 
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
-| `F-03-18` | 写出 marketplace 文件 | 配置 `marketplace` 时，宿主模块按模块接口 §5 返回本宿主的 marketplace 文件，路径相对 `marketplace.dir`；构建编排在写出插件目录之后，只为有成功目标的宿主写出，不清空所在目录；与写入的插件目录中的文件同路径时该宿主的目标失败；`--check` 比对，差异路径的写法同模块接口 §2（SD-41） | ⏳ | |
-| `F-05-24` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.claude-plugin/marketplace.json`：`name`、`owner`，`plugins` 只含本插件一项（`name`、`source`、`description`、`version`），`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径，两者相同时为 `"./"`；生成的 marketplace 能否添加并安装以 TA-25 为准（SD-41） | ⏳ | |
-| `F-06-15` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.agents/plugins/marketplace.json`：`name`，`plugins` 只含本插件一项，来源为 `local`，路径为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径；字段按 rust-v0.162.1 `core-plugins/src/marketplace.rs`，能否添加并安装以 TA-25 为准（SD-41） | ⏳ | |
+| `F-03-18` | 写出 marketplace 文件 | 配置 `marketplace` 时，宿主模块按模块接口 §5 返回本宿主的 marketplace 文件，路径相对 `marketplace.dir`；构建编排在写出插件目录之后，只为有成功目标的宿主写出，不清空所在目录；与写入的插件目录中的文件同路径时该宿主的目标失败；写出时该宿主每个成功目标的报告 `units` 追加 `{ kind: 'marketplace', path }`；`--check` 比对，差异路径的写法同模块接口 §2（SD-41） | ⏳ | |
+| `F-05-24` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.claude-plugin/marketplace.json`：`name`、`owner`、`metadata.description`（取配置的 `description`），`plugins` 只含本插件一项（`name`、`source`、`description`），不写 `version`（版本以 `plugin.json` 为准）；`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径，两者相同时为 `"./"`；产物通过 `claude plugin validate --strict`，按 TA-25（2.1.296）能添加并安装（SD-41） | ⏳ | |
+| `F-06-15` | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.agents/plugins/marketplace.json`：`name`，`plugins` 只含本插件一项（`name` 与 `source`），`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的路径字符串，两者相同时为 `"./"`；不写 `policy` 与 `category`（可省略，默认 `AVAILABLE` 与 `ON_INSTALL`）；字段按 rust-v0.162.1 `core-plugins/src/marketplace.rs`，会话中的添加与安装待维护者确认后实测（SD-41） | ⏳ | |
 
 ## 3. 自动化验证汇总（可复跑）
 

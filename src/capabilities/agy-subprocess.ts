@@ -1,15 +1,16 @@
 // agy:subprocess 的能力数据（F-11-01）。取值依据 hooks 适配第 4、6、7、8 节、
-// 跨平台对比「工具名差异」与 agy「本地实测」（1.3.4）；agents 与 MCP 服务器另于 1.3.5 实测，
-// 见其「agents 与 MCP 服务器（1.3.5，容器）」；宿主升级后只改本文件。
+// 跨平台对比「工具名差异」与 agy-local-tests.md：「本地实测」为 1.3.4，其余各节为 1.3.5 的容器
+// 实测（agents 与 MCP 服务器、Stop 的超时与无效输出、rules、v0.4.0 覆盖审查）；1.3.5 相对 1.3.4
+// 没有插件相关的变更（agy-plugins.md「版本背景」）。宿主升级后只改本文件。
 import type { TargetCapabilities } from './types.ts'
 
 export const agySubprocess: TargetCapabilities = {
   target: 'agy:subprocess',
   host: {
     name: 'agy',
-    version: '1.3.4',
-    checked: '2026-10-14',
-    source: 'agy-plugins.md', // 文档未写明的行为见其「本地实测」
+    version: '1.3.5',
+    checked: '2026-10-15',
+    source: 'agy-plugins.md', // 文档未写明的行为见 agy-local-tests.md
   },
   // skills/、agents/、mcp_config.json 与根 hooks.json 都是插件包内的文件
   components: {
@@ -18,8 +19,9 @@ export const agySubprocess: TargetCapabilities = {
     mcp: 'package',
     hooks: 'package',
     // rules/<name>.md 的 trigger 与逗号分隔的 globs 生效，globs 按文件的绝对路径匹配
-    // （agy-plugins.md「rules（1.3.5，容器）」，2026-10-15 实测；UAPA 产物的复测见同文「UAPA
-    // 夹具产物（1.3.5，容器）」）；插件没有斜杠命令组件（agy-plugins.md [A1]）
+    // （agy-local-tests.md「rules（1.3.5，容器）」，2026-10-15 实测；UAPA 产物的复测见同文「UAPA
+    // 夹具产物（1.3.5，容器）」）。commands 在 v0.3.0 不承载（SD-33）；1.3.5 安装时把 commands/
+    // 转换为技能（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」）
     rules: 'package',
     commands: 'none',
   },

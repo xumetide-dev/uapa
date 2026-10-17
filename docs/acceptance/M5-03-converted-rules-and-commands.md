@@ -44,11 +44,11 @@
 
 | 功能点 | 标题 | 验收要点 | 状态 | 证据 |
 |---|---|---|---|---|
-| `F-03-19` | 换算承载的组件 | `Carrier` 增加 `converted`：组件由宿主模块按 `TargetPlan` 换成宿主承载的其他组件；构建编排按 F-03-02 筛选后放进 `TargetPlan`，不为该目标原样复制；同一插件目录中另有目标原样承载该组件时，原样复制照常进行（SD-38、SD-39） | ⏳ | |
-| `F-05-19` | rules 的换算承载 | 两个目标的 `components.rules` 为 `converted`；`model` 与 `glob` 规则写为 `skills/<name>/SKILL.md`，frontmatter 依次写 `name`、`description`（有值时）、`paths`（`glob` 时，YAML 列表，模式原样）与 `user-invocable: false`，正文为 `Rule.body`；`always` 规则按名称顺序由 `SessionStart` 命令 hook 输出正文，入口文件与命令按入口与打包接口，条目排在守卫条目之后、声明的命令 hooks 之前；与源项目 skill 同名时生成失败；`always` 规则的输出超过 10,000 字符时残余风险写明超出部分不进入上下文（SD-38） | ⏳ | |
+| `F-03-19` | 换算承载的组件 | `Carrier` 增加 `converted`：组件由宿主模块按 `TargetPlan` 换成宿主承载的其他组件；构建编排按 F-03-02 筛选后放进 `TargetPlan`，不为该目标原样复制；同一插件目录中另有目标原样承载该组件时，原样复制照常进行（SD-38） | ⏳ | |
+| `F-05-19` | rules 的换算承载 | 两个目标的 `components.rules` 为 `converted`；`model` 与 `glob` 规则写为 `skills/<name>/SKILL.md`，frontmatter 依次写 `name`、`description`（有值时）、`paths`（`glob` 时，YAML 列表，模式原样）与 `user-invocable: false`，正文为 `Rule.body`；`always` 规则按名称顺序由 `SessionStart` 命令 hook 输出正文，入口文件与命令按入口与打包接口，条目排在守卫条目之后、声明的命令 hooks 之前；与源项目 skill 同名时生成失败；`always` 规则的输出超过 10,000 字符时残余风险写明超出部分不进入上下文；只有 `claude-code:in-process` 进入 `plans` 时残余风险写明规则输出需要 Node（SD-38） | ⏳ | |
 | `F-06-11` | rules 的换算承载 | `components.rules` 为 `converted`；`model` 规则与有 `description` 的 `glob` 规则写为 `skills/<name>/SKILL.md`，内容与 F-05-19 相同，共用插件目录时逐字一致；没有 `description` 的 `glob` 规则列为跳过，原因写明 Codex 的技能须有 `description`；有 `glob` 规则写为技能时残余风险写明 Codex 不按 `paths` 加载，由模型按描述决定；`always` 规则由 `SessionStart` 命令 hook 输出正文，残余风险写明 Codex 须先信任插件的 hooks；与源项目 skill 同名时生成失败（SD-38） | ⏳ | |
 | `F-06-13` | 逐个检查 commands 的转换 | 按 rust-v0.162.1 `core-plugins/src/command_migration.rs` 的条件逐个检查 `TargetPlan.commands`：正文含模板写法、转换结果超过 4000 字节、名称超过 64 字符等会被 Codex 跳过的命令列为跳过（`component` 为 `commands/<name>.md`，原因写明条件）；代替 F-06-09 中笼统的残余风险（SD-43） | ⏳ | |
-| `F-11-11` | commands 的承载 | 按 TA-25 实测：`components.commands` 为 `converted`，宿主模块把 `TargetPlan.commands` 写为 `skills/<name>/SKILL.md`（frontmatter 写 `name` 与 `description`，正文为命令正文），与源项目 skill 同名时生成失败，模板写法与模型自动选用按实测写残余风险；实测 agy 安装时直接加载 `commands/` 时改为 `package`，由构建编排原样复制（SD-39） | ⏳ | |
+| `F-11-11` | commands 的承载 | `components.commands` 为 `package`：构建编排把 `commands/<name>.md` 原样复制到插件目录，agy 安装时把命令转换为技能，以 `/<插件名>:<命令名>` 调用，`$ARGUMENTS` 替换为参数文本（TA-25，1.3.5），命令不再列为跳过；能力数据的注释指向调研文档；有命令时残余风险写明转换后的技能也会被模型按 `description` 自动选用（SD-39） | ⏳ | |
 
 ## 3. 自动化验证汇总（可复跑）
 

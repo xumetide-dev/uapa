@@ -3,7 +3,8 @@
 本文记录 Codex 插件 manifest 与命令 hooks 的加载、输入、输出与失败处理，以及插件中的 MCP
 服务器、agents、commands、rules 与用户配置，依据为
 [`openai/codex`](https://github.com/openai/codex) tag `rust-v0.162.1` 的源码与其中的单元测试，
-核对日期 2026-10-14（「commands、rules 与用户配置」为 2026-10-15）。文件路径相对 `codex-rs/`。官方文档见 [Codex](codex-plugins.md)。
+核对日期 2026-10-14（「commands、rules 与用户配置」与 2026-10-15 补充的各项为 2026-10-15）。
+文件路径相对 `codex-rs/`。官方文档见 [Codex](codex-plugins.md)。
 本文不是宿主实测：结论来自源码与上游测试，未在 Codex 中安装插件运行。
 
 ## manifest 的发现与格式
@@ -14,6 +15,8 @@
 | AgentPlugin 格式的 hooks | `load_plugin` 对 AgentPlugin 格式返回空的 hook 列表：`extensions.com.openai.hooks` 与默认 `hooks/hooks.json` 都不加载 | `core-plugins/src/loader.rs` 的 `load_plugin` |
 | 兼容格式的 hooks | manifest 写了 `hooks` 时替换默认文件；未写时读取 `hooks/hooks.json` | `core-plugins/src/loader.rs` 的 `load_plugin_hooks`；测试 `load_plugin_hooks_manifest_paths_replace_default_hooks_file` |
 | skills | manifest 未写 `skills` 时使用 `skills/`；兼容格式递归发现，AgentPlugin 格式只认直接子目录 | `core-plugins/src/loader.rs` |
+| skills 的递归与名称 | 兼容格式在 `skills/` 下递归 6 层，隐藏目录以外的每个 `SKILL.md` 都注册为技能，技能目录中嵌套的 `SKILL.md` 也算；`name` 至多 64 个字符，`<插件>:<技能>` 至多 129 个字符，超出时不加载 | `ext/skills/src/loader/discovery.rs`、`skills/src/parser.rs`、`ext/skills/src/loader/host.rs` |
+| marketplace 的读取顺序 | `.agents/plugins/marketplace.json`、`.agents/plugins/api_marketplace.json`、`.claude-plugin/marketplace.json`、`.cursor-plugin/marketplace.json`，取第一个存在的文件；条目的 `source` 为以 `./` 开头的路径（`"./"` 为根目录）或 `{source: "local", path}` 等对象，路径相对含 `.agents/plugins/` 的目录；`policy` 与 `category` 可省略 | `core-plugins/src/marketplace.rs` |
 
 兼容 manifest 的字段（`core-plugins/src/manifest.rs` 的 `RawPluginManifest`，camelCase，未知字段
 忽略，各字段都可省略）：`name`、`version`、`description`、`keywords`、`skills`、`mcpServers`、
@@ -57,7 +60,7 @@
 | 插件目录变量 | 插件来源的命令中 `${PLUGIN_ROOT}`、`${PLUGIN_DATA}` 由 Codex 在交给 shell 前按字面替换；进程环境另有 `PLUGIN_ROOT`、`PLUGIN_DATA`、`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA` | `hooks/src/engine/discovery.rs`；测试 `plugin_hook_sources_expand_plugin_placeholders` |
 | 工作目录 | stdin 中的 `cwd` | `hooks/src/engine/command_runner.rs` |
 | 数据目录 | `$CODEX_HOME/plugins/data/<插件名>-<marketplace>`；hook 路径上没有创建该目录的代码 | `core-plugins/src/store.rs` |
-| 超时 | 默认 600 秒，最小 1 秒；`SessionEnd`、`Interrupt` 默认 1 秒、上限 3 秒；超时杀进程组并记为失败 | `hooks/src/engine/discovery.rs` |
+| 超时 | 默认 600 秒，最小 1 秒；`SessionEnd`、`Interrupt` 默认 1 秒、上限 3 秒，写入更大的值时压到 3 秒，并在每次会话开始时以 Warning 事件显示“clamping SessionEnd hook timeout to 3s”（告警在信任检查之前产生）；超时杀进程组并记为失败 | `hooks/src/engine/discovery.rs` 的 `normalize_command_hook`；`core/src/session/session.rs` |
 
 ## stdin
 
@@ -68,6 +71,7 @@ stdin 为一个 snake_case JSON 对象，不以换行结尾，写完即关闭（
 | 共有 | `session_id`、`turn_id`、`transcript_path`、`cwd`、`hook_event_name`、`model`、`permission_mode`；子代理中另有 `agent_id`、`agent_type` |
 | `PreToolUse` | `tool_name`、`tool_input`、`tool_use_id` |
 | `UserPromptSubmit` | `prompt` |
+| `SessionStart` | `source`（`startup`、`resume`、`clear`、`compact`、`fork`），matcher 按它匹配 |
 | `Stop` | `stop_hook_active`、`last_assistant_message` |
 
 工具名：执行命令为 `Bash`，`tool_input` 为 `{"command": <命令字符串>}`；`apply_patch` 的
@@ -92,6 +96,7 @@ stdout 去掉首尾空白后须为单个 JSON 对象，按带 `deny_unknown_fiel
 | `UserPromptSubmit` | 顶层 `decision: "block"` 与非空 `reason`，或 `continue: false` | 拦下提示，不写入历史，不调用模型；退出码 0 的纯文本 stdout 作为附加上下文 |
 | `Stop` | 顶层 `decision: "block"` 与非空 `reason` | 以 `reason` 为续写提示继续本轮，再次调用时 `stop_hook_active` 为 `true`；`continue: false` 优先结束；代码中没有续写次数上限 |
 | `Stop` | 退出码 0 的纯文本 | 记为 hook 失败，照常结束 |
+| `SessionStart` | 退出码 0 的纯文本 stdout，或 `hookSpecificOutput.additionalContext` | 作为模型上下文加入（`hooks/src/events/session_start.rs`） |
 
 依据为 `hooks/src/events/pre_tool_use.rs`、`user_prompt_submit.rs`、`stop.rs` 与
 `core/src/session/turn.rs`；测试包括 `exit_code_two_blocks_processing`、
@@ -99,6 +104,8 @@ stdout 去掉首尾空白后须为单个 JSON 对象，按带 `deny_unknown_fiel
 `permission_decision_allow_without_updated_input_fails_open`、
 `claude_block_decision_blocks_processing`、`continue_false_overrides_block_decision`。
 同一事件的同步处理器并发执行；多个改写时最后完成的生效，任一处理器阻断时改写作废。
+子代理结束时触发 `SubagentStop`，不触发 `Stop`；`SubagentStop` 返回 `decision: "block"` 让子代理
+继续（`core/src/hook_runtime.rs`、`hooks/src/events/stop.rs`）。
 `async: true` 的处理器不能阻断或改写。
 
 ## PostToolUse
@@ -142,7 +149,7 @@ Codex 没有替换为任意文本的输出字段；`decision: "block"` 替换后
 | 写法 | 读取的服务器 | 依据 |
 |---|---|---|
 | 以 `./` 开头的路径（不含 `..`，位于插件目录内） | 只读该文件，不读 `.mcp.json` | 测试 `load_plugins_uses_manifest_configured_component_paths`、`legacy_manifest_can_point_at_root_mcp_json` |
-| 对象 | 只用内联的服务器；`{}` 时没有服务器（无专门测试；容器实测见 [Codex](codex-plugins.md#容器实测01621)） | `core-plugins/src/loader.rs`；测试 `load_plugins_loads_manifest_mcp_server_objects` |
+| 对象 | 只用内联的服务器；`{}` 时没有服务器（无专门测试；容器实测见 [Codex](codex-local-tests.md#容器实测01621)） | `core-plugins/src/loader.rs`；测试 `load_plugins_loads_manifest_mcp_server_objects` |
 | 未写 | 读插件根的 `.mcp.json`（带点）；不自动读取 `mcp.json` | `core-plugins/src/loader.rs` 的 `DEFAULT_MCP_CONFIG_FILE` |
 
 MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_config`）：
@@ -152,6 +159,15 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
   本地服务器 `command`、`args`、`env`、`env_vars`、`cwd`；远程服务器 `url`、
   `bearer_token_env_var`、`http_headers`、`env_http_headers`。`command` 与 `url` 同时出现时该
   服务器出错并被跳过。
+- 其余字段：`enabled`、`required`、`startup_timeout_sec`（或 `startup_timeout_ms`）、
+  `tool_timeout_sec`、`enabled_tools`、`disabled_tools`、`default_tools_approval_mode`、
+  `tools.<工具>.approval_mode` 与 `output_token_limit`、`oauth`（驼峰的 `clientId` 等被归一）、
+  `scopes`、`oauth_resource`、`auth`（拒绝 `ema_auth`）、`startup_readiness`。
+- 本地服务器的环境：启动前清空环境，只保留 `HOME`、`LOGNAME`、`PATH`、`SHELL`、`USER`、
+  `__CF_USER_TEXT_ENCODING`、`LANG`、`LC_ALL`、`TERM`、`TMPDIR`、`TZ` 与证书相关的变量，再加入
+  `env` 中的变量与 `env_vars` 列出的会话变量（`rmcp-client/src/utils.rs`、
+  `utils/pty/src/child_command.rs`）。依赖令牌或代理变量的服务器不写 `env_vars` 时拿不到这些变量，
+  启动或鉴权失败时插件不报错。
 - `type` 可省略，解析前被移除；`stdio`、`http`、`streamable_http`、`streamable-http` 静默接受，
   其他取值只告警。传输方式由有 `command` 还是 `url` 决定。
 - 未知字段被静默忽略（测试 `deserialize_ignores_unknown_server_fields`），因此 `headers` 等
@@ -160,6 +176,9 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
 - 不展开任何占位符：本地服务器以 `Command::new` 启动，不经 shell
   （`rmcp-client/src/stdio_server_launcher.rs`），`env` 原样传入；`${PLUGIN_ROOT}`、
   `${CLAUDE_PLUGIN_ROOT}` 保持字面量。这些变量只注入插件的 hook 进程。
+- AgentPlugin 格式（根 `plugin.json` 带 agent-plugins 的 `$schema`）的 MCP 配置展开
+  `${PLUGIN_ROOT}`、`${PLUGIN_DATA}`，并接受以 `./` 开头的 `command`；该格式不加载 hooks 与
+  apps，也不转换 commands（`codex-mcp/src/agent_plugin_config.rs`、`core-plugins/src/loader.rs`）。
 - `cwd` 为相对路径时拼到插件目录下（`normalize_plugin_mcp_server_value`；测试
   `declared_placement_preserves_local_plugin_normalization`）；省略时为会话的工作目录。
 - 服务器名不加命名空间；多个插件重名时按配置名排序后先出现的生效，并告警
@@ -178,12 +197,12 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
 
 | 项目 | 结论 | 依据 |
 |---|---|---|
-| commands | 兼容格式的插件在安装时把 `commands/*.md`（manifest 写了 `commands` 时为其指定的路径）转换为技能，写到插件内的 `.codex-plugin/migrated-command-skills/source-command-<slug>/SKILL.md`；AgentPlugin 格式不转换。命令的 frontmatter 只读取 `description`。以下命令被跳过：没有 `description`；正文含 `$ARGUMENTS`、`$N`、`{{…}}`、`` !`cmd` `` 或 `@file` 一类模板写法；转换结果超过 4000 字节；文件名为 README；生成的名称超过 64 个字符；slug 重复 | `core-plugins/src/command_migration/plugin.rs` 的 `migrate_plugin_commands`；`core-plugins/src/command_migration.rs` 的 `has_unsupported_command_template_features`；`core-plugins/src/store.rs` 中按格式判断的分支；测试 `install_plugin_materializes_default_command_skills`、`agent_plugin_install_does_not_migrate_commands`、`commands_without_description_are_skipped`、`commands_with_provider_runtime_expansion_are_skipped` |
+| commands | 兼容格式的插件在安装时把 `commands/**/*.md`（递归收集；manifest 写了 `commands` 时为其指定的路径）转换为技能，写到插件内的 `.codex-plugin/migrated-command-skills/source-command-<slug>/SKILL.md`；AgentPlugin 格式不转换。命令的 frontmatter 只读取 `description`。以下命令被跳过：没有 `description`；正文含 `$ARGUMENTS`、`$N`、`{{…}}`、`` !`cmd` `` 或 `@file` 一类模板写法；转换结果超过 4000 字节；文件名为 README；生成的名称超过 64 个字符；slug 重复 | `core-plugins/src/command_migration/plugin.rs` 的 `migrate_plugin_commands`；`core-plugins/src/command_migration.rs` 的 `has_unsupported_command_template_features`；`core-plugins/src/store.rs` 中按格式判断的分支；测试 `install_plugin_materializes_default_command_skills`、`agent_plugin_install_does_not_migrate_commands`、`commands_without_description_are_skipped`、`commands_with_provider_runtime_expansion_are_skipped` |
 | rules 与指令文件 | 插件不承载：`PluginManifestPaths` 只有 `skills`、`onboarding_skill`、`mcp_servers`、`apps`、`hooks`，`LoadedPlugin` 没有指令或规则字段，插件代码中没有加载 `AGENTS.md` 或规则文件的路径 | `plugin/src/manifest.rs`；`plugin/src/load_outcome.rs` |
 | 用户配置 | 没有传给 hook 或 MCP 服务器的插件用户配置。`[plugins."<插件>@<marketplace>"]` 只有 `enabled` 与按服务器设置工具策略的 `mcp_servers.<服务器>`；插件 hook 进程只额外收到 `PLUGIN_ROOT`、`CLAUDE_PLUGIN_ROOT`、`PLUGIN_DATA`、`CLAUDE_PLUGIN_DATA` | `config/src/types.rs` 的 `PluginConfig`、`PluginMcpServerConfig`；`hooks/src/engine/discovery.rs` 的 `append_plugin_hook_sources` |
 
 转换后的技能在会话中的名称与调用方式见
-[Codex「容器实测（0.162.1）」](codex-plugins.md#容器实测01621)。
+[Codex「容器实测（0.162.1）」](codex-local-tests.md#容器实测01621)。
 
 ## 信任与加载条件
 
@@ -195,14 +214,24 @@ MCP 文件的解析（`codex-mcp/src/plugin_config.rs` 的 `parse_plugin_mcp_con
   `<插件>@<marketplace>:hooks/hooks.json:pre_tool_use:<分组>:<处理器>`。安装插件不自动信任其
   hooks；`--dangerously-bypass-hook-trust` 可临时绕过（`hooks/src/engine/discovery.rs`、
   `hooks/src/config_rules.rs`）。
+- `trusted_hash` 是对规范化后的 hook 定义（替换占位符之前的命令、超时等）取 sha256，可以确定性地
+  算出；信任记录只从用户层配置与 `-c` 参数读取（`config/src/fingerprint.rs`、
+  `hooks/src/config_rules.rs`、`hooks/src/lib.rs`）。requirements.toml 中的托管 hooks 按策略视为
+  已信任；app-server 自动信任工作区共享且公开列出的远程插件的 hooks
+  （`app-server/src/effective_plugin_change.rs`）。
+- `allow_managed_hooks_only = true` 时忽略插件的 hooks；`[features].hooks = false` 关闭全部 hooks
+  （`hooks/src/engine/discovery.rs`）。
 
 ## 未能由源码确定的项
 
-- `hookEventName` 与当前事件不一致时是否被拒绝。
-- `PostToolUse` 输出中的未知字段使整份输出无效：由与其他事件相同的 `deny_unknown_fields`
-  写法推断，没有该事件的专门测试。
-- 兼容 manifest 的 `mcpServers` 为 `{}` 时不回退到 `.mcp.json`：由 `resolve_manifest_mcp_servers`
-  与 `load_plugin_mcp_servers_from_manifest_with_format` 的代码路径推断，没有专门测试。
 - `PLUGIN_DATA` 目录是否由其他代码路径创建。
 - 桌面端写入 `trusted_hash` 的方式；社区记录（openai/codex #46210、#47283）显示 `codex exec`
   静默跳过未信任的 hook，桌面端的 `/hooks` 存在无法写入信任的问题。
+
+2026-10-15 已能确定、从本节移出的三项：
+
+- `hookEventName` 只按事件枚举校验，不与当前事件比对（`hooks/src/engine/output_parser.rs`）。
+- `PostToolUse` 的输出类型带 `deny_unknown_fields`，未知字段使整份输出无效
+  （`hooks/src/schema.rs`）。
+- 兼容 manifest 的 `mcpServers` 为 `{}` 时不回退到 `.mcp.json`：已由容器实测确认，见
+  [Codex「容器实测（0.162.1）」](codex-local-tests.md#容器实测01621)。

@@ -31,7 +31,7 @@
 
 | # | 判定条目 | 预期 | 实际 | 证据 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 硬约束：守卫不静默失效 | 宿主实测：`Stop` 超时与输出无法解析时的处理写入调研文档；与能力数据的 `failureDefault.beforeStop` 一致，或按实测修改并使构建报告的残余风险随之更新 | 超时（`timeout` 3，hook 等待 10 秒后返回 `continue`）：hook 开始后约 4.7 秒 agy 退出，`Stop` 只被调用一次，`continue` 未被采用；stdout 不是 JSON：`Stop` 只被调用一次，本轮照常结束。两者都与 `beforeStop: { error: 'allow', timeout: 'allow' }` 一致，取值与构建报告不变 | [agy「`Stop` 的超时与无效输出（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#stop-的超时与无效输出135容器)（宿主实测，agy 1.3.5） | ✅ |
+| 1 | 硬约束：守卫不静默失效 | 宿主实测：`Stop` 超时与输出无法解析时的处理写入调研文档；与能力数据的 `failureDefault.beforeStop` 一致，或按实测修改并使构建报告的残余风险随之更新 | 超时（`timeout` 3，hook 等待 10 秒后返回 `continue`）：hook 开始后约 4.7 秒 agy 退出，`Stop` 只被调用一次，`continue` 未被采用；stdout 不是 JSON：`Stop` 只被调用一次，本轮照常结束。两者都与 `beforeStop: { error: 'allow', timeout: 'allow' }` 一致，取值与构建报告不变 | [agy「`Stop` 的超时与无效输出（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-local-tests.md#stop-的超时与无效输出135容器)（宿主实测，agy 1.3.5） | ✅ |
 | 2 | 硬约束：能力数据有出处 | `agy-subprocess.ts` 的 `beforeStop` 注释指向本单的实测小节；取值改动时重跑 TA-09 与夹具比对 | 注释改为“Stop 出错、超时与输出无法解析时本轮照常结束（本地实测；超时与无效输出于 1.3.5 实测）”；取值未改，TA-09 与夹具比对照常通过 | `a5a9a81`；`pnpm check` 247 pass | ✅ |
 
 ## 2. 功能点逐条验收

@@ -59,7 +59,7 @@ Sprint 收口文件（同名，全部工单完成后建立）。
 | 产物零依赖：子进程入口只导入 `node:` 内置模块，hooks 模块只导入 `'claude-code'`；不附带 UAPA 运行时 | TA-01；[架构 §1](../architecture/architecture.md#1-组成与模块) |
 | 不在运行时推断宿主：入口只按打包时注入的目标数据工作 | TA-05；[架构 §1](../architecture/architecture.md#1-组成与模块) |
 | 确定性输出：产物与构建报告不含时间、绝对路径与用户名；同一输入逐字节相同 | TA-06 |
-| 不越权写入：只写各插件目录与 `<outDir>/uapa-report.json`；`--check` 不写文件 | TA-07、TA-08；SD-14 |
+| 不越权写入：只写各插件目录、`<outDir>/uapa-report.json` 与配置 `marketplace` 时的 marketplace 文件（v0.4.0）；`--check` 不写文件 | TA-07、TA-08；SD-14、SD-41 |
 | 安装不运行脚本：`package.json` 没有生命周期脚本；生产依赖只有 rolldown、yaml、zod | TA-10；F-10-03 |
 | 能力数据有出处：只写已核实的宿主行为，注明宿主版本、核对日期与出处；未实测的能力记为不支持 | P-03；TA-09、TA-15 |
 

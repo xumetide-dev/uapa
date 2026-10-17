@@ -4,13 +4,13 @@
 > - Claude Code：可以选择让执行前与提示提交前的守卫入口出错时阻断；`Monitor`、`NotebookEdit`
 >   加入工具名换算。
 > - Codex：声明的 `SessionEnd` 命令 hook 写 3 秒超时。
-> - agy：hook 进程有 `PLUGIN_DATA` 时，停机计数存于该目录。
+> - agy：补全停机继续上限与 `/btw` 的残余风险；停机计数的目录不变（SD-46）。
 > - 三个宿主：补全漏记的残余风险。
 
 | 项 | 内容 |
 |---|---|
 | 所属 Sprint | [M5-00](M5-00-v0-4-0-host-coverage.md) |
-| 覆盖功能点 | `F-05-21`、`F-05-22`、`F-05-23`、`F-06-14`、`F-06-16`、`F-11-13`、`F-11-14` |
+| 覆盖功能点 | `F-05-21`、`F-05-22`、`F-05-23`、`F-06-14`、`F-06-16`、`F-11-14` |
 | 依赖工单 | [M5-01](M5-01-v0-4-0-host-facts-and-interfaces.md)、[M5-03](M5-03-converted-rules-and-commands.md) |
 | 关联 issue | 无 |
 | 验收文件 | [M5-05](../acceptance/M5-05-guard-reliability-and-risks.md)（commit 号与验收结论只记在那里） |
@@ -25,25 +25,24 @@
 - 已有但不对：
   - Codex 的命令 hooks 一律写 `hookTimeoutSeconds`（30），`SessionEnd` 也是 30
     （`src/targets/codex/hooks.ts`）。
-  - agy 入口的 `dataDir` 固定为系统临时目录（`src/runtime/entries/agy-subprocess.ts`）。
   - Claude Code 的 `toolNames` 没有 `Monitor`、`NotebookEdit`。
 - 完全没有：`onFailure` 的写出；SD-43 第 (6) 项列出的残余风险。
 - 宿主事实：
   - Claude Code CHANGELOG 2.1.295（`onFailure`）；文档「hooks」「permissions」「tools reference」。
   - Codex rust-v0.162.1：`hooks/src/engine/discovery.rs`、`hooks/src/engine/mod.rs`。
   - agy CHANGELOG 1.1.9、1.3.2。
-  - TA-25 第 1、5、8、9 项的结论。
+  - TA-25 第 1、5、8、9 项的结论：`Monitor` 的入参含 `command`，`NotebookEdit` 为 `notebook_path`
+    等；`onFailure: "block"` 在入口缺失时阻断；agy 1.3.5 的 hook 进程中没有 `PLUGIN_DATA`；插件
+    agent 的会话中 hooks 照常运行，连续继续 10 次后不再采用 `continue`。
 
 ## ⚠️ 关键落地约束（必须先验证）
 
 - **`onFailure` 不改默认行为**：只有配置 `hosts['claude-code'].onFailure: 'block'` 时写入，现有
-  夹具的产物不变。TA-25 第 5 项未证实阻断时，残余风险写明“未在宿主中核实”，不改能力数据的
-  `failureDefault`。
-- **工具名换算只按实测的入参**：`Monitor` 的命令字段与 `Bash` 不同时不换为 `shell`，改写的反向
-  换算才不会写错键。
-- **agy 的数据目录**：只在 TA-25 第 8 项证实 hook 进程有 `PLUGIN_DATA` 时修改入口；没有时只改
-  残余风险的措辞，入口不变。入口仍不推断宿主：`PLUGIN_DATA` 是 agy 入口固定读取的变量，与
-  Codex 入口相同。
+  夹具的产物不变；能力数据的 `failureDefault` 不变。
+- **工具名换算只按实测的入参**：`Monitor` 的命令字段为 `command`，与 `Bash` 相同，改写的反向
+  换算写回该键。
+- **agy 的数据目录**：TA-25 第 8 项证实 1.3.5 的 hook 进程中没有 `PLUGIN_DATA`，F-11-13 已改为
+  预留（SD-46），入口不变；`STOP_COUNTER_RISK` 只把宿主版本改为 1.3.5。
 
 ## 硬约束核对
 
@@ -54,12 +53,12 @@
 | 硬约束 | 是否触碰 | 如何验证 |
 |---|---|---|
 | 守卫不静默失效 | 是 | `host-coverage` 的 `hooks.json` 中执行前与提示提交前守卫条目带 `onFailure`；`Monitor` 的入口用例以标记命令得到拒绝；TA-27 在宿主中复测 |
-| 产物零依赖 | 否 | 入口只改数据目录的取值，导入不变；TA-01 的导入检查照常通过 |
-| 不在运行时推断宿主 | 是 | agy 入口只读取固定的 `PLUGIN_DATA`；入口用例分别以有、无该变量运行 |
+| 产物零依赖 | 否 | 不改入口 |
+| 不在运行时推断宿主 | 否 | 不改入口 |
 | 确定性输出 | 是 | `command-hooks`、`host-coverage` 夹具逐字节比对 |
 | 不越权写入 | 否 | 不改写出 |
 | 安装不运行脚本 | 否 | 不改 `package.json` |
-| 能力数据有出处 | 是 | `toolNames` 新增项与 agy 停机计数的注释指向 TA-25 的小节 |
+| 能力数据有出处 | 是 | `toolNames` 新增项的注释指向 TA-25 的小节 |
 
 ## 任务
 
@@ -76,8 +75,7 @@
 
 ### 3. agy（`src/targets/agy/`、`src/runtime/entries/agy-subprocess.ts`）
 
-- 按 F-11-13 与 TA-25 第 8 项修改 `dataDir` 与 `STOP_COUNTER_RISK`。
-- 按 F-11-14 补全残余风险。
+- 按 F-11-14 补全残余风险；`STOP_COUNTER_RISK` 中的宿主版本改为 1.3.5，入口不改。
 
 ### 4. 文档
 
@@ -101,7 +99,6 @@
 - 夹具与入口用例：
   - `host-coverage` 配置 `onFailure`。
   - `Monitor` 的入参运行标记命令，期望拒绝（入参形状以 TA-25 为准）。
-  - agy 入口分别带与不带 `PLUGIN_DATA`，停机计数文件分别写在对应目录。
 
 ## 验收
 

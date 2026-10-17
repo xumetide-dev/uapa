@@ -12,7 +12,7 @@
 | `claude-code:in-process` | Claude Code | hooks 模块 `hooks/register.ts`，在宿主内运行，不需要 Node | 2.1.296 |
 | `claude-code:subprocess` | Claude Code | 命令 hooks，每个事件以 `node` 运行 `hooks/uapa-claude-code.mjs` | 2.1.296 |
 | `codex:subprocess` | Codex | 命令 hooks，以 `node` 运行 `hooks/uapa-codex.mjs` | codex-cli 0.162.1 |
-| `agy:subprocess` | Antigravity CLI | 命令 hooks，以 `node` 运行 `hooks/uapa-agy.mjs` | 1.3.4（agents 与 MCP 为 1.3.5） |
+| `agy:subprocess` | Antigravity CLI | 命令 hooks，以 `node` 运行 `hooks/uapa-agy.mjs` | 1.3.5（少数行为沿用 1.3.4 的本地实测） |
 
 子进程入口打包为 ES2022 ESM 单文件，需要运行宿主的机器上有 Node ≥ 22。
 
@@ -93,7 +93,8 @@
 
 - 全局安装的插件对本机该用户的全部 agy 会话生效，hooks 也是（agy 1.3.4 本地实测）。
 - 没有提示提交与会话结束事件；执行后 hook 不能替换或扣留输出，因此不生成。
-- 宿主没有插件数据目录：停机计数存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时归零。
+- hook 进程中没有插件数据目录（agy 1.3.5 容器实测；只有 MCP 服务器进程有 `PLUGIN_DATA`）：停机计数
+  存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时归零。
 - rules 以 `trigger` 与逗号分隔的 `globs` 生效（agy 1.3.5 实测）；`globs` 按文件的绝对路径
   匹配，含 `/` 的模式生成时加 `**/` 前缀。`agy plugin install` 与 `validate` 的输出不列出
   rules。单个规则文件上限 24,000 字节，超出部分被截断，生成的规则超过

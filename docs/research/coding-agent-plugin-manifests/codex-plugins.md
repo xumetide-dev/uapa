@@ -41,7 +41,8 @@ plugin-root/
 `mcp.json` 要求每个服务器声明传输 `type`；旧脚手架生成的 `.mcp.json`
 不能直接改名沿用 [X2]。兼容 manifest `.codex-plugin/plugin.json` 未写 `mcpServers` 时读取
 `.mcp.json`，不读取 `mcp.json`（rust-v0.162.1 源码核对）。安装后的插件缓存在
-`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`，本地插件版本记为 `local` [X2]。
+`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/` [X2]；`<version>` 取 manifest 的
+`version`，没有时为 `local`（`core-plugins/src/store.rs`，源码核对）。
 
 ## plugin.json 字段
 
@@ -103,14 +104,26 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   `PostCompact`、`UserPromptSubmit`、`SubagentStart`、`SubagentStop`、`Stop`、`Interrupt`、
   `SessionStart`、`SessionEnd` [X7]。
 - 运行 hook 需要持久化的 hook 信任（trust）；`--dangerously-bypass-hook-trust` 可临时绕过 [X7]。
-- 插件携带的生命周期 hooks 只对在 Codex 桌面端手动安装的插件生效，含 hooks 的插件不能
-  进入公开目录 [X2]。0.162.1 源码中 TUI、`codex exec` 与 app-server 走同一加载路径，未见按
-  客户端区分的条件（源码核对，推断）。
+- 文档写明插件携带的生命周期 hooks 只对在 Codex 桌面端手动安装的插件生效，含 hooks 的插件不能
+  进入公开目录 [X2]。0.162.1 中以 CLI 安装的插件，其 hooks 经信任后在 TUI 与 `codex exec` 中都
+  运行（容器实测，见[实测记录](codex-local-tests.md#容器实测01621)）。
+- 守卫不生效的情形：`allow_managed_hooks_only = true` 时忽略插件 hooks；`[features].hooks = false`
+  关闭全部 hooks；IDE 扩展不支持插件；云端编排的 ChatGPT Work 不支持插件 hooks [X1][X7]。
 - hook 进程环境中没有 `CODEX_*` 会话变量，会话信息通过 stdin JSON 传入 [X7]。
 - 插件 hook 进程另有 `PLUGIN_ROOT`、`PLUGIN_DATA` 及兼容名 `CLAUDE_PLUGIN_ROOT`、
   `CLAUDE_PLUGIN_DATA`；数据目录为 `$CODEX_HOME/plugins/data/<plugin>-<marketplace>`，
   文档只称其为可写数据目录 [X7][X8]。
-- 默认超时 600 秒；`SessionEnd` 与 `Interrupt` 默认 1 秒、上限 3 秒 [X8]。
+- 默认超时 600 秒；`SessionEnd` 与 `Interrupt` 默认 1 秒、上限 3 秒，写入更大的值时压到 3 秒并在
+  每次会话开始时告警 [X8]。
+- matcher 为正则：工具事件按工具名，`SessionStart` 按来源（`startup`、`resume`、`clear`、
+  `compact`、`fork`），压缩事件按触发方式，子代理事件按代理类型；处理器另有 `statusMessage`、
+  `async`、`commandWindows` [X7]。
+- UAPA 未使用的 6 个事件 [X7][X8]：`PermissionRequest` 以 `decision.behavior`（`allow`、`deny`）
+  自动批准或拒绝审批请求；`SubagentStart` 可返回 `additionalContext`；子代理结束时触发
+  `SubagentStop` 而不是 `Stop`，返回 `decision: "block"` 让子代理继续；`PreCompact`、`PostCompact`
+  在压缩前后触发；`Interrupt` 在中断时触发，超时同 `SessionEnd`。
+- `additionalContext` 可用于 `SessionStart`、`SubagentStart`、`UserPromptSubmit`、`PreToolUse`、
+  `PostToolUse`；`SessionStart` 以 0 退出的纯文本 stdout 也作为模型上下文 [X7][X8]。
 
 ### 扩展能力摘要
 
@@ -146,58 +159,15 @@ hooks 写在插件 `hooks/hooks.json` 或 `config.toml` 的 `hooks.<Event>[]`，
   请求头为 `http_headers`），未知字段被忽略，不展开 `${PLUGIN_ROOT}` 等占位符；相对的 `cwd`
   拼到插件目录下。
 - 插件不承载 agents。
-- 兼容格式的插件在安装时把 `commands/*.md` 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果
+- 兼容格式的插件在安装时把 `commands/**/*.md` 转换为技能，正文含 `$ARGUMENTS` 等模板写法或转换结果
   超过 4000 字节的命令被跳过；插件不承载 rules 与指令文件，也没有传给 hook 的用户配置（2026-10-15
   核对，见源码核对记录「commands、rules 与用户配置」）。转换后的技能在会话中名为
-  `<插件名>:source-command-<命令名>`（容器实测见下节）。
+  `<插件名>:source-command-<命令名>`（容器实测见[实测记录](codex-local-tests.md#容器实测01621)）。
 
-## 容器实测（0.162.1）
+## 实测记录
 
-2026-10-15，Linux 测试容器中的 codex-cli 0.162.1，模型服务为本机配置的 provider。产物为夹具
-期望树中插件目录的副本，写入本地 marketplace 后安装；守卫的提示只要求运行标记命令，命令转换的
-实测在临时 git 仓库中审查一行改动。
-
-```bash
-codex plugin marketplace add <marketplace 根目录>
-```
-
-```bash
-codex plugin add <插件名>@<marketplace 名>
-```
-
-- 安装后插件位于 `~/.codex/plugins/cache/<marketplace>/<插件>/<版本>/`。
-- 信任：安装后首次启动 TUI 时出现 “Hooks need review” 对话框，列出新增或改动的 hooks 数量；
-  选 “Trust all and continue” 后用户层 `config.toml` 中每个 hook 记一条 `trusted_hash`，之后的
-  `codex exec` 运行这些 hooks。信任之前 `codex exec` 静默跳过插件的 hooks，拒绝的标记命令照常
-  执行。
-- 探测插件只在 TUI 中信任一次，之后在同一容器中改模式文件，四个 hook 照常运行：信任不受脚本
-  文件内容影响。
-- 容器中运行 TUI：镜像没有 `ps`，需加 `--no-daemon`；provider 配置写了 `requires_openai_auth`
-  时 TUI 先显示登录界面，写入信任时以 `-c model_providers.<provider>.requires_openai_auth=false`
-  跳过。
-- 容器中 `codex exec -s read-only` 的命令都不执行：沙箱的 bwrap 不能创建 namespace。实测沿用
-  容器配置的 `danger-full-access`。
-
-| 项目 | 做法 | 结果 |
-|---|---|---|
-| 拒绝 | `full` 产物，要求运行 `echo uapa-deny-probe > deny.txt` | 命令不执行，`deny.txt` 不存在；日志为 `Command blocked by PreToolUse hook: 拒绝标记命令 uapa-deny-probe`，模型报告该命令被 hook 拦下 |
-| 改写 | 要求运行 `echo uapa-rewrite-probe x > rewrite.txt` | 执行的是 `echo uapa-rewritten x > rewrite.txt` |
-| 停机继续 | 同一会话 | 模型按停机原因继续两轮后结束，计数文件归零 |
-| 提示阻断 | `full` 产物，`codex exec --json` 提交含 `API_KEY=uapa-prompt-probe` 的提示 | 只有 `turn.started` 与 `turn.completed` 两个事件，`usage` 的输入与输出 token 都为 0，没有模型回复：提示被拦下，未调用模型。exec 的文本输出只有 `hook: UserPromptSubmit Blocked`，不含原因；TUI 中显示 `Blocked by hook` 与原因 `提示中含疑似密钥`。不含标记的对照提示得到模型回复 |
-| hook 以 1 退出 | 探测插件在 `PreToolUse`、`UserPromptSubmit`、`PostToolUse`、`Stop` 上运行同一个脚本（`timeout` 为 3），提示要求运行 `date +uapa-%s \| tee probe.txt` 并回复其输出 | 四个 hook 都运行并以 1 退出：命令执行，`probe.txt` 写入，提示送达模型，模型回复与 `probe.txt` 相同（工具输出保留），本轮照常结束 |
-| hook 超时 | 同上，脚本等待 10 秒 | 四个 hook 都启动，都没有写出结束记录（超时时被终止）；命令执行、提示送达、工具输出保留、本轮结束，同上 |
-| stdout 不是 JSON | 同上，`PreToolUse` 与 `PostToolUse` 输出 `uapa-not-json` | 命令执行，工具输出保留，本轮照常结束 |
-| `UserPromptSubmit` 输出纯文本 | 同上，`UserPromptSubmit` 以 0 退出并输出 `uapa-not-json` | 两次运行都在 300 秒内没有调用模型，事件只有 `turn.started`；按源码该文本作为附加上下文。UAPA 的入口放行时以 0 退出、不输出文本 |
-| 扣留 | `after-tool` 产物，运行 `echo uapa-withhold-probe` | 工具结果为扣留原因（日志 `error=扣留标记输出 uapa-withhold-probe`）；模型回复 `uapa-withhold-probe`，与原因中的标记相同，单看回复不能区分 |
-| 替换降级为扣留 | 运行 `echo uapa-replace-probe` | 工具结果为替换文本，模型回复 `uapa-replaced`，读不到原输出 |
-| MCP 服务器 | `components` 产物，`mcp/` 中另放桩服务器 | `codex mcp list` 列出 `docs`、`plain`、`remote`（`launcher` 已由 UAPA 跳过）；`docs` 的工作目录为插件目录（`"cwd": "."`），`./mcp/server.mjs` 按它解析，`UAPA_DATA` 原样为 `./data`；远程服务器连接失败只记错误日志 |
-| `"mcpServers": {}` | 两个只含 `.mcp.json` 的插件，manifest 分别写 `{}` 与不写 `mcpServers` | 写 `{}` 的插件不加载 `.mcp.json` 中的服务器；不写的插件加载 |
-| 命令转换 | `rules-commands` 产物，含 `commands/review.md`（`description` 为“审查当前改动并列出问题”）；安装后查看插件目录 | 新增 `.codex-plugin/migrated-command-skills/source-command-review/SKILL.md`，`commands/review.md` 保留。frontmatter 为 `name: "source-command-review"` 与命令的 `description`；正文为一句英文说明，其后 `## Command Template` 下为命令正文 |
-| 技能列表 | `codex exec` 要求列出可用技能 | 列出 `rules-commands:source-command-review` 与其描述 |
-| 显式调用 | `codex exec '$rules-commands:source-command-review'` | SKILL.md 全文以 `<skill>` 包裹作为用户消息加入会话；模型按命令正文审查工作区改动并回复结论 |
-| 不带插件名 | `codex exec '$source-command-review'` | 不加入 SKILL.md；模型从技能列表认出该技能，改用命令读取 SKILL.md |
-| 隐式调用 | 提示“请审查当前工作区的改动并列出问题。” | 模型按描述选用该技能，读取 SKILL.md 后审查，指出新增的一行 |
-| TUI 中调用 | 输入框中键入 `$source-command` | 补全列表显示 `[Skill] 审查当前改动并列出问题`；Tab 补全为 `$rules-commands:source-command-review`，提交后与显式调用相同 |
+0.162.1 在测试容器中的安装、信任、守卫、MCP 服务器与命令转换实测见
+[Codex 实测记录](codex-local-tests.md#容器实测01621)。
 
 ## marketplace.json
 
@@ -207,6 +177,11 @@ codex plugin add <插件名>@<marketplace 名>
 - 个人级：`~/.agents/plugins/marketplace.json`
 - 兼容：`$REPO_ROOT/.claude-plugin/marketplace.json`
 
+0.162.1 在一个根目录中依次查找 `.agents/plugins/marketplace.json`、
+`.agents/plugins/api_marketplace.json`、`.claude-plugin/marketplace.json`、
+`.cursor-plugin/marketplace.json`，取第一个存在的文件（`core-plugins/src/marketplace.rs`，源码
+核对）。只提供 `.claude-plugin/marketplace.json` 时，Codex 会按它安装其中的插件。
+
 字段 [X2]：
 
 | 层级 | 字段 | 说明 |
@@ -215,10 +190,11 @@ codex plugin add <插件名>@<marketplace 名>
 | 顶层 | `interface.displayName` | 展示名 |
 | 顶层 | `plugins[]` | 插件条目 |
 | 条目 | `name` | 插件名；应与插件目录名及 `plugin.json` 的 `name` 一致 |
-| 条目 | `source` | 类型为 `local`（可直接写路径字符串）、`url`、`git-subdir`、`npm` |
-| 条目 | `policy.installation` | 必填；`AVAILABLE`、`INSTALLED_BY_DEFAULT`、`NOT_AVAILABLE` |
-| 条目 | `policy.authentication` | 如 `ON_INSTALL` |
-| 条目 | `category` | 必填；分类 |
+| 条目 | `source` | 类型为 `local`（可直接写路径字符串）、`url`、`git-subdir`、`npm`；本地路径须以 `./` 开头，`"./"` 指 marketplace 根目录，相对含 `.agents/plugins/` 的目录解析（源码核对） |
+| 条目 | `policy.installation` | `AVAILABLE`、`INSTALLED_BY_DEFAULT`、`NOT_AVAILABLE`；文档写为必填，源码中可省略，默认 `AVAILABLE` |
+| 条目 | `policy.authentication` | `ON_INSTALL`（源码中的默认值）或 `ON_USE` |
+| 条目 | `policy.products` | 适用的产品，可省略（源码核对） |
+| 条目 | `category` | 分类；文档写为必填，源码中可省略 |
 
 ## Skills 与 agents/openai.yaml
 
@@ -244,8 +220,10 @@ profile 文件 `$CODEX_HOME/<name>.config.toml` [X4]。
 | `skills.config[]` 的 `path`、`enabled` | 单个 skill 的启用开关 |
 | `skills.max_context_tokens` | 可用 skills 目录的 token 预算 |
 | `hooks.<Event>[]` | 内联 hooks，事件见上文 |
-| `mcp_servers.<id>.*` | 独立 MCP 服务器：`command`、`args`、`env`、`cwd`、`url`、`bearer_token_env_var`、`http_headers`、`enabled`、`required`、`startup_timeout_sec`、`tool_timeout_sec` 等 |
-| `features.hooks` / `features.remote_plugin` / `features.skill_mcp_dependency_install` | 相关特性开关；`remote_plugin` 已稳定且默认开启 |
+| `hooks.state.<key>.enabled` / `trusted_hash` | 单个 hook 的开关与信任记录，key 的格式见[源码核对记录](codex-source-review.md#信任与加载条件) |
+| `allow_managed_hooks_only` | 为 `true` 时只运行托管的 hooks，插件 hooks 被忽略 |
+| `mcp_servers.<id>.*` | 独立 MCP 服务器：`command`、`args`、`env`、`cwd`、`url`、`bearer_token_env_var`、`http_headers`、`env_vars`、`enabled`、`required`、`startup_timeout_sec`、`tool_timeout_sec` 等 |
+| `features.hooks` / `features.remote_plugin` / `features.skill_mcp_dependency_install` | 相关特性开关；`hooks` 为 `false` 时关闭全部 hooks；`remote_plugin` 已稳定且默认开启 |
 
 ## CLI 命令
 
@@ -270,7 +248,8 @@ codex plugin remove my-plugin@my-marketplace
 - `marketplace add` 接受 GitHub 简写、HTTP(S) / SSH git URL 或本地 marketplace 根目录，
   可重复 `--sparse PATH` 稀疏检出；子命令另有 `list`、`upgrade`、`remove` [X5]。
 - `plugin list --available --json` 列出可安装插件，`-m/--marketplace` 限定来源 [X5]。
-- `marketplace add` 克隆 git 仓库，不接受单个 `marketplace.json` 的原始文件 URL【社区】。
+- `marketplace add` 的来源只能是 git 仓库或本地目录，不接受单个 `marketplace.json` 的原始文件 URL
+  （`core-plugins/src/marketplace_add/source.rs`，源码核对）。
 - 会话内可用 `/plugins` 浏览与安装 [X1]。
 - 版本差异：社区记录显示 `codex plugin add` 在部分早于 0.153.0 的版本中不可用，
   需改用 `/plugins`【社区】；以当次 `codex plugin --help` 为准。
@@ -291,7 +270,8 @@ codex plugin remove my-plugin@my-marketplace
 - [X7] Hooks：<https://learn.chatgpt.com/docs/hooks>
 - [X8] `openai/codex` tag `rust-v0.162.1`：`codex-rs/hooks/src/events/pre_tool_use.rs`、
   `codex-rs/hooks/src/engine/command_runner.rs`、`codex-rs/hooks/src/engine/discovery.rs`、
-  `codex-rs/core-plugins/src/store.rs`
+  `codex-rs/core-plugins/src/store.rs`、`codex-rs/core-plugins/src/marketplace.rs`、
+  `codex-rs/hooks/src/events/session_start.rs`
 - 【社区】Codex marketplace 安装实践：
   <https://github.com/max-sixty/worktrunk/issues/4017>、
   <https://github.com/kamp-us/phoenix/pull/10200>

@@ -15,7 +15,7 @@
 ## 现状（已定位）
 
 - 已有且够用：SD-31～SD-35 与 v0.3.0 的 13 个功能条目（[功能清单](../feature-list/README.md)）；
-  宿主事实见 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#rules135容器)、
+  宿主事实见 [agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-local-tests.md#rules135容器)、
   [Claude Code「commands 与 userConfig」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)、
   [Codex「commands、rules 与用户配置」](../research/coding-agent-plugin-manifests/codex-source-review.md#commandsrules-与用户配置)。
 - 已有但不对：

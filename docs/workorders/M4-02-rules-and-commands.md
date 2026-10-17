@@ -23,7 +23,7 @@
   已有 266 行，再加 commands 的复制会超过 300 行。
 - 完全没有：rules 与 commands 的读取、`TargetPlan.rules` 与 `TargetPlan.commands`、agy 的 rules
   生成、含这两种组件的夹具。
-- 宿主事实：[agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-plugins.md#rules135容器)；
+- 宿主事实：[agy「rules（1.3.5，容器）」](../research/coding-agent-plugin-manifests/agy-local-tests.md#rules135容器)；
   [Claude Code「commands 与 userConfig」](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#commands-与-userconfig)；
   [Codex 源码核对「commands、rules 与用户配置」](../research/coding-agent-plugin-manifests/codex-source-review.md#commandsrules-与用户配置)。
 

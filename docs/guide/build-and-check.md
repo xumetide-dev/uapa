@@ -78,8 +78,8 @@ modified dist/codex/skills/commit-message/SKILL.md
   "errors": [],
   "host": {
     "name": "agy",
-    "version": "1.3.4",
-    "checked": "2026-10-14",
+    "version": "1.3.5",
+    "checked": "2026-10-15",
     "source": "agy-plugins.md"
   },
   "units": [{ "kind": "plugin", "path": "dist/agy" }],
