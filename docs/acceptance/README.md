@@ -80,6 +80,11 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M5-05](M5-05-guard-reliability-and-risks.md) | 守卫可靠性与残余风险 | 通过 | 2026-10-17 | `1f2c616` |
+| [M5-04](M5-04-mcp-server-environment.md) | MCP 服务器的环境变量与插件根 | 通过 | 2026-10-15 | `2a1f79a` |
+| [M5-03](M5-03-converted-rules-and-commands.md) | rules 与 commands 的换算承载 | 通过 | 2026-10-15 | `15afb6e`、`92264a1` |
+| [M5-02](M5-02-shared-files-and-claude-code-config.md) | 共用文件与 Claude Code 的配置字段 | 通过 | 2026-10-15 | `25daca5` |
+| [M5-01](M5-01-v0-4-0-host-facts-and-interfaces.md) | v0.4.0 宿主事实与接口定稿 | 通过 | 2026-10-15 | `0cbe6cb`、`745ab8e` |
 | [M4-00](M4-00-v0-3-0-rules-commands-guard-options.md) | Sprint 收口：v0.3.0 的 rules、commands、守卫选项与 JSON 合并 | 有条件通过（M4-02 的 Codex 转换命令调用未实测，待维护者确认使用 Codex CLI）；条件已关闭：2026-10-15 在测试容器中以 codex-cli 0.162.1 实测 | 2026-10-15 | `7274152` |
 | [M4-05](M4-05-v0-3-0-live-tests.md) | v0.3.0 产物的宿主实测 | 通过 | 2026-10-15 | `0a8438e`、`fca03ad` |
 | [M4-04](M4-04-guard-options.md) | 守卫选项 | 通过 | 2026-10-15 | `2491715` |
