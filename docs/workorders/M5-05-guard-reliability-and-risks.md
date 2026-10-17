@@ -72,6 +72,8 @@
 
 - `hooks.ts`：按 F-06-14，声明的 `SessionEnd` 写 `timeout: 3`。
 - 残余风险：按 F-06-16 补全；技能名超长时列为跳过。
+- 信任风险（`risks.ts` 的 `TRUST_RISK`）的后果按插件包中实际的 hooks 写：没有守卫、只有声明的命令
+  hooks 或 always 规则的输出条目（M5-03 起）时，不写“守卫不生效”。
 
 ### 3. agy（`src/targets/agy/`、`src/runtime/entries/agy-subprocess.ts`）
 

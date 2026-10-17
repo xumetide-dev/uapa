@@ -62,7 +62,8 @@
 - 用 `rules-commands` 确认三种规则生效：
   - `always` 规则在首个回复中可见。
   - `glob` 规则在读取匹配文件后加载。
-  - `model` 规则按描述加载。
+  - `model` 规则按描述加载。夹具中的 `model` 规则 `api-design` 只限 `agy:subprocess`，Claude Code
+    的产物中没有它：在容器内的副本中去掉其 `targets` 后构建，再确认。
 - `Monitor` 运行标记命令时被拒绝。
 - `onFailure` 在入口无法启动时阻断标记命令。
 - 维护者确认升级到 2.1.300 后：复跑双形态去重的会话实测（`UserPromptSubmit` 与 `Stop`），确认
