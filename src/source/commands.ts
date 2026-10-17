@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { failed, type InputIssue, type Loaded, loaded } from '../config/issues.ts'
 import { compare, listMarkdownFiles } from './files.ts'
-import { readFrontmatter, readTargets } from './frontmatter.ts'
+import { readFrontmatterAndBody, readTargets } from './frontmatter.ts'
 import type { Command } from './types.ts'
 
 const EXTENSION = '.md'
@@ -32,14 +32,16 @@ async function readCommand(root: string, fileName: string): Promise<Loaded<Comma
       { file: path, field: null, message: '文件名只能含字母、数字、_、-' },
     ])
   }
-  const meta = readFrontmatter(await readFile(join(root, path), 'utf8'), path)
-  if (!meta.ok) return meta
+  const parsed = readFrontmatterAndBody(await readFile(join(root, path), 'utf8'), path)
+  if (!parsed.ok) return parsed
+  const { meta, body } = parsed.value
   const issues: InputIssue[] = []
-  const description = meta.value.description
+  const description = meta.description
   if (typeof description !== 'string' || description.trim() === '') {
     issues.push({ file: path, field: 'description', message: '应为非空字符串' })
   }
-  const targets = readTargets(meta.value.targets, path, issues)
-  if (issues.length > 0) return failed(issues)
-  return loaded({ name, path, targets })
+  const targets = readTargets(meta.targets, path, issues)
+  // description 不是字符串时已记入 issues；第二个条件只用于类型收窄
+  if (issues.length > 0 || typeof description !== 'string') return failed(issues)
+  return loaded({ name, path, description, body, targets })
 }

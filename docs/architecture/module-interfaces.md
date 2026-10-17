@@ -136,6 +136,8 @@ export interface Rule {
 export interface Command {
   readonly name: string // 文件名去掉 .md
   readonly path: string // 相对源项目根，如 'commands/review.md'
+  readonly description: string // v0.4.0；frontmatter 的 description，非空
+  readonly body: string // v0.4.0；frontmatter 结束行之后的原文，供 Codex 的转换检查（F-06-13）
   readonly targets: readonly TargetName[] | null // 同 Skill.targets
 }
 export interface SourceProject {

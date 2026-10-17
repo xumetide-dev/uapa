@@ -3,7 +3,8 @@ import type { HostName, TargetName } from '../config/targets.ts'
 import type { CommandHookEvent } from '../config/types.ts'
 import type { Capability, GuardCheck, ToolNameMap } from '../runtime/core/types.ts'
 
-export type Carrier = 'package' | 'manifest' | 'none' // 包内、manifest 字段、不承载
+// 包内、manifest 字段、由宿主模块换成宿主承载的其他组件（v0.4.0，F-03-19）、不承载
+export type Carrier = 'package' | 'manifest' | 'converted' | 'none'
 export type FailMode = 'allow' | 'deny'
 // rules、commands 自 v0.3.0（F-03-16）
 export type Component = 'skills' | 'agents' | 'mcp' | 'hooks' | 'rules' | 'commands'

@@ -26,7 +26,7 @@ test('commands/ 不存在时为空列表；子目录与非 .md 文件忽略', as
   assert.deepEqual(ignored.value.commands, [])
 })
 
-test('得出名称、路径与 targets，按 name 排序；其他键不校验', async () => {
+test('得出名称、路径、description、正文与 targets，按 name 排序；其他键不校验', async () => {
   const result = await read({
     'commands/zeta.md':
       '---\ndescription: z\nargument-hint: <文件>\nmodel: haiku\n---\n$1\n',
@@ -35,8 +35,20 @@ test('得出名称、路径与 targets，按 name 排序；其他键不校验', 
   })
   assert.ok(result.ok)
   assert.deepEqual(result.value.commands, [
-    { name: 'alpha', path: 'commands/alpha.md', targets: ['claude-code:subprocess'] },
-    { name: 'zeta', path: 'commands/zeta.md', targets: null },
+    {
+      name: 'alpha',
+      path: 'commands/alpha.md',
+      description: 'a',
+      body: '',
+      targets: ['claude-code:subprocess'],
+    },
+    {
+      name: 'zeta',
+      path: 'commands/zeta.md',
+      description: 'z',
+      body: '$1\n',
+      targets: null,
+    },
   ])
 })
 

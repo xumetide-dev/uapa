@@ -66,6 +66,9 @@ export interface HostModule {
   的条目由该宿主的 manifest 功能（F-05-02、F-06-02、F-11-02）加入。构建编排只导入
   `src/targets/index.ts` 与 `src/targets/types.ts`；宿主模块不导入 `src/build/`，宿主模块之间
   互不导入。
+- 多个宿主共用的生成函数放在 `src/targets/` 下的宿主无关文件中，宿主模块可以导入，它们不导入
+  任何宿主模块。v0.4.0 起只有 `rule-skills.ts`：规则技能文件、`always` 规则的文本与输出脚本，
+  以及共用插件目录时不适用规则的残余风险（F-05-19、F-06-11）。
 - `src/build/` 的内部函数以参数接收 `hostModules` 与 `targetCapabilities`，`build` 传入两个登记处；
   构建编排的单元测试传入测试用的宿主模块与能力数据，不依赖宿主功能模块。
 - 能力检查在调用宿主模块之前完成：未通过的目标不进入 `plans`，同一宿主的其余目标照常生成。

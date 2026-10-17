@@ -1,4 +1,4 @@
-// hooks 配置（F-06-03、F-06-07、F-06-08）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
+// hooks 配置（F-06-03、F-06-07、F-06-08、F-06-11）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
 // Claude Code 相同；不写 matcher（省略时匹配全部工具）；timeout 单位秒。命令中的 ${PLUGIN_ROOT}
 // 由 Codex 在交给 shell 之前替换为插件目录，各平台的 shell 都能执行。依据 codex-plugins.md
 // 「源码核对（rust-v0.162.1）」。
@@ -56,14 +56,19 @@ export function codexHooks(
   return { hooks: events }
 }
 
-// guardChecks 为生成了入口的检查（没有守卫时为空）。守卫条目在前；每条声明一个分组，按声明顺序
-// 排在同一事件的守卫条目之后（F-06-08）。两者都没有时为 null
+// guardChecks 为生成了入口的检查（没有守卫时为空）；rulesCommand 为 always 规则的输出命令，没有
+// 时为 null。守卫条目在前，规则条目其次；每条声明一个分组，按声明顺序排在同一事件的已有条目
+// 之后（F-06-08）。都没有时为 null
 export function hooksConfig(
   guardChecks: readonly GuardCheck[],
   plan: TargetPlan,
+  rulesCommand: string | null,
 ): { hooks: Record<string, unknown[]> } | null {
   const timeout = plan.capabilities.hookTimeoutSeconds
   const { hooks } = codexHooks(guardChecks, timeout)
+  if (rulesCommand !== null) {
+    hooks.SessionStart = [{ hooks: [handler(rulesCommand, timeout)] }]
+  }
   for (const hook of plan.commandHooks) {
     const event = hostEvent(plan, hook)
     const command = hook.command.split('{pluginRoot}').join(PLUGIN_ROOT)

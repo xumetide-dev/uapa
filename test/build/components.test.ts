@@ -9,6 +9,7 @@ import type { BuildOutcome } from '../../src/build/index.ts'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
 import type { TargetCapabilities } from '../../src/capabilities/types.ts'
 import type { Rule } from '../../src/source/types.ts'
+import { claudeCode } from '../../src/targets/claude-code/index.ts'
 import { buildIn, deps, fakeHost, TARGET, writesManifest } from '../helpers/build.ts'
 
 function done(outcome: BuildOutcome) {
@@ -63,8 +64,8 @@ test('不能承载 commands 时：未写 targets 的 command 跳过，显式写�
 })
 
 test('不能承载 rules 时：未写 targets 的 rule 跳过，显式写了本目标的使目标失败', async () => {
-  // claude-code:subprocess 的能力数据为 rules: 'none'
-  await buildIn({ 'rules/style.md': RULE() }, deps(), async (root, outcome) => {
+  const noRules = deps(writesManifest, withComponents({ rules: 'none' }))
+  await buildIn({ 'rules/style.md': RULE() }, noRules, async (root, outcome) => {
     const [entry] = done(outcome).report.targets
     assert.equal(entry?.status, 'ok')
     assert.deepEqual(entry?.skipped, [
@@ -73,7 +74,7 @@ test('不能承载 rules 时：未写 targets 的 rule 跳过，显式写了本�
     assert.ok(!existsSync(join(root, 'dist/claude-code/rules')))
   })
   const explicit = { 'rules/style.md': RULE(`targets: [${TARGET}]\n`) }
-  await buildIn(explicit, deps(), async (_root, outcome) => {
+  await buildIn(explicit, noRules, async (_root, outcome) => {
     const [entry] = done(outcome).report.targets
     assert.equal(entry?.status, 'failed')
     assert.deepEqual(entry?.errors, [
@@ -99,6 +100,35 @@ test('承载 rules 时交给宿主模块，构建编排不复制 rules/', async 
     )
     assert.ok(!existsSync(join(root, 'dist/claude-code/rules')))
   })
+})
+
+test('换算承载（converted）的组件交给宿主模块，构建编排不原样复制', async () => {
+  let commands: readonly string[] | undefined
+  const host = fakeHost(async input => {
+    commands = input.plans[0]?.commands.map(command => command.name)
+    return { ok: true, files: [], skipped: [], residualRisks: [] }
+  })
+  const converted = withComponents({ commands: 'converted' })
+  await buildIn(
+    { 'commands/review.md': COMMAND() },
+    deps(host, converted),
+    async (root, outcome) => {
+      const [entry] = done(outcome).report.targets
+      assert.equal(entry?.status, 'ok')
+      assert.deepEqual(entry?.skipped, [])
+      assert.deepEqual(commands, ['review'])
+      assert.ok(!existsSync(join(root, 'dist/claude-code/commands')))
+    },
+  )
+  // 同一插件目录中另有目标原样承载（claude-code:in-process 的 commands 为 package）时照常复制
+  await buildIn(
+    { 'commands/review.md': COMMAND() },
+    deps(host, converted),
+    async root => {
+      assert.ok(existsSync(join(root, 'dist/claude-code/commands/review.md')))
+    },
+    { targets: ['claude-code:in-process', TARGET] },
+  )
 })
 
 test('跳过项依次为 skills、agents、rules、commands、MCP 服务器', async () => {
@@ -158,4 +188,42 @@ test('rules 或 commands 读取失败时返回 input-error，不写任何文件'
       assert.ok(!existsSync(join(root, 'dist')))
     })
   }
+})
+
+test('rules 换算的技能与源项目 skill 同名时写入该目录的全部目标失败', async () => {
+  const files = {
+    'skills/style/SKILL.md': '---\nname: style\ndescription: d\n---\n',
+    'rules/style.md':
+      '---\nactivation: model\ndescription: 写代码时\n---\n\n使用中文。\n',
+  }
+  await buildIn(files, deps(claudeCode), async (root, outcome) => {
+    const [entry] = done(outcome).report.targets
+    assert.equal(entry?.status, 'failed')
+    assert.deepEqual(entry?.errors, [
+      '同路径冲突：dist/claude-code/skills/style/SKILL.md 既由 claude-code 生成，' +
+        '又是复制的组件文件；rule style 写为同名技能，改名 rule 或 skill 之一',
+    ])
+    assert.ok(!existsSync(join(root, 'dist/claude-code')))
+  })
+})
+
+test('agy 原样复制 commands，不列为跳过，写模型自动选用的残余风险', async () => {
+  await buildIn(
+    { 'commands/review.md': COMMAND() },
+    deps(),
+    async (root, outcome) => {
+      const [entry] = done(outcome).report.targets
+      assert.equal(entry?.status, 'ok')
+      assert.deepEqual(entry?.skipped, [])
+      assert.ok(
+        entry?.residualRisks.includes(
+          'agy 安装时把 commands 转换为技能，以 /<插件名>:<命令名> 调用；转换后的技能也会被' +
+            '模型按 description 自动选用',
+        ),
+      )
+      const written = join(root, 'dist/agy/commands/review.md')
+      assert.equal(await readFile(written, 'utf8'), COMMAND())
+    },
+    { targets: ['agy:subprocess'] },
+  )
 })

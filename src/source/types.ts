@@ -50,6 +50,9 @@ export interface Rule {
 export interface Command {
   readonly name: string // 文件名去掉 .md
   readonly path: string // 相对源项目根，如 'commands/review.md'
+  readonly description: string // frontmatter 的 description，非空
+  // frontmatter 结束行之后的原文，换行符不变；宿主模块据此检查转换条件（F-06-13）
+  readonly body: string
   readonly targets: readonly TargetName[] | null // 同 Skill.targets
 }
 

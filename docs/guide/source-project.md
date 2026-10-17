@@ -29,8 +29,8 @@ hooks 配置由 UAPA 按宿主格式生成；源项目中的其他文件（READM
 |---|---|---|---|
 | skills | `skills/<name>/` | `skills/<name>/` | `skills/<name>/` |
 | agents | `agents/<name>.md` | 不承载，记为跳过 | `agents/<name>.md` |
-| rules | 不承载，记为跳过 | 不承载，记为跳过 | `rules/<name>.md`，frontmatter 换为 agy 的写法 |
-| commands | `commands/<name>.md` | `commands/<name>.md`，安装时转换为技能 | 不承载，记为跳过 |
+| rules | `skills/<name>/SKILL.md`；always 规则写入 `hooks/uapa-rules-claude-code.mjs` | `skills/<name>/SKILL.md`；always 规则写入 `hooks/uapa-rules-codex.mjs` | `rules/<name>.md`，frontmatter 换为 agy 的写法 |
+| commands | `commands/<name>.md` | `commands/<name>.md`，安装时转换为技能 | `commands/<name>.md`，安装时转换为技能 |
 | MCP 服务器 | `.mcp.json` | `mcp.json`，manifest 的 `mcpServers` 指向它 | `mcp_config.json` |
 | 守卫 hooks | `hooks/hooks.json` 与入口 | `hooks/hooks.json`（可由 `hooksFile` 改）与入口 | `hooks.json` 与入口 |
 
@@ -91,11 +91,18 @@ globs: ["*.ts", "src/**/*.tsx"]
   的相对路径书写，如 `src/**/*.tsx`。
 - frontmatter 中这三个键与 `targets` 以外的键一律拒绝：生成时 frontmatter 被重写，其他键会被
   丢弃。
-- 只有 agy 承载 rules：`activation` 依次换为 `trigger: always_on`、`model_decision`、`glob`，
+- agy：`activation` 依次换为 `trigger: always_on`、`model_decision`、`glob`，
   `globs` 写为以 `,` 连接的一个字符串。agy 按文件的绝对路径匹配，含 `/` 的模式加 `**/` 前缀
   （`src/**/*.tsx` 写为 `**/src/**/*.tsx`），因此也匹配其他位置的同名目录，构建报告写为
-  残余风险。Claude Code 与 Codex 的插件没有规则组件，未写 `targets`
-  的规则在它们的构建报告 `skipped` 中写为 `rules/<name>.md`。
+  残余风险。
+- Claude Code 与 Codex 的插件没有规则组件，UAPA 换算为宿主已有的组件：
+  - `model` 与 `glob` 规则写为技能 `skills/<name>/SKILL.md`，frontmatter 依次为 `name`、
+    `description`、`paths`（取 `globs`，只在 `glob` 时写）与 `user-invocable: false`，正文不变。
+    规则名与 skill 同名时生成失败。Codex 不读 `paths`，由模型按 `description` 决定是否加载，
+    构建报告写为残余风险；没有 `description` 的 `glob` 规则在 Codex 中记为跳过。
+  - `always` 规则按名称顺序合并为一段文本，由 `SessionStart` 命令 hook 以 `node` 运行的脚本
+    输出，宿主把输出加入上下文。需要 Node；Claude Code 只取前 10,000 字符，超过时构建报告写为
+    残余风险；Codex 的 hooks 须先在 `/hooks` 中信任。
 
 ## commands
 
@@ -113,11 +120,13 @@ argument-hint: <文件>
 
 - `description` 必填，为非空字符串；除 `targets` 外的其他键不校验，留给宿主解释。
 - Claude Code 以 `/<插件名>:<name>` 调用命令。
-- Codex 在安装插件时把命令转换为技能；正文含 `$ARGUMENTS`、`$1` 等模板写法或转换结果超过
-  4000 字节的命令被 Codex 跳过，UAPA 不检查这些条件，在构建报告的残余风险中提示。转换后的
-  技能以 `$<插件名>:source-command-<name>` 调用，模型也会按 `description` 选用。
-- agy 的插件没有斜杠命令组件，未写 `targets` 的命令在其构建报告 `skipped` 中写为
-  `commands/<name>.md`。
+- Codex 在安装插件时把命令转换为技能，转换后的技能以 `$<插件名>:source-command-<name>` 调用，
+  模型也会按 `description` 选用。Codex 跳过的命令在构建报告 `skipped` 中写为
+  `commands/<name>.md` 并写明原因：文件名为 `README`、技能名超过 64 个字符、正文含
+  `$ARGUMENTS`、`$1`、`{{…}}`、`` !`…` `` 或 `@<文件>`、多个命令得出同一技能名、转换结果超过
+  4000 字节。
+- agy 在安装插件时把命令转换为技能，以 `/<插件名>:<name>` 调用，模型也会按 `description`
+  选用。
 
 ## 限定目标的 frontmatter
 

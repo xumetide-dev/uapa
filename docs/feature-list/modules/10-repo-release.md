@@ -21,7 +21,8 @@
 - `case.json`：命令参数与期望退出码，如 `{ "args": ["build"], "exitCode": 1 }`。
 - `expected/tree/`：运行后整个源项目目录的期望内容；`expected/stdout.txt`、`expected/stderr.txt`。
 - `expected/stdin/<目标名，冒号换为 ->/<用例>.json`：子进程目标的入口用例（`claude-code:in-process`
-  没有入口用例），含 `args`、`stdin`、`env` 与期望的 `exitCode`、`stdout`、`stderr`；这几处文本中的
+  没有入口用例），含 `args`、`stdin`、`env` 与期望的 `exitCode`、`stdout`、`stderr`，可选的 `entry`
+  为相对插件目录的入口文件（省略时为目标的守卫入口）；这几处文本中的
   `{dataDir}` 替换为本用例新建的临时目录。
 
 测试把 `source/` 复制到临时目录，`PATH` 只含一个临时目录（除 `verify-failed` 外为空），以
@@ -55,6 +56,6 @@ stdout、stderr 分别与期望文件比对。入口用例以 `process.execPath`
 | `command-hooks` | 守卫只实现 `beforeTool`；`commandHooks` 声明一条 `SessionStart`（命令为 `node "{pluginRoot}/scripts/session.mjs"`）与一条 `SessionEnd`；四个目标，默认布局 | M4、M5 之后；Codex 的 `SessionEnd` 超时自 M5-05 | F-01-09、F-03-15、F-05-15、F-06-08、F-11-06、TA-18；F-05-23、F-06-14、TA-26 |
 | `after-tool` | 守卫实现 `beforeTool`（放行）与 `afterTool`，后者按输出中的标记返回 `keep`、`replace`、`withhold`、抛错或无效返回值；四个目标，默认布局；入口用例覆盖 `claude-code:subprocess` 与 `codex:subprocess` | M2-02 | F-02-04、F-04-08、F-05-13、F-06-07、TA-19 |
 | `components` | 不配守卫；两个 agent，一个不写 `targets`，一个只限定 `agy:subprocess`；`mcp/servers.json` 中四个服务器：`args` 含 `{pluginRoot}` 的本地服务器、`command` 含 `{pluginRoot}` 的本地服务器、不含 `{pluginRoot}` 的本地服务器与带 `headers` 的远程服务器；四个目标，默认布局 | M2-03（agents）、M2-04（MCP 服务器） | F-01-07、F-01-08、F-05-11、F-05-12、F-06-06、F-11-07、F-11-08、TA-20 |
-| `rules-commands` | 不配守卫；三条 rules（`always`、`model`、`glob` 各一，`glob` 的一条有两个模式，`model` 的一条只限定 `agy:subprocess`）与两个 commands（一个不写 `targets`，一个只限定 `claude-code:subprocess`）；四个目标，默认布局 | M4-02；rules 的换算承载与 agy 的 commands 自 M5-03 | F-01-10、F-01-11、F-03-16、F-05-16、F-06-09、F-11-09、TA-21；F-05-19、F-06-11、F-06-13、F-11-11、TA-26 |
+| `rules-commands` | 不配守卫；三条 rules（`always`、`model`、`glob` 各一，`glob` 的一条有两个模式，`model` 的一条只限定 `agy:subprocess`）与两个 commands（一个不写 `targets`，一个只限定 `claude-code:subprocess`）；四个目标，默认布局；入口用例以空 stdin 运行 Claude Code 与 Codex 的 `always` 规则输出脚本，期望 stdout 为规则正文 | M4-02；rules 的换算承载与 agy 的 commands 自 M5-03 | F-01-10、F-01-11、F-03-16、F-05-16、F-06-09、F-11-09、TA-21；F-05-19、F-06-11、F-06-13、F-11-11、TA-26 |
 | `guard-options` | 守卫声明 number、boolean、string 各一个选项，`beforeTool` 对标记命令按选项拒绝并在原因中写出取值；四个目标，默认布局；入口用例覆盖三个子进程目标的默认值、`claude-code:subprocess` 的有效与无效环境变量 | M4-04 | F-02-05、F-04-09、F-05-17、F-05-18、F-06-10、F-11-10、TA-23 |
 | `host-coverage` | 守卫实现 `beforeTool` 与 `beforePrompt`；`files/scripts/server.mjs`；`mcp/servers.json` 中以 `node` 运行该脚本、声明 `envVars` 的本地服务器，与请求头含 `${…}` 的远程服务器；`hosts['claude-code']` 写 `manifest`（`homepage`、`license`）与 `onFailure: 'block'`；配置 `marketplace`；一个正文含 `$ARGUMENTS` 的命令；一个 frontmatter 含 `tools` 的 agent；四个目标，默认布局 | 自 M5-02 起按工单逐步加入 | F-01-12、F-01-13、F-01-14、F-03-17、F-03-18、F-05-20、F-05-21、F-05-24、F-06-12、F-06-13、F-06-15、F-06-16、F-11-12、F-11-14、TA-26 |

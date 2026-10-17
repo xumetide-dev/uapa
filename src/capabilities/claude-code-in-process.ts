@@ -24,8 +24,10 @@ export const claudeCodeInProcess: TargetCapabilities = {
     // （claude-code-local-tests.md「commands 与 userConfig」，2026-10-15 实测；UAPA 产物的
     // 复测见同文「UAPA 夹具产物」）
     commands: 'package',
-    // 插件没有规则组件，插件根的 CLAUDE.md 不作为上下文加载（claude-code-plugins.md）
-    rules: 'none',
+    // 插件没有规则组件，插件根的 CLAUDE.md 不作为上下文加载（claude-code-plugins.md）。换算：
+    // model 与 glob 规则写为 user-invocable: false 的技能，always 规则由 SessionStart 命令 hook
+    // 的纯文本 stdout 加入上下文（claude-code-local-tests.md「v0.4.0 覆盖审查（2.1.296，容器）」）
+    rules: 'converted',
   },
   capabilities: {
     rewriteInput: true, // next({ ...e, command })，只对 Bash（F-05-05）

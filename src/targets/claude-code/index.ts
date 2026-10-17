@@ -1,6 +1,7 @@
 // Claude Code 宿主模块。claude-code:subprocess 与 claude-code:in-process 写入同一插件目录，
 // 合为一个插件包（F-05-10）：plugin.json 与 .mcp.json 只生成一份，hooks/hooks.json 按进入 plans
-// 的目标写 hooks 键（命令 hooks）与 modules 键（hooks 模块）。
+// 的目标写 hooks 键（命令 hooks）与 modules 键（hooks 模块）。rules 按两个目标的并集换算为
+// 技能与 SessionStart 命令 hook（F-05-19）。
 import { compare } from '../../source/files.ts'
 import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
@@ -15,6 +16,7 @@ import { HOOKS_FILE, hooksKey, SUBPROCESS_ENTRY } from './hooks.ts'
 import { manifest, manifestErrors, userConfig } from './manifest.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { MODULES, type ModuleFiles, moduleFiles, moduleSessionEnv } from './module.ts'
+import { claudeCodeRules } from './rules.ts'
 import { validatePlugin } from './verify.ts'
 
 // 插件包中只有 hooks 模块时（F-05-10）
@@ -51,19 +53,21 @@ interface SubprocessFiles {
   readonly files: readonly OutputFile[]
 }
 
-// claude-code:subprocess 的命令 hooks（F-05-03、F-05-15）与子进程入口（F-05-04）：checks 为空时
-// 不生成入口，checks 与 commandHooks 都为空时返回 null
+// 命令 hooks（F-05-03、F-05-15、F-05-19）与子进程入口（F-05-04）：plan 为 claude-code:subprocess
+// 的计划，不在 plans 中时只写规则条目；checks 为空时不生成入口，没有任何条目时返回 null
 async function subprocessFiles(
   input: HostInput,
-  plan: TargetPlan,
+  plan: TargetPlan | undefined,
   sessionEnv: string | null,
+  rulesCommand: string | null,
 ): Promise<SubprocessFiles | null> {
   const guard = input.guard
-  const withEntry = plan.checks.length > 0 && guard !== null
-  const hooks = hooksKey(withEntry ? plan.checks : [], plan)
+  const checks = plan?.checks ?? []
+  const withEntry = checks.length > 0 && guard !== null
+  const hooks = hooksKey(withEntry ? checks : [], plan, rulesCommand)
   if (hooks === null) return null
-  const files = withEntry ? [await entryFile(input, plan, guard, sessionEnv)] : []
-  return { hooks, files }
+  if (!withEntry || plan === undefined) return { hooks, files: [] }
+  return { hooks, files: [await entryFile(input, plan, guard, sessionEnv)] }
 }
 
 async function entryFile(
@@ -144,10 +148,8 @@ export const claudeCode: HostModule = {
       subprocess !== undefined && inProcess !== undefined
         ? moduleSessionEnv(input.config.name)
         : null
-    const command =
-      subprocess === undefined
-        ? null
-        : await subprocessFiles(input, subprocess, sessionEnv)
+    const rules = claudeCodeRules(input.plans)
+    const command = await subprocessFiles(input, subprocess, sessionEnv, rules.command)
     const hooksModule =
       inProcess === undefined ? null : await moduleFiles(input, inProcess, sessionEnv)
     const plugin = manifest(input.config, hooksModule?.types ?? null, config.value)
@@ -157,8 +159,12 @@ export const claudeCode: HostModule = {
       ...(command?.files ?? []),
       ...(hooksModule?.files ?? []),
       ...mcpFile(input.plans),
+      ...rules.files,
     ]
-    const residualRisks = residualRisksOf(subprocess, inProcess, hooksModule)
+    const residualRisks = [
+      ...residualRisksOf(subprocess, inProcess, hooksModule),
+      ...rules.risks,
+    ]
     return { ok: true, files, skipped: [], residualRisks }
   },
   async verify(dir) {

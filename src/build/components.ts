@@ -24,12 +24,21 @@ const LABELS: Readonly<Record<FileKind, string>> = {
   commands: 'command',
 }
 
-// 写入该目录的成功目标所适用组件的并集，各自按名称排序
+// 写入该目录的成功目标所适用组件的并集，各自按名称排序。只并入原样承载（package）该类组件的
+// 目标的组件：换算承载（converted）的组件由宿主模块生成，不原样复制（F-03-19）
 export function componentUnion(targets: readonly TargetState[]): PlacedComponents {
+  const copies = (state: TargetState, kind: keyof PlacedComponents) =>
+    state.capabilities.components[kind] === 'package'
   return {
-    skills: union(targets.flatMap(state => state.plan?.skills ?? [])),
-    agents: union(targets.flatMap(state => state.plan?.agents ?? [])),
-    commands: union(targets.flatMap(state => state.plan?.commands ?? [])),
+    skills: union(
+      targets.flatMap(s => (copies(s, 'skills') ? (s.plan?.skills ?? []) : [])),
+    ),
+    agents: union(
+      targets.flatMap(s => (copies(s, 'agents') ? (s.plan?.agents ?? []) : [])),
+    ),
+    commands: union(
+      targets.flatMap(s => (copies(s, 'commands') ? (s.plan?.commands ?? []) : [])),
+    ),
   }
 }
 

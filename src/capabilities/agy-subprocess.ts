@@ -20,10 +20,11 @@ export const agySubprocess: TargetCapabilities = {
     hooks: 'package',
     // rules/<name>.md 的 trigger 与逗号分隔的 globs 生效，globs 按文件的绝对路径匹配
     // （agy-local-tests.md「rules（1.3.5，容器）」，2026-10-15 实测；UAPA 产物的复测见同文「UAPA
-    // 夹具产物（1.3.5，容器）」）。commands 在 v0.3.0 不承载（SD-33）；1.3.5 安装时把 commands/
-    // 转换为技能（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」）
+    // 夹具产物（1.3.5，容器）」）
     rules: 'package',
-    commands: 'none',
+    // 1.3.5 安装时把 commands/ 转换为技能，以 /<插件名>:<命令名> 调用，$ARGUMENTS 替换为参数
+    // 文本（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」，SD-39）
+    commands: 'package',
   },
   capabilities: {
     rewriteInput: true, // PreToolUse 的 overwrite，按键浅合并进 toolCall.args

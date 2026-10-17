@@ -22,8 +22,8 @@
 |---|---|---|---|
 | skills | 承载 | 承载 | 承载 |
 | agents | 承载 | 不承载，记为跳过 | 承载 |
-| rules | 不承载，记为跳过 | 不承载，记为跳过 | 承载，frontmatter 换为 agy 的写法 |
-| commands | 承载 | 承载，安装时转换为技能 | 不承载，记为跳过 |
+| rules | 换算：model 与 glob 规则写为技能，always 规则由 `SessionStart` hook 输出 | 换算，同 Claude Code；没有 `description` 的 glob 规则记为跳过 | 承载，frontmatter 换为 agy 的写法 |
+| commands | 承载 | 承载，安装时转换为技能；Codex 不转换的命令记为跳过 | 承载，安装时转换为技能 |
 | MCP 服务器 | 承载 | 承载；`command` 含 `{pluginRoot}` 的跳过 | 承载；`command` 含 `{pluginRoot}` 的跳过 |
 | 守卫选项 | 写入 `userConfig`，取使用者设置的值 | 取 `default`，记为残余风险 | 取 `default`，记为残余风险 |
 | `rewriteInput` | 有 | 有 | 有 |
@@ -73,6 +73,11 @@
 - 只配置 `claude-code:subprocess`：适用于不支持 hooks 模块的版本，需要 Node ≥ 22。
 - 两者都配置：支持模块的版本用模块，较旧的版本用命令 hooks；[快速上手](getting-started.md)的
   配置采用这种写法。
+- rules：model 与 glob 规则写为 `skills/<规则名>/SKILL.md`（`user-invocable: false`，glob 规则的
+  `globs` 写为 `paths`）；always 规则合并后由 `SessionStart` 命令 hook 以 `node` 运行
+  `hooks/uapa-rules-claude-code.mjs` 输出，宿主把输出加入上下文，超过 10,000 字符的部分不进入
+  上下文（2.1.296 容器实测）。只配置 `claude-code:in-process` 时也写这个条目，没有 Node 时
+  always 规则不生效。
 - 写出后，PATH 中有 `claude` 时 UAPA 运行 `claude plugin validate --strict <插件目录>`，结果写入
   构建报告的 `hostValidation`；没有 `claude` 时为 `skipped`。
 
@@ -84,14 +89,21 @@
 - 含 hooks 的插件不能进入 Codex 的公开插件目录（构建报告的残余风险）。
 - 只对执行成功的工具调用触发 `PostToolUse`；处理器报错与 MCP 结果 `isError` 为真的调用不受执行后
   检查。
-- 安装插件时把 `commands/` 中的命令转换为技能；正文含 `$ARGUMENTS` 等模板写法或转换结果超过
-  4000 字节的命令被跳过（rust-v0.162.1 源码核对）。转换后的技能以
+- rules：写法同 Claude Code，always 规则的输出脚本为 `hooks/uapa-rules-codex.mjs`。Codex 不读
+  技能的 `paths`，glob 规则写为技能后由模型按 `description` 决定是否加载；技能须有
+  `description`，没有的 glob 规则记为跳过。always 规则的条目同样要先在 `/hooks` 中信任。
+- 安装插件时把 `commands/` 中的命令转换为技能。UAPA 按 rust-v0.162.1 源码中的条件逐个检查，Codex
+  不转换的命令记为跳过并写明原因：文件名为 `README`、技能名超过 64 个字符、正文含 `$ARGUMENTS`、
+  `$1`、`{{…}}`、`` !`…` `` 或 `@<文件>`、多个命令得出同一技能名、转换结果超过 4000 字节。
+  转换后的技能以
   `$<插件名>:source-command-<命令名>` 调用，TUI 中键入 `$` 与名称片段时出现在补全列表；模型也按
   `description` 选用（codex-cli 0.162.1 容器实测）。
 
 ## agy
 
 - 全局安装的插件对本机该用户的全部 agy 会话生效，hooks 也是（agy 1.3.4 本地实测）。
+- 安装插件时把 `commands/` 中的命令转换为技能，以 `/<插件名>:<命令名>` 调用；模型也按
+  `description` 自动选用转换后的技能（agy 1.3.5 容器实测）。
 - 没有提示提交与会话结束事件；执行后 hook 不能替换或扣留输出，因此不生成。
 - hook 进程中没有插件数据目录（agy 1.3.5 容器实测；只有 MCP 服务器进程有 `PLUGIN_DATA`）：停机计数
   存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时归零。

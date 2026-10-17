@@ -118,7 +118,8 @@ UAPA 是一个命令行包，没有长期运行的服务。一次构建的调用
 | `report` | 构建报告的类型与终端摘要文本 | 无 | 不读写文件；由 `build` 填充并写出；报告写入能力数据的核对日期 |
 
 `src/targets/types.ts` 只引用 `config`、`source`、`runtime/core`、`capabilities` 与 `bundle` 的类型；
-`src/targets/index.ts` 只导入各宿主模块。两者由功能模块 03 维护，宿主模块只导入 `types.ts`。
+`src/targets/index.ts` 只导入各宿主模块。两者由功能模块 03 维护，宿主模块只导入 `types.ts` 与
+宿主无关的共用生成函数（`rule-skills.ts`，见[宿主模块接口](host-module-interface.md)）。
 
 全局约束：
 

@@ -1,6 +1,6 @@
 // agy 宿主模块（agy:subprocess）。agy plugin validate 对结构错误也报通过，本宿主不实现
 // verify，由字段白名单检查（F-11-05）在生成时代替。MCP 服务器写入 mcp_config.json（F-11-08），
-// rules 写入 rules/（F-11-09）。
+// rules 写入 rules/（F-11-09）。commands 由构建编排原样复制，本模块只写残余风险（F-11-11）。
 import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
   HostInput,
@@ -33,6 +33,11 @@ const PRE_TOOL_USE_RISK =
 const SHARED_CLAUDE_CODE_RISK =
   '与 Claude Code 共用插件目录：agy 的安装命令是否把含 .claude-plugin/ 的目录按 Claude Code ' +
   '插件转换未实测'
+
+// 安装时把 commands/ 转换为技能（F-11-11；agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」）
+const COMMANDS_RISK =
+  'agy 安装时把 commands 转换为技能，以 /<插件名>:<命令名> 调用；转换后的技能也会被模型按 ' +
+  'description 自动选用'
 
 // 未核实 agy 插件的用户配置（F-11-10）
 const OPTIONS_RISK = 'agy 没有已核实的插件用户配置，守卫选项取构建时默认值'
@@ -121,5 +126,6 @@ function risks(
   const optionCount = input.guard?.options.length ?? 0
   if (plan.checks.length > 0 && optionCount > 0) messages.push(OPTIONS_RISK)
   messages.push(...ruleRisks)
+  if (plan.commands.length > 0) messages.push(COMMANDS_RISK)
   return messages.map(message => ({ target: TARGET, message }))
 }

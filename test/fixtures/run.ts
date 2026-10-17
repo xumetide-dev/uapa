@@ -37,6 +37,8 @@ export interface FixtureRun {
 export interface EntryCase {
   readonly target: TargetName
   readonly name: string
+  // 相对插件目录的入口文件；省略时为目标的守卫入口（always 规则的输出脚本等另写）
+  readonly entry?: string
   readonly args: readonly string[]
   readonly stdin: unknown // 字符串原样写入 stdin，其余按 JSON 写入
   readonly env: Readonly<Record<string, string>>
@@ -166,7 +168,7 @@ export async function runEntryCase(
   entryCase: EntryCase,
   { extraEnv = {}, node = process.execPath }: EntryRunOptions = {},
 ): Promise<{ result: EntryResult; expected: EntryResult }> {
-  const entryFile = ENTRY_FILES[entryCase.target]
+  const entryFile = entryCase.entry ?? ENTRY_FILES[entryCase.target]
   if (entryFile === undefined) throw new Error(`${entryCase.target} 没有子进程入口`)
   const dir = await pluginDir(run, entryCase.target)
   const dataDir = await mkdtemp(join(tmpdir(), 'uapa-data-'))

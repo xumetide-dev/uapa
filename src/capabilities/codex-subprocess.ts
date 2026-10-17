@@ -19,12 +19,15 @@ export const codexSubprocess: TargetCapabilities = {
     agents: 'none',
     mcp: 'package',
     hooks: 'package',
-    // 兼容格式的插件在安装时把 commands/*.md 转换为技能，部分命令被跳过，由宿主模块写残余风险；
-    // 插件不承载规则或指令文件（codex-source-review.md「commands、rules 与用户配置」，
-    // rust-v0.162.1，2026-10-15 核对）；转换后的技能以 $<插件名>:source-command-<命令名>
-    // 调用（codex-local-tests.md「容器实测（0.162.1）」）
+    // 兼容格式的插件在安装时把 commands/*.md 转换为技能，不满足转换条件的命令被跳过，由宿主模块
+    // 逐个检查并列为跳过；转换后的技能以 $<插件名>:source-command-<命令名> 调用
+    // （codex-source-review.md「commands、rules 与用户配置」，rust-v0.162.1，2026-10-15 核对；
+    // codex-local-tests.md「容器实测（0.162.1）」）
     commands: 'package',
-    rules: 'none',
+    // 插件不承载规则或指令文件（同上）。换算：model 与有 description 的 glob 规则写为技能，always
+    // 规则由 SessionStart 命令 hook 的纯文本 stdout 加入上下文（rust-v0.162.1
+    // hooks/src/events/session_start.rs，codex-source-review.md；会话中的效果未实测）
+    rules: 'converted',
   },
   capabilities: {
     rewriteInput: true, // permissionDecision: "allow" 与 updatedInput

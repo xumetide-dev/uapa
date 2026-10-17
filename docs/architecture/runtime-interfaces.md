@@ -107,7 +107,7 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   共用的取值，无效时与守卫抛错相同处理（F-05-06），原因为 `uapa: 守卫选项无效: <选项名>`。
 - 规则输出脚本（v0.4.0，F-05-19、F-06-11）：宿主模块直接生成，不经 `bundle`，不导入任何模块。
   内容为一行 `process.stdout.write(<文本>)`，文本以 `JSON.stringify` 写成字面量：`always` 规则
-  按名称排序，各自的 `Rule.body` 去掉结尾换行后以一个空行连接，末尾一个换行。文件与命令：
+  按名称排序，各自的 `Rule.body` 去掉首尾的换行后以一个空行连接，末尾一个换行。文件与命令：
 
   | 宿主 | 产物中的文件 | `SessionStart` 命令 |
   |---|---|---|
