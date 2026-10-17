@@ -64,6 +64,7 @@ Antigravity CLI（agy）十个平台。事实核对日期为 2026-10-13（agy �
 | [kiro-powers.md](kiro-powers.md) | Kiro Powers | 已核实；官方文档存在矛盾处 |
 | [unified-agent-plugin-architecture.md](unified-agent-plugin-architecture.md) | UAPA：定位、源项目、后续目标与产物 | 设计提案；实现以 `docs/architecture/` 与 `docs/feature-list/` 为准 |
 | [uapa-hook-adapters.md](uapa-hook-adapters.md) | UAPA：守卫逻辑的公共类型与各宿主 hooks 适配 | v0.1.0 目标的部分为实现依据；其余为设计提案 |
+| [claude-code-dual-form-dedup.md](claude-code-dual-form-dedup.md) | UAPA：Claude Code 两种 hooks 形态的文件布局与去重（hooks 适配第 5 节的子页） | 实现依据 |
 | [modular-development.md](modular-development.md) | 扩展形态分层与迁移指南 | 示例与迁移步骤；UAPA v0.1.0 尚未实现 |
 | [claude-code-local-tests.md](claude-code-local-tests.md) | Claude Code 本地实测记录 | 可复现 |
 | [agy-local-tests.md](agy-local-tests.md) | agy 实测记录（1.3.4 本地，1.3.5 容器） | 可复现 |
