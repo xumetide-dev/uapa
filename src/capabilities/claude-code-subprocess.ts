@@ -51,6 +51,11 @@ export const claudeCodeSubprocess: TargetCapabilities = {
   toolNames: {
     Bash: 'shell',
     PowerShell: 'shell',
+    // 入参含 command，与 Bash 相同，改写写回该键；NotebookEdit 的入参为 notebook_path、cell_id、
+    // new_source、edit_mode，原样传给守卫（claude-code-local-tests.md「v0.4.0 覆盖审查（2.1.296，
+    // 容器）」，F-05-22）
+    Monitor: 'shell',
+    NotebookEdit: 'edit_file',
     Read: 'read_file',
     Edit: 'edit_file',
     Write: 'write_file',

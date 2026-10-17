@@ -1,6 +1,7 @@
 // Codex 宿主模块（codex:subprocess）。不实现 verify：Codex 没有校验插件的命令，由字段白名单
 // 检查（F-06-05）在生成时代替。MCP 服务器写入 mcp.json（F-06-06）；rules 换算为技能与
-// SessionStart 命令 hook（F-06-11）；commands 逐个检查转换条件（F-06-13）。
+// SessionStart 命令 hook（F-06-11）；commands 逐个检查转换条件（F-06-13）；技能名超长的 skill
+// 列为跳过（F-06-16）。
 import { type GuardDeclaration, runtimeOptions } from '../../source/guard.ts'
 import type {
   HostInput,
@@ -28,6 +29,7 @@ import {
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { hooksRisks, mcpRisks, TARGET } from './risks.ts'
 import { codexRules, RULES_ENTRY } from './rules.ts'
+import { nestedSkillRisks, skillSkips } from './skills.ts'
 
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`
@@ -131,7 +133,7 @@ export const codex: HostModule = {
     const plan = input.plans.find(p => p.target === TARGET)
     if (plan === undefined) throw new Error(`plans 中没有 ${TARGET}`)
     const withEntry = plan.checks.length > 0 && input.guard !== null
-    const rules = codexRules(plan)
+    const rules = codexRules(plan, input.config.name)
     // checks、always 规则与 commandHooks 都没有时不生成 hooks 配置
     const hooks = hooksConfig(withEntry ? plan.checks : [], plan, rules.command)
     const mcp = mcpConfig(plan.mcpServers)
@@ -156,8 +158,10 @@ export const codex: HostModule = {
       ...(mcp.config === null ? [] : mcpRisks()),
       ...mcp.risks.map(message => ({ target: TARGET, message })),
       ...rules.risks.map(message => ({ target: TARGET, message })),
+      ...nestedSkillRisks(plan.skills).map(message => ({ target: TARGET, message })),
     ]
     const skipped = [
+      ...skillSkips(TARGET, input.config.name, plan.skills),
       ...mcp.skipped,
       ...rules.skipped,
       ...commandSkips(TARGET, plan.commands),

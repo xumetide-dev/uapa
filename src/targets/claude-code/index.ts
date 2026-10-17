@@ -9,29 +9,15 @@ import type {
   HostModule,
   HostResult,
   OutputFile,
-  TargetNote,
   TargetPlan,
 } from '../types.ts'
 import { HOOKS_FILE, hooksKey, SUBPROCESS_ENTRY } from './hooks.ts'
 import { manifest, manifestErrors, userConfig } from './manifest.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { MODULES, type ModuleFiles, moduleFiles, moduleSessionEnv } from './module.ts'
+import { claudeCodeRisks } from './risks.ts'
 import { claudeCodeRules } from './rules.ts'
 import { validatePlugin } from './verify.ts'
-
-// 插件包中只有 hooks 模块时（F-05-10）
-const MODULE_ONLY_RISK =
-  'Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；' +
-  '同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底'
-
-// 计划了执行后检查时（SD-29）：按输出形状替换，Bash 与 Read 之外的工具没有可替换的形状
-const SUBPROCESS_AFTER_TOOL_RISK =
-  '命令 hooks 的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace ' +
-  '与 withhold 只把文本附加给模型，模型仍读到原输出；工具报错时宿主不触发 PostToolUse，' +
-  '报错的结果不受检查'
-const MODULE_AFTER_TOOL_RISK =
-  'hooks 模块的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace ' +
-  '按扣留写出，模型读到以替换文本为原因的扣留说明'
 
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`
@@ -64,7 +50,8 @@ async function subprocessFiles(
   const guard = input.guard
   const checks = plan?.checks ?? []
   const withEntry = checks.length > 0 && guard !== null
-  const hooks = hooksKey(withEntry ? checks : [], plan, rulesCommand)
+  const onFailure = input.config.hosts?.['claude-code']?.onFailure
+  const hooks = hooksKey(withEntry ? checks : [], plan, { rulesCommand, onFailure })
   if (hooks === null) return null
   if (!withEntry || plan === undefined) return { hooks, files: [] }
   return { hooks, files: [await entryFile(input, plan, guard, sessionEnv)] }
@@ -102,25 +89,6 @@ function hooksConfigFile(
     ...(hooksModule === null ? {} : { modules: MODULES }),
   }
   return [{ path: HOOKS_FILE, content: json(content) }]
-}
-
-function residualRisksOf(
-  subprocess: TargetPlan | undefined,
-  inProcess: TargetPlan | undefined,
-  hooksModule: ModuleFiles | null,
-): TargetNote[] {
-  const risks: TargetNote[] = []
-  if (hooksModule !== null && subprocess === undefined) {
-    risks.push({ target: 'claude-code:in-process', message: MODULE_ONLY_RISK })
-  }
-  // 没有守卫时 checks 为空
-  if (subprocess?.checks.includes('afterTool') === true) {
-    risks.push({ target: subprocess.target, message: SUBPROCESS_AFTER_TOOL_RISK })
-  }
-  if (inProcess?.checks.includes('afterTool') === true) {
-    risks.push({ target: inProcess.target, message: MODULE_AFTER_TOOL_RISK })
-  }
-  return risks
 }
 
 // 两个目标的服务器相同（MCP 服务器没有 targets）；取并集，按名称排序
@@ -161,10 +129,8 @@ export const claudeCode: HostModule = {
       ...mcpFile(input.plans),
       ...rules.files,
     ]
-    const residualRisks = [
-      ...residualRisksOf(subprocess, inProcess, hooksModule),
-      ...rules.risks,
-    ]
+    const forms = { subprocess, inProcess, moduleWritten: hooksModule !== null }
+    const residualRisks = [...claudeCodeRisks(input, forms), ...rules.risks]
     return { ok: true, files, skipped: [], residualRisks }
   },
   async verify(dir) {

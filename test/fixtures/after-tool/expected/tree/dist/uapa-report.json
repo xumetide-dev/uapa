@@ -21,7 +21,9 @@
       "overridden": [],
       "hostValidation": "skipped",
       "residualRisks": [
-        "hooks 模块的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace 按扣留写出，模型读到以替换文本为原因的扣留说明"
+        "hooks 模块的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace 按扣留写出，模型读到以替换文本为原因的扣留说明",
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
       ]
     },
     {
@@ -47,7 +49,9 @@
       "residualRisks": [
         "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
         "缺少 Node ≥ 22 或入口无法启动时，执行后检查不生效（宿主在 hook 出错时放行）",
-        "命令 hooks 的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace 与 withhold 只把文本附加给模型，模型仍读到原输出；工具报错时宿主不触发 PostToolUse，报错的结果不受检查"
+        "命令 hooks 的执行后检查只能替换 Bash 与 Read 这类形状可替换的输出；其他工具的 replace 与 withhold 只把文本附加给模型，模型仍读到原输出；工具报错时宿主不触发 PostToolUse，报错的结果不受检查",
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
       ]
     },
     {
@@ -81,6 +85,7 @@
         "缺少 Node ≥ 22 或入口无法启动时，执行后检查不生效（宿主在 hook 出错时放行）",
         "Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，未信任的 hook 被静默跳过，守卫不生效",
         "含 hooks 的插件不能进入 Codex 的公开插件目录",
+        "Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 hooks 不运行",
         "Codex 只对执行成功的调用触发 PostToolUse：处理器报错与 MCP 结果 isError 为真的调用不受执行后检查"
       ]
     },
@@ -105,7 +110,8 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
-        "本目标缺少 withholdOutput，未生成执行后检查的 hook：执行后检查不生效，模型能读到原始输出"
+        "本目标缺少 withholdOutput，未生成执行后检查的 hook：执行后检查不生效，模型能读到原始输出",
+        "/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测"
       ]
     }
   ]

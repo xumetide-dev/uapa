@@ -20,7 +20,10 @@
       "degraded": [],
       "overridden": [],
       "hostValidation": "skipped",
-      "residualRisks": []
+      "residualRisks": [
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
+      ]
     },
     {
       "target": "claude-code:subprocess",
@@ -42,7 +45,12 @@
       "degraded": [],
       "overridden": [],
       "hostValidation": "skipped",
-      "residualRisks": []
+      "residualRisks": [
+        "运行宿主的机器缺少 Node ≥ 22 时，每次工具调用与提示都被阻断；Claude Code 2.1.295 之前的版本对 onFailure 的处理未核实",
+        "同时配置 claude-code:in-process 时，hooks 模块生效的会话中命令入口仍会运行（随后跳过），缺少 Node ≥ 22 时同样被阻断",
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
+      ]
     },
     {
       "target": "codex:subprocess",
@@ -62,6 +70,10 @@
       ],
       "skipped": [
         {
+          "component": "agents/reviewer.md",
+          "reason": "本目标不能承载 agents"
+        },
+        {
           "component": "commands/review.md",
           "reason": "正文含模板写法 $ARGUMENTS，Codex 不转换"
         }
@@ -70,6 +82,11 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
+        "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
+        "缺少 Node ≥ 22 或入口无法启动时，提示提交前检查不生效（宿主在 hook 出错时放行）",
+        "Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，未信任的 hook 被静默跳过，守卫不生效",
+        "含 hooks 的插件不能进入 Codex 的公开插件目录",
+        "Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 hooks 不运行",
         "Codex 不为插件的 MCP 服务器名加命名空间：与用户配置或其他插件的服务器重名时，插件的服务器可能不生效",
         "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：Codex 不展开 MCP 配置中的变量，按字面传递"
       ]
@@ -95,7 +112,10 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
+        "本目标缺少 promptGate，未生成提示提交前检查的 hook：提示不受检查",
         "agy 安装时把 commands 转换为技能，以 /<插件名>:<命令名> 调用；转换后的技能也会被模型按 description 自动选用",
+        "/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测",
+        "agent reviewer 的 frontmatter 含 tools：agy 按自身的工具名与模型名解释，写错的工具名可能使子代理挂起",
         "MCP 服务器的字段 mcpServers.remote.headers.Authorization 含 ${：agy 不展开 MCP 配置中的变量，按字面传递"
       ]
     }

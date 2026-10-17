@@ -67,8 +67,9 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
-        "Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，未信任的 hook 被静默跳过，守卫不生效",
+        "Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，未信任的 hook 被静默跳过",
         "含 hooks 的插件不能进入 Codex 的公开插件目录",
+        "Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 hooks 不运行",
         "Codex 不按 paths 加载技能：glob 规则写为技能后由模型按 description 决定是否加载",
         "always 规则由 SessionStart 命令 hook 输出：插件的 hooks 在 Codex 的 /hooks 中信任之前不运行，规则不进入上下文"
       ]

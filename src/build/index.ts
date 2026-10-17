@@ -1,6 +1,6 @@
 // 构建编排的入口（模块接口 §8）：cli 与构建编排之间的契约。
 import { bundle } from '../bundle/index.ts'
-import { targetCapabilities } from '../capabilities/index.ts'
+import { capabilitiesFor } from '../capabilities/index.ts'
 import type { InputIssue } from '../config/issues.ts'
 import type { UapaConfig } from '../config/types.ts'
 import type { BuildReport } from '../report/types.ts'
@@ -27,5 +27,6 @@ export function build(
   root: string,
   options: { readonly check: boolean },
 ): Promise<BuildOutcome> {
+  const targetCapabilities = capabilitiesFor(config)
   return runBuild(config, root, options, { hostModules, targetCapabilities, bundle })
 }

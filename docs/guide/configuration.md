@@ -69,7 +69,7 @@ UAPA 在生成时就拒绝。规则的出处见
 | 全部 | `dir` | 该宿主的插件目录，默认 `<outDir>/<宿主>`；见[产物布局](#产物布局) |
 | `claude-code` | `displayName`、`userConfig`、`dependencies`、`$schema` | `.claude-plugin/plugin.json` 的同名字段；守卫声明了选项时，`userConfig` 须为对象，守卫选项按名称追加在其后，键全大写后不得与守卫选项重名（见[守卫选项](guards.md#守卫选项)） |
 | `claude-code` | `manifest` | 追加到 `.claude-plugin/plugin.json` 末尾的字段，按写入顺序，如 `homepage`、`license`、`repository`、追加的 `hooks` 文件；不得含 UAPA 生成或依赖默认位置的键（`name`、`version`、`description`、`author`、`keywords`、`displayName`、`userConfig`、`dependencies`、`$schema`、`types`、`skills`、`agents`、`commands`、`mcpServers`）；引用的文件放在 [`files/`](source-project.md#共用文件) 或 `overrides/claude-code/` |
-| `claude-code` | `onFailure` | 只取 `'block'`：守卫入口无法启动时阻断工具调用与提示（目前只做校验，随 M5-05 写入 hooks 配置） |
+| `claude-code` | `onFailure` | 只取 `'block'`：`claude-code:subprocess` 的执行前与提示提交前守卫条目写 `onFailure: "block"`，入口出错、无法启动或超时时阻断工具调用与提示；缺少 Node ≥ 22 时每次都被阻断，见[宿主差异](targets.md#hook-出错与超时) |
 | `codex` | `interface` | `.codex-plugin/plugin.json` 的 `interface`（展示名、分类等） |
 | `codex` | `hooksFile` | hooks 配置在插件目录中的相对路径，默认 `hooks/hooks.json`；不得为绝对路径或含 `..` |
 | `agy` | 只有 `dir` | agy 的 `plugin.json` 只接受 `name` 与 `description` |

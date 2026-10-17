@@ -112,6 +112,7 @@ export interface Skill {
 export interface Agent {
   readonly name: string // frontmatter 的 name，与文件名去掉 .md 相同
   readonly path: string // 相对源项目根，如 'agents/reviewer.md'
+  readonly frontmatterKeys: readonly string[] // v0.4.0；按出现顺序，供残余风险（F-05-23、F-11-14）
   readonly targets: readonly TargetName[] | null // 同 Skill.targets
 }
 // v0.2.0（F-01-08，SD-30）：mcp/servers.json 的 mcpServers；未写的字段不出现
@@ -225,6 +226,10 @@ export interface TargetCapabilities {
 
 // src/capabilities/index.ts：能力数据的登记处，条目由各目标的能力数据功能加入；构建编排只经此取得
 export const targetCapabilities: Readonly<Record<TargetName, TargetCapabilities>>
+// v0.4.0（F-05-21）：随配置变化的登记处；没有改变能力的配置时返回 targetCapabilities
+export function capabilitiesFor(
+  config: UapaConfig,
+): Readonly<Record<TargetName, TargetCapabilities>>
 ```
 
 - `ToolNameMap` 为 `Readonly<Record<string, CanonicalTool>>`，与 `CanonicalTool`（hooks 适配第 3 节
@@ -235,6 +240,9 @@ export const targetCapabilities: Readonly<Record<TargetName, TargetCapabilities>
 - `toolNames` 取自[跨平台对比「工具名差异」](../research/coding-agent-plugin-manifests/cross-platform-comparison.md#工具名差异)；
   agy 的工具名为 stdin `toolCall.name` 的取值（`run_command`、`view_file` 等）。
 - `failureDefault` 中调研未记载的组合记为 `'allow'`，并在数据模块中注明“文档未写明”。
+- `capabilitiesFor`（v0.4.0）：`hosts['claude-code'].onFailure` 为 `'block'` 时，
+  `claude-code:subprocess` 的 `failureDefault.beforeTool` 与 `beforePrompt` 的 `error`、
+  `timeout` 都为 `'deny'`，构建编排据此不再写这两项检查“不生效”的残余风险。
 - `converted`（v0.4.0，F-03-19）：组件按 F-03-02 的规则与 `package` 一样进入 `TargetPlan`，由
   宿主模块换成宿主承载的其他组件，构建编排不为该目标原样复制。v0.4.0 中只有 Claude Code 两个
   目标与 Codex 的 `rules` 取该值（SD-38）；agy 的 `commands` 为 `package`（SD-39）。

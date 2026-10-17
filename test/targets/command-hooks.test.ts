@@ -124,7 +124,8 @@ test('Codex：声明写入 hooksFile，{pluginRoot} 换为 PLUGIN_ROOT 变量；
         { hooks: [handler(entry)] },
         { hooks: [handler(`node \${PLUGIN_ROOT}/stop.mjs`)] },
       ],
-      SessionEnd: [{ hooks: [handler('echo end')] }],
+      // 声明的 SessionEnd 写宿主的上限 3 秒（F-06-14）
+      SessionEnd: [{ hooks: [{ ...handler('echo end'), timeout: 3 }] }],
     },
   })
   assert.equal(
@@ -133,7 +134,7 @@ test('Codex：声明写入 hooksFile，{pluginRoot} 换为 PLUGIN_ROOT 变量；
   )
   assert.ok(
     risks(result).includes(
-      'Codex 的 SessionEnd 默认超时 1 秒、上限 3 秒：声明的 SessionEnd 命令运行超过 3 秒即被终止',
+      'Codex 的 SessionEnd 超时上限 3 秒：声明的 SessionEnd 命令运行超过 3 秒即被终止',
     ),
   )
 })
@@ -162,6 +163,7 @@ test('agy：工具事件的元素为 { matcher: "", hooks }，其余为处理器
   })
   assert.deepEqual(risks(result), [
     '声明的 PreToolUse 命令须在 stdout 输出含 decision 的 JSON，否则 agy 阻断每次工具调用',
+    '/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测',
   ])
 })
 

@@ -1,5 +1,5 @@
-成功 claude-code:in-process：跳过 0，降级 0，残余风险 1
-成功 claude-code:subprocess：跳过 0，降级 0，残余风险 3
-成功 codex:subprocess：跳过 0，降级 1，残余风险 5
-成功 agy:subprocess：跳过 0，降级 0，残余风险 1
+成功 claude-code:in-process：跳过 0，降级 0，残余风险 3
+成功 claude-code:subprocess：跳过 0，降级 0，残余风险 5
+成功 codex:subprocess：跳过 0，降级 1，残余风险 6
+成功 agy:subprocess：跳过 0，降级 0，残余风险 2
 构建报告：dist/uapa-report.json

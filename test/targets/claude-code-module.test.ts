@@ -110,6 +110,7 @@ test('只配置 claude-code:in-process：hooks.json 只含 modules，打包请�
         'Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；' +
         '同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底',
     },
+    ...guardRisks('claude-code:in-process'),
   ])
 })
 
@@ -138,8 +139,20 @@ test('两个目标：一个插件包，hooks 键在 modules 键之前，两个�
     ],
   )
   assert.ok(result.ok)
-  assert.deepEqual(result.residualRisks, [])
+  assert.deepEqual(result.residualRisks, [
+    ...guardRisks('claude-code:subprocess'),
+    ...guardRisks('claude-code:in-process'),
+  ])
 })
+
+// 有执行前检查时两个形态各写的风险（F-05-23）
+function guardRisks(target: string) {
+  return [
+    '用户安装的 mod 可以放行插件 hook 拒绝的工具调用',
+    'disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 ' +
+      'hooks 与 hooks 模块不运行，守卫不生效',
+  ].map(message => ({ target, message }))
+}
 
 test('停机前检查进入计划时生成类型契约并在 plugin.json 写 types 字段（F-05-07）', async () => {
   const { result } = await generate([plan('claude-code:in-process', ['beforeStop'])])

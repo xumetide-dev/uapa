@@ -20,7 +20,10 @@
       "degraded": [],
       "overridden": [],
       "hostValidation": "skipped",
-      "residualRisks": []
+      "residualRisks": [
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
+      ]
     },
     {
       "target": "claude-code:subprocess",
@@ -43,7 +46,9 @@
       "overridden": [],
       "hostValidation": "skipped",
       "residualRisks": [
-        "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）"
+        "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
       ]
     },
     {
@@ -70,6 +75,7 @@
         "缺少 Node ≥ 22 或入口无法启动时，执行前检查不生效（宿主在 hook 出错时放行）",
         "Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，未信任的 hook 被静默跳过，守卫不生效",
         "含 hooks 的插件不能进入 Codex 的公开插件目录",
+        "Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 hooks 不运行",
         "Codex 没有插件用户配置，守卫选项取构建时默认值"
       ]
     },
@@ -94,7 +100,8 @@
       "overridden": [],
       "hostValidation": "none",
       "residualRisks": [
-        "agy 没有已核实的插件用户配置，守卫选项取构建时默认值"
+        "agy 没有已核实的插件用户配置，守卫选项取构建时默认值",
+        "/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测"
       ]
     }
   ]

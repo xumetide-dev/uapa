@@ -21,7 +21,9 @@
       "overridden": [],
       "hostValidation": "skipped",
       "residualRisks": [
-        "Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底"
+        "Claude Code 2.1.287 之前的版本不加载 hooks 模块，守卫不生效；同时配置 claude-code:subprocess 可在这些版本上以命令 hooks 兜底",
+        "用户安装的 mod 可以放行插件 hook 拒绝的工具调用",
+        "disableAllHooks、--safe-mode、--bare 与托管设置（如 allowManagedHooksOnly）可使插件的 hooks 与 hooks 模块不运行，守卫不生效"
       ]
     }
   ]

@@ -1,4 +1,4 @@
-// hooks 配置（F-06-03、F-06-07、F-06-08、F-06-11）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
+// hooks 配置（F-06-03、F-06-07、F-06-08、F-06-11、F-06-14）：结构为 { hooks: { <事件>: [{ hooks: [<处理器>] }] } }，与
 // Claude Code 相同；不写 matcher（省略时匹配全部工具）；timeout 单位秒。命令中的 ${PLUGIN_ROOT}
 // 由 Codex 在交给 shell 之前替换为插件目录，各平台的 shell 都能执行。依据 codex-plugins.md
 // 「源码核对（rust-v0.162.1）」。
@@ -14,6 +14,10 @@ export const HOOKS_CONFLICT_HINT = '设置 hosts.codex.hooksFile 改用独立的
 
 // 守卫条目与声明中 {pluginRoot} 的替换（command-hooks.md 第 3 节）
 const PLUGIN_ROOT = `\${PLUGIN_ROOT}`
+
+// 宿主把更大的 SessionEnd 超时压到 3 秒，并在每次会话开始告警（rust-v0.162.1
+// hooks/src/engine/discovery.rs，codex-source-review.md「matcher、命令执行与超时」）
+const SESSION_END_TIMEOUT_SECONDS = 3
 
 const EVENTS: Readonly<Record<GuardCheck, string>> = {
   beforeTool: 'PreToolUse',
@@ -72,7 +76,8 @@ export function hooksConfig(
   for (const hook of plan.commandHooks) {
     const event = hostEvent(plan, hook)
     const command = hook.command.split('{pluginRoot}').join(PLUGIN_ROOT)
-    hooks[event] = [...(hooks[event] ?? []), { hooks: [handler(command, timeout)] }]
+    const limit = hook.event === 'SessionEnd' ? SESSION_END_TIMEOUT_SECONDS : timeout
+    hooks[event] = [...(hooks[event] ?? []), { hooks: [handler(command, limit)] }]
   }
   return Object.keys(hooks).length === 0 ? null : { hooks }
 }

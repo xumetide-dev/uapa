@@ -13,6 +13,8 @@ export interface Skill {
 export interface Agent {
   readonly name: string // frontmatter 的 name，与文件名去掉 .md 相同
   readonly path: string // 相对源项目根，如 'agents/reviewer.md'
+  // v0.4.0：frontmatter 的键，按出现顺序；宿主模块据此写残余风险（F-05-23、F-11-14）
+  readonly frontmatterKeys: readonly string[]
   readonly targets: readonly TargetName[] | null // 同 Skill.targets
 }
 

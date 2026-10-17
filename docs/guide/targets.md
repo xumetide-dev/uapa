@@ -50,6 +50,11 @@
 - agy 的 `PreToolUse` 在出错、超时或 stdout 不是 JSON 时阻断工具调用（agy 1.3.4 本地实测）；
   `Stop` 出错、超时与输出无法解析时本轮照常结束（1.3.5 容器实测）。
 - Codex 四个事件以 1 退出与超时时都放行，工具输出保留（codex-cli 0.162.1 容器实测）。
+- 配置 `hosts['claude-code'].onFailure: 'block'` 时，`claude-code:subprocess` 的执行前与提示
+  提交前守卫条目写 `onFailure: "block"`，入口出错、无法启动或超时时阻断工具调用与提示（Claude
+  Code 2.1.295 起，2.1.296 容器实测）。代价是运行宿主的机器缺少 Node ≥ 22 时每次工具调用与提示
+  都被阻断；同时配置 `claude-code:in-process` 时命令入口仍会运行，同样需要 Node。构建报告把
+  这两点写为残余风险，不再写这两项检查“不生效”。只配置 `claude-code:in-process` 时该选项不生效。
 - `claude-code:in-process` 不启动进程：hooks 模块中守卫抛错时按拒绝处理，见
   [hooks 适配 §7](../research/coding-agent-plugin-manifests/uapa-hook-adapters.md#7-失败处理)。
 
@@ -80,6 +85,10 @@
   always 规则不生效。
 - 写出后，PATH 中有 `claude` 时 UAPA 运行 `claude plugin validate --strict <插件目录>`，结果写入
   构建报告的 `hostValidation`；没有 `claude` 时为 `skipped`。
+- 守卫可能不生效的情形写为残余风险：用户安装的 mod 可以放行插件 hook 拒绝的调用；
+  `disableAllHooks`、`--safe-mode`、`--bare` 与托管设置可使插件的 hooks 与 hooks 模块不运行。
+  声明 `SessionEnd` 命令时，插件 hooks 共用宿主 1.5 秒的总预算；agent 的 frontmatter 中
+  `permissionMode`、`hooks`、`mcpServers`、`initialPrompt` 被插件 agent 忽略。
 
 ## Codex
 
@@ -87,6 +96,10 @@
   对话框中信任；信任之前 Codex 静默跳过插件的 hooks，守卫不生效。步骤见
   [安装与分发「Codex」](install.md#codex)。
 - 含 hooks 的插件不能进入 Codex 的公开插件目录（构建报告的残余风险）。
+- `allow_managed_hooks_only = true` 或 `[features].hooks = false` 时插件的 hooks 不运行（残余
+  风险）。声明的 `SessionEnd` 命令写 `timeout: 3`：Codex 把更大的值压到 3 秒。
+- 技能名超过 64 个字符或 `<插件名>:<技能名>` 超过 129 个字符时 Codex 不加载，UAPA 把该 skill 或
+  rule 记为跳过；skill 目录中嵌套的 `SKILL.md` 被 Codex 另注册为一个技能（残余风险）。
 - 只对执行成功的工具调用触发 `PostToolUse`；处理器报错与 MCP 结果 `isError` 为真的调用不受执行后
   检查。
 - rules：写法同 Claude Code，always 规则的输出脚本为 `hooks/uapa-rules-codex.mjs`。Codex 不读
@@ -105,6 +118,10 @@
 - 安装插件时把 `commands/` 中的命令转换为技能，以 `/<插件名>:<命令名>` 调用；模型也按
   `description` 自动选用转换后的技能（agy 1.3.5 容器实测）。
 - 没有提示提交与会话结束事件；执行后 hook 不能替换或扣留输出，因此不生成。
+- 停机前检查连续返回 `continue` 10 次后 agy 不再采用（1.3.5 容器实测，次数可由用户配置）；
+  `/btw` 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测。两者都写为残余风险。
+- agent 的 `tools` 与 `model` 按 agy 的工具名与模型名解释，写错的工具名可能使子代理挂起；
+  rule 正文以 `@[…]` 引用的文件须经 `files/` 或 `overrides/agy/` 提供。两者都写为残余风险。
 - hook 进程中没有插件数据目录（agy 1.3.5 容器实测；只有 MCP 服务器进程有 `PLUGIN_DATA`）：停机计数
   存放在系统临时目录下的 `uapa-<插件名>/`，该目录被清理时归零。
 - rules 以 `trigger` 与逗号分隔的 `globs` 生效（agy 1.3.5 实测）；`globs` 按文件的绝对路径

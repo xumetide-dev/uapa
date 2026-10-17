@@ -4,6 +4,7 @@
 // session_start.rs，codex-source-review.md）。Codex 的技能须有 description，不读 paths。
 import { alwaysRulesText, ruleSkillFile, rulesScript } from '../rule-skills.ts'
 import type { OutputFile, TargetPlan, TargetSkip } from '../types.ts'
+import { skillNameReason } from './skills.ts'
 
 export const RULES_ENTRY = 'hooks/uapa-rules-codex.mjs'
 const RULES_COMMAND = `node "\${PLUGIN_ROOT}/${RULES_ENTRY}"`
@@ -21,19 +22,22 @@ export interface CodexRules {
   readonly risks: readonly string[]
 }
 
-export function codexRules(plan: TargetPlan): CodexRules {
+// 技能名超长的规则按 skills 的长度限制（F-06-16）列为跳过，不写技能
+export function codexRules(plan: TargetPlan, pluginName: string): CodexRules {
   const files: OutputFile[] = []
   const skipped: TargetSkip[] = []
   const risks: string[] = []
   for (const rule of plan.rules) {
     if (rule.activation === 'always') continue
+    const skip = (reason: string) =>
+      skipped.push({ target: plan.target, component: `rules/${rule.name}.md`, reason })
     if (rule.description === null) {
-      skipped.push({
-        target: plan.target,
-        component: `rules/${rule.name}.md`,
-        reason:
-          'Codex 的技能须有 description，没有 description 的 glob 规则不能写为技能',
-      })
+      skip('Codex 的技能须有 description，没有 description 的 glob 规则不能写为技能')
+      continue
+    }
+    const nameReason = skillNameReason(pluginName, rule.name)
+    if (nameReason !== null) {
+      skip(nameReason)
       continue
     }
     files.push(ruleSkillFile(rule))

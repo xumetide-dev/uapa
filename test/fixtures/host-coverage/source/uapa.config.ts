@@ -11,9 +11,11 @@ export default {
     'codex:subprocess',
     'agy:subprocess',
   ],
+  guard: 'guard.ts',
   hosts: {
     'claude-code': {
       manifest: { homepage: 'https://example.com/host-coverage', license: 'MIT' },
+      onFailure: 'block',
     },
   },
 } satisfies UapaConfig

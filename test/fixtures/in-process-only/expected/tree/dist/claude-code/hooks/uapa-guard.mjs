@@ -12,6 +12,8 @@ var _uapa_target_data_default = {
 	"toolNames": {
 		"Bash": "shell",
 		"PowerShell": "shell",
+		"Monitor": "shell",
+		"NotebookEdit": "edit_file",
 		"Read": "read_file",
 		"Edit": "edit_file",
 		"Write": "write_file",

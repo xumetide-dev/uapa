@@ -23,7 +23,7 @@ import { ruleFiles } from './rules.ts'
 
 const TARGET = 'agy:subprocess'
 
-// 停机计数目录取系统临时目录（SD-06），宿主没有插件数据目录变量
+// 停机计数目录取系统临时目录（SD-06）：agy 1.3.5 的 hook 进程中没有插件数据目录变量（TA-25，SD-46）
 const STOP_COUNTER_RISK =
   '停机计数存放在系统临时目录下的 uapa-<插件名>/，该目录被清理时停机计数归零'
 // PreToolUse 的 stdout 不是含 decision 的 JSON 时宿主阻断（agy-local-tests.md「本地实测」）
@@ -41,6 +41,14 @@ const COMMANDS_RISK =
 
 // 未核实 agy 插件的用户配置（F-11-10）
 const OPTIONS_RISK = 'agy 没有已核实的插件用户配置，守卫选项取构建时默认值'
+
+// F-11-14：停机继续的上限（agy-local-tests.md「v0.4.0 覆盖审查（1.3.5，容器）」；CHANGELOG
+// 1.1.9 称次数可配置）与 /btw（CHANGELOG 1.3.3；打印模式不支持 /btw，未实测）
+const STOP_LIMIT_RISK =
+  'agy 在连续继续 10 次后不再采用停机前检查的 continue（1.3.5 实测，次数可由用户配置）'
+const BTW_RISK = '/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测'
+// agent 的 tools 与 model 按 agy 的工具名与模型名解释（agy 文档「Custom subagents」）
+const AGENT_KEYS = ['tools', 'model']
 
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`
@@ -133,5 +141,31 @@ function risks(
   if (plan.checks.length > 0 && optionCount > 0) messages.push(OPTIONS_RISK)
   messages.push(...ruleRisks)
   if (plan.commands.length > 0) messages.push(COMMANDS_RISK)
+  // 生成了入口的检查；没有守卫时不生成入口
+  const guardChecks = input.guard === null ? [] : plan.checks
+  if (guardChecks.includes('beforeStop')) messages.push(STOP_LIMIT_RISK)
+  if (guardChecks.includes('beforeTool')) messages.push(BTW_RISK)
+  messages.push(...componentRisks(plan))
   return messages.map(message => ({ target: TARGET, message }))
+}
+
+// agent 的 frontmatter 与 rule 正文中的文件引用（F-11-14）
+function componentRisks(plan: TargetPlan): string[] {
+  const messages: string[] = []
+  for (const agent of plan.agents) {
+    const keys = agent.frontmatterKeys.filter(key => AGENT_KEYS.includes(key))
+    if (keys.length === 0) continue
+    messages.push(
+      `agent ${agent.name} 的 frontmatter 含 ${keys.join('、')}：agy 按自身的工具名与模型名` +
+        '解释，写错的工具名可能使子代理挂起',
+    )
+  }
+  // agy 文档「Rules」：@[…] 引用的文件在加载时展开，计入规则的大小上限
+  for (const rule of plan.rules.filter(r => r.body.includes('@['))) {
+    messages.push(
+      `rule ${rule.name} 的正文以 @[…] 引用文件：被引用的文件须经 files/ 或 overrides/agy/ ` +
+        '提供，规则的大小上限按展开后计算',
+    )
+  }
+  return messages
 }

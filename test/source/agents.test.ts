@@ -37,15 +37,25 @@ test('agents 不是目录时失败', async () => {
   ])
 })
 
-test('得出名称、路径与 targets，按 name 排序', async () => {
+test('得出名称、路径、frontmatter 的键与 targets，按 name 排序', async () => {
   const result = await read({
-    'agents/zeta.md': agent('zeta'),
+    'agents/zeta.md': agent('zeta', 'tools: Read, Grep\nmodel: sonnet\n'),
     'agents/alpha.md': agent('alpha', 'targets: [agy:subprocess]\n'),
   })
   assert.ok(result.ok)
   assert.deepEqual(result.value.agents, [
-    { name: 'alpha', path: 'agents/alpha.md', targets: ['agy:subprocess'] },
-    { name: 'zeta', path: 'agents/zeta.md', targets: null },
+    {
+      name: 'alpha',
+      path: 'agents/alpha.md',
+      frontmatterKeys: ['name', 'description', 'targets'],
+      targets: ['agy:subprocess'],
+    },
+    {
+      name: 'zeta',
+      path: 'agents/zeta.md',
+      frontmatterKeys: ['name', 'description', 'tools', 'model'],
+      targets: null,
+    },
   ])
 })
 

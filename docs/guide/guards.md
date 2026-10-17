@@ -101,16 +101,19 @@ export default guard
 
 | 规范名 | Claude Code | Codex | agy |
 |---|---|---|---|
-| `shell` | `Bash`、`PowerShell` | `Bash` | `run_command` |
+| `shell` | `Bash`、`PowerShell`、`Monitor` | `Bash` | `run_command` |
 | `read_file` | `Read` | — | `view_file` |
-| `edit_file` | `Edit` | `apply_patch` | `replace_file_content`、`multi_replace_file_content` |
+| `edit_file` | `Edit`、`NotebookEdit` | `apply_patch` | `replace_file_content`、`multi_replace_file_content` |
 | `write_file` | `Write` | — | `write_to_file` |
 | `glob`、`grep` | `Glob`、`Grep` | — | `find_by_name`、`grep_search` |
 | `web_fetch`、`web_search` | `WebFetch`、`WebSearch` | — | `read_url_content`、`search_web` |
 | `subagent` | `Agent` | `spawn_agent` | `invoke_subagent` |
 | `todo` | `TaskCreate` 等、`TodoWrite` | `update_plan` | — |
 
-- 表中没有的工具以 `host:<原名>` 传入，如 `host:NotebookEdit`。
+- 表中没有的工具以 `host:<原名>` 传入，如 Claude Code 的 `host:ExitPlanMode`。
+- Claude Code 的 `Monitor` 在后台运行命令，入参与 `Bash` 相同（`command`），按 `shell` 检查与
+  改写；`NotebookEdit` 的入参为 `notebook_path`、`cell_id`、`new_source`、`edit_mode`，检查
+  `edit_file` 时按工具的入参字段分别读取路径。
 - Codex 把编辑与新建合为 `apply_patch`，换算为 `edit_file`；检查文件写入时同时覆盖 `edit_file`
   与 `write_file`。
 - `shell` 的入参换算为 `{ command }`；其他工具的入参是宿主原样的字段，字段名因宿主而异。

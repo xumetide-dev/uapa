@@ -40,5 +40,5 @@ async function readAgent(root: string, fileName: string): Promise<Loaded<Agent>>
   }
   const targets = readTargets(meta.value.targets, path, issues)
   if (issues.length > 0) return failed(issues)
-  return loaded({ name: stem, path, targets })
+  return loaded({ name: stem, path, frontmatterKeys: Object.keys(meta.value), targets })
 }

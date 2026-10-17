@@ -208,6 +208,8 @@ test('子进程入口的打包请求与残余风险', async () => {
       'Codex 只运行已信任的 hooks：安装后或 hooks 配置改动后须在 Codex 的 /hooks 中信任，' +
         '未信任的 hook 被静默跳过，守卫不生效',
       '含 hooks 的插件不能进入 Codex 的公开插件目录',
+      'Codex 配置 allow_managed_hooks_only = true 或 [features].hooks = false 时，插件的 ' +
+        'hooks 不运行',
     ],
   )
 })

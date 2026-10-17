@@ -167,8 +167,13 @@ test('子进程入口的打包请求：入口名、守卫、目标数据与外�
   assert.deepEqual(Object.keys(JSON.parse(file(result, 'hooks.json') ?? '{}').demo), [
     'PreToolUse',
   ])
-  // 只有执行前检查时不记停机计数的残余风险
-  assert.deepEqual(result.residualRisks, [])
+  // 只有执行前检查时不记停机计数的残余风险，只记 /btw（F-11-14）
+  assert.deepEqual(result.residualRisks, [
+    {
+      target: TARGET,
+      message: '/btw 不运行用户与工作区的 hooks，其中是否运行插件的 hooks 未实测',
+    },
+  ])
 })
 
 test('checks 为空或未配置守卫时只生成 plugin.json，不打包', async () => {
@@ -187,7 +192,7 @@ test('checks 为空或未配置守卫时只生成 plugin.json，不打包', asyn
   }
 })
 
-test('有停机前检查时残余风险写明停机计数随系统临时目录清理归零', async () => {
+test('有停机前检查时残余风险写明停机计数随系统临时目录清理归零，以及连续继续的上限', async () => {
   const { result } = await generate(['beforeStop'])
   assert.ok(result.ok)
   assert.deepEqual(result.residualRisks, [
@@ -195,6 +200,11 @@ test('有停机前检查时残余风险写明停机计数随系统临时目录�
       target: TARGET,
       message:
         '停机计数存放在系统临时目录下的 uapa-<插件名>/，该目录被清理时停机计数归零',
+    },
+    {
+      target: TARGET,
+      message:
+        'agy 在连续继续 10 次后不再采用停机前检查的 continue（1.3.5 实测，次数可由用户配置）',
     },
   ])
 })
