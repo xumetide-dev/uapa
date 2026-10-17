@@ -97,8 +97,8 @@ test/container/run.sh shell
 
 | # | 限制 | 影响 | 去向 |
 |---|---|---|---|
-| 1 | Claude Code 夹具产物的 `claude -p` 会话复测（三种换算规则、`Monitor` 拒绝、`onFailure: "block"` 入口失败阻断）及升级到 2.1.300 后的双形态去重会话复测尚未执行 | 宿主机制已在 M5-01 探测插件会话（2.1.296）中验证，夹具产物已通过 `claude plugin validate --strict`、`marketplace add/install` 与夹具入口用例；待 Claude Code 订阅与升级确认就绪后在容器中补测 | [Sprint 总览 M5-00](../workorders/M5-00-v0-4-0-host-coverage.md) 收口 §4 第 1 项 |
-| 2 | Codex CLI 中经 `.agents/plugins/marketplace.json` 安装、信任 hooks、`always` 规则注入、规则技能调用与 `env_vars` 传递的会话实测尚未执行 | 生成格式已对照 rust-v0.162.1 源码与夹具入口用例核实；待 Codex 订阅与维护者确认使用 Codex CLI 后在容器中补测 | [Sprint 总览 M5-00](../workorders/M5-00-v0-4-0-host-coverage.md) 收口 §4 第 2 项 |
+| 1 | Claude Code 夹具产物的 `claude -p` 会话复测（三种换算规则、`Monitor` 拒绝、`onFailure: "block"` 入口失败阻断）及升级到 2.1.300 后的双形态去重会话复测尚未执行 | 宿主机制已在 M5-01 探测插件会话（2.1.296）中验证，夹具产物已通过 `claude plugin validate --strict`、`marketplace add/install` 与夹具入口用例；待 Claude Code 订阅与升级确认就绪后在容器中补测 | [Sprint 收口 M5-00](M5-00-v0-4-0-host-coverage.md) §4 第 1 项 |
+| 2 | Codex CLI 中经 `.agents/plugins/marketplace.json` 安装、信任 hooks、`always` 规则注入、规则技能调用与 `env_vars` 传递的会话实测尚未执行 | 生成格式已对照 rust-v0.162.1 源码与夹具入口用例核实；待 Codex 订阅与维护者确认使用 Codex CLI 后在容器中补测 | [Sprint 收口 M5-00](M5-00-v0-4-0-host-coverage.md) §4 第 2 项 |
 
 每条写明去向；没有去向的不入账。不属于任何 Sprint 的改动记入 [`tech-debt.md`](tech-debt.md)。
 
@@ -106,4 +106,4 @@ test/container/run.sh shell
 
 - agy 1.3.5 容器实测证实 `mcp_config.json` 的 `args` 中 `${…}` 占位符不展开（按字面传递），与
   F-11-12 的残余风险一致。
-- 下一步：建立 Sprint 收口文件（对应 [M5-00](../workorders/M5-00-v0-4-0-host-coverage.md)）。
+- 下一步：建立 Sprint 收口文件 [M5-00](M5-00-v0-4-0-host-coverage.md)。

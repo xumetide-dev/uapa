@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M5-00](M5-00-v0-4-0-host-coverage.md) | Sprint 收口：v0.4.0 三个宿主的承载补全 | 有条件通过（M5-07 中 Claude Code 夹具产物会话复测与 2.1.300 升级复测、Codex CLI 会话实测待订阅与维护者确认就绪后补测） | 2026-10-17 | 待回填 |
 | [M5-07](M5-07-v0-4-0-live-tests.md) | v0.4.0 产物的宿主实测 | 有条件通过（Claude Code 夹具产物会话复测与 2.1.300 升级复测、Codex CLI 会话实测待订阅与维护者确认就绪后补测） | 2026-10-17 | `776b444` |
 | [M5-08](M5-08-merged-manifest-timeout-mcp-cwd.md) | 合并布局 manifest、命令超时、MCP 目标过滤与守卫工作目录 | 通过 | 2026-10-17 | `c116268` |
 | [M5-06](M5-06-marketplace-files.md) | marketplace 文件 | 通过 | 2026-10-17 | `ae73911` |
