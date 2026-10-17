@@ -26,8 +26,8 @@ export default defineConfig({
   `export default { ... } satisfies UapaConfig`。
 - 配置以 Node 的类型剥离导入：相对导入写 `.ts` 扩展名，不用 `enum`、`namespace` 等需要编译的
   语法。
-- 配置中的相对路径（`guard`、`outDir`、`hosts.<宿主>.dir`）以配置文件所在目录为基准，与运行
-  命令时的当前目录无关。
+- 配置中的相对路径（`guard`、`outDir`、`hosts.<宿主>.dir`、`marketplace.dir`）以配置文件所在目录
+  为基准，与运行命令时的当前目录无关。
 - 校验失败时 stderr 写出 `uapa: <文件>: <字段>: <原因>`，以退出码 2 结束，不构建任何目标。
 
 ## 字段
@@ -43,18 +43,19 @@ export default defineConfig({
 | `guard` | 否 | 守卫逻辑文件；省略时不生成守卫 hooks 与入口 |
 | `outDir` | 否 | 输出根目录，默认 `dist`；构建报告写在这里 |
 | `commandHooks` | 否 | 原样声明的命令 hooks，见[命令 hooks](command-hooks.md) |
+| `marketplace` | 否 | 为 Claude Code 与 Codex 生成 marketplace 文件，见[marketplace](#marketplace) |
 | `hosts` | 否 | 各宿主的选项，见[宿主选项](#宿主选项) |
 
 未知字段为校验错误。插件名的规则由各宿主模块检查，不符合时该宿主的目标构建失败：
 
 | 宿主 | 规则 |
 |---|---|
-| Claude Code | kebab-case；不以 `claude-`、`anthropic-`、`anthropics-`、`cc-plugin-` 开头；不是 `claude`、`anthropic`、`claude-code`、`claude-mods` |
+| Claude Code | kebab-case；以 `-` 分隔的任一段不是 `claude`、`anthropic`、`anthropics`（如 `team-claude-tools` 不合规，`claudette` 合规）；不以 `cc-plugin-` 开头 |
 | Codex | kebab-case |
 | agy | 匹配 `^[a-zA-Z0-9_-]+$` |
 
-Claude Code 缺少 `author` 时 `claude plugin validate --strict` 判为失败，因此 UAPA 在生成时就
-拒绝。规则的出处见
+Claude Code 的保留段与缺少 `author` 都会使 `claude plugin validate --strict` 判为失败，因此
+UAPA 在生成时就拒绝。规则的出处见
 [Claude Code「plugin.json 字段」](../research/coding-agent-plugin-manifests/claude-code-plugins.md)、
 [agy「插件 manifest」](../research/coding-agent-plugin-manifests/agy-plugins.md#插件-manifest)。
 
@@ -67,6 +68,8 @@ Claude Code 缺少 `author` 时 `claude plugin validate --strict` 判为失败�
 |---|---|---|
 | 全部 | `dir` | 该宿主的插件目录，默认 `<outDir>/<宿主>`；见[产物布局](#产物布局) |
 | `claude-code` | `displayName`、`userConfig`、`dependencies`、`$schema` | `.claude-plugin/plugin.json` 的同名字段；守卫声明了选项时，`userConfig` 须为对象，守卫选项按名称追加在其后，键全大写后不得与守卫选项重名（见[守卫选项](guards.md#守卫选项)） |
+| `claude-code` | `manifest` | 追加到 `.claude-plugin/plugin.json` 末尾的字段，按写入顺序，如 `homepage`、`license`、`repository`、追加的 `hooks` 文件；不得含 UAPA 生成或依赖默认位置的键（`name`、`version`、`description`、`author`、`keywords`、`displayName`、`userConfig`、`dependencies`、`$schema`、`types`、`skills`、`agents`、`commands`、`mcpServers`）；引用的文件放在 [`files/`](source-project.md#共用文件) 或 `overrides/claude-code/` |
+| `claude-code` | `onFailure` | 只取 `'block'`：守卫入口无法启动时阻断工具调用与提示（目前只做校验，随 M5-05 写入 hooks 配置） |
 | `codex` | `interface` | `.codex-plugin/plugin.json` 的 `interface`（展示名、分类等） |
 | `codex` | `hooksFile` | hooks 配置在插件目录中的相对路径，默认 `hooks/hooks.json`；不得为绝对路径或含 `..` |
 | `agy` | 只有 `dir` | agy 的 `plugin.json` 只接受 `name` 与 `description` |
@@ -81,6 +84,23 @@ hosts: {
   codex: { interface: { displayName: 'Team Rules', developerName: 'Example Team' } },
 },
 ```
+
+## marketplace
+
+配置 `marketplace` 后，UAPA 在 `marketplace.dir` 中为 Claude Code 写
+`.claude-plugin/marketplace.json`、为 Codex 写 `.agents/plugins/marketplace.json`，条目指向
+各自的插件目录（目前只做校验，随 M5-06 生成文件）：
+
+```ts
+marketplace: { name: 'team-tools', owner: { name: 'Example Team' }, dir: 'dist' },
+```
+
+- `name` 为 kebab-case，`owner.name` 非空，`owner.email` 可省略。
+- `dir` 相对配置文件所在目录，默认为 `outDir`；不得等于或位于默认布局的插件目录内，因为该
+  目录写入前会被清空。
+- Claude Code 与 Codex 的插件目录须等于或位于 `dir` 之内：两个宿主的 marketplace 条目只接受
+  以 `./` 开头、不含 `..` 的相对路径。
+- `targets` 中须有 Claude Code 或 Codex 的目标；agy 只支持官方 marketplace，不生成文件。
 
 ## 产物布局
 
@@ -112,10 +132,11 @@ hosts: {
 - 各宿主生成的同名文件必须逐字一致，否则写入该目录的全部目标失败，该目录不写入任何文件。
   Claude Code 与 Codex 的 hooks 配置默认都是 `hooks/hooks.json`，因此上例为 Codex 指定
   `hooksFile`。
-- 插件目录就是源项目根目录时，skills 与 agents 直接从源项目加载，不再复制。
+- 插件目录就是源项目根目录时，skills 与 agents 直接从源项目加载，不再复制；`files/` 须为空，
+  见[共用文件](source-project.md#共用文件)。
 - 构建报告仍写在 `<outDir>/uapa-report.json`。
 
 ## 参考
 
 - 字段与校验：[模块接口 §2](../architecture/module-interfaces.md#2-构建配置)。
-- 写出与清空的规则：[模块接口 §8](../architecture/module-interfaces.md#8-写出比对与退出码)。
+- 写出与清空的规则：[写出、比对与退出码](../architecture/build-output.md)。

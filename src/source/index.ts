@@ -1,4 +1,4 @@
-// 读取源项目（F-01-04～F-01-08、F-01-10、F-01-11）。只读，不写文件。
+// 读取源项目（F-01-04～F-01-08、F-01-10～F-01-12）。只读，不写文件。
 import type { Loaded } from '../config/issues.ts'
 import type { UapaConfig } from '../config/types.ts'
 import { readAgents } from './agents.ts'
@@ -6,6 +6,7 @@ import { readCommands } from './commands.ts'
 import { readMcpServers } from './mcp.ts'
 import { readOverrides } from './overrides.ts'
 import { readRules } from './rules.ts'
+import { readSharedFiles } from './shared.ts'
 import { readSkills } from './skills.ts'
 import type { SourceProject } from './types.ts'
 
@@ -21,13 +22,15 @@ export async function readSource(
   const commands = await readCommands(root)
   const mcpServers = await readMcpServers(root)
   const overrides = await readOverrides(config, root)
+  const files = await readSharedFiles(root)
   if (
     !skills.ok ||
     !agents.ok ||
     !rules.ok ||
     !commands.ok ||
     !mcpServers.ok ||
-    !overrides.ok
+    !overrides.ok ||
+    !files.ok
   ) {
     const issues = [
       ...(skills.ok ? [] : skills.issues),
@@ -36,6 +39,7 @@ export async function readSource(
       ...(commands.ok ? [] : commands.issues),
       ...(mcpServers.ok ? [] : mcpServers.issues),
       ...(overrides.ok ? [] : overrides.issues),
+      ...(files.ok ? [] : files.issues),
     ]
     return { ok: false, issues }
   }
@@ -47,6 +51,7 @@ export async function readSource(
     rules: rules.value,
     commands: commands.value,
     overrides: overrides.value,
+    files: files.value,
   }
   return { ok: true, value }
 }

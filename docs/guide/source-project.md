@@ -3,7 +3,7 @@
 本文说明源项目中各组件放在哪里、怎样写，以及构建后它们在各宿主插件目录中的位置。配置字段见
 [构建配置](configuration.md)，守卫文件的写法见[编写守卫](guards.md)。组件的读取规则与验收标准
 以[功能清单「源项目与配置」](../feature-list/modules/01-source-config.md)与
-[范围决策 SD-30、SD-32、SD-33](../feature-list/scope-decisions.md) 为准。
+[范围决策 SD-30、SD-32、SD-33、SD-37](../feature-list/scope-decisions.md) 为准。
 
 ## 概述
 
@@ -18,11 +18,12 @@
 ├── rules/<name>.md         rules（规则与指令）
 ├── commands/<name>.md      commands（斜杠命令）
 ├── mcp/servers.json        MCP 服务器
+├── files/                  共用文件，原样复制到每个插件目录
 └── overrides/<宿主>/       覆盖或新增到某个宿主插件目录中的文件
 ```
 
-各目录都是可选的。构建只复制 skills、agents、commands 与覆盖文件，rules、MCP 配置与 hooks 配置
-由 UAPA 按宿主格式生成；源项目中的其他文件（README、测试、脚本）不进入插件目录。
+各目录都是可选的。构建只复制 skills、agents、commands、共用文件与覆盖文件，rules、MCP 配置与
+hooks 配置由 UAPA 按宿主格式生成；源项目中的其他文件（README、测试、脚本）不进入插件目录。
 
 | 组件 | Claude Code | Codex | agy |
 |---|---|---|---|
@@ -180,6 +181,26 @@ targets: [agy:subprocess]
 [Codex「容器实测」](../research/coding-agent-plugin-manifests/codex-local-tests.md#容器实测01621)、
 [agy「组件」](../research/coding-agent-plugin-manifests/agy-plugins.md#组件)。
 
+## 共用文件
+
+`files/` 下的文件（含子目录）原样复制到每个写出文件的插件目录，相对路径不变，用于各宿主共用
+的脚本、MCP 服务器与 manifest 引用的文件：
+
+```text
+files/scripts/server.mjs  →  dist/claude-code/scripts/server.mjs
+                              dist/codex/scripts/server.mjs
+                              dist/agy/scripts/server.mjs
+```
+
+- 复制在生成文件与组件之后、覆盖文件之前。与生成的文件或复制的组件文件同路径时，写入该目录的
+  全部目标失败；要替换生成的文件，改用覆盖文件。
+- 共用文件不按目标筛选。某个宿主需要不同的内容时，在 `overrides/<宿主>/` 中放同路径的文件
+  替换它，该文件记入构建报告的 `overridden`。
+- 插件目录是源项目根目录（合并布局）时不复制：`files/` 非空则写入该目录的目标失败，把这些
+  文件直接放在根目录即可。
+- 文件以复制方式写出，保留可执行权限。引用插件内的文件时写插件根，如 MCP 服务器的
+  `{pluginRoot}/scripts/server.mjs`。
+
 ## 覆盖文件
 
 `overrides/<宿主>/` 中的文件在生成之后、写出之前复制到该宿主插件目录中的同一相对路径：与生成的
@@ -193,7 +214,8 @@ overrides/
 ```
 
 - 目录名只能是已配置目标的宿主：`claude-code`、`codex`、`agy`；其他目录名为输入错误。
-- 每个用到某文件的宿主各放一份，UAPA 不在宿主之间共享覆盖文件。
+- 每个用到某文件的宿主各放一份，UAPA 不在宿主之间共享覆盖文件；各宿主相同的文件放在
+  [`files/`](#共用文件)。
 - 覆盖文件不做字段检查。覆盖 manifest 或 hooks 配置会整体替换生成的文件，守卫可能因此失效；
   优先用配置中的[宿主选项](configuration.md#宿主选项)。
 - 每个被覆盖或新增的文件写入该宿主各目标构建报告的 `overridden`。

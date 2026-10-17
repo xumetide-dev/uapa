@@ -13,12 +13,41 @@ export interface HostOptions {
     userConfig?: unknown
     dependencies?: unknown
     $schema?: string
+    // 按写入顺序追加在生成的字段之后；不得含 MANIFEST_RESERVED_KEYS（F-05-20，SD-42）
+    manifest?: Readonly<Record<string, unknown>>
+    // 守卫条目写 onFailure: "block"，入口无法启动时阻断（F-05-21，SD-43）
+    onFailure?: 'block'
   }
   codex: HostDir & {
     interface?: Readonly<Record<string, unknown>> // 写入 .codex-plugin/plugin.json 的 interface
     hooksFile?: string // 插件目录内的相对路径，默认 hooks/hooks.json（SD-07）
   }
   agy: HostDir // agy 的根 plugin.json 只允许 name 与 description，没有其他宿主选项（F-11-02）
+}
+
+// hosts['claude-code'].manifest 不得含的键：UAPA 生成或依赖默认位置的字段（SD-42）
+export const MANIFEST_RESERVED_KEYS = [
+  'name',
+  'version',
+  'description',
+  'author',
+  'keywords',
+  'displayName',
+  'userConfig',
+  'dependencies',
+  '$schema',
+  'types',
+  'skills',
+  'agents',
+  'commands',
+  'mcpServers',
+] as const
+
+// marketplace 文件的配置（F-01-14，SD-41）：为 Claude Code 与 Codex 写 marketplace 文件
+export interface MarketplaceConfig {
+  name: string // kebab-case
+  owner: { name: string; email?: string }
+  dir?: string // marketplace 根目录，相对配置文件所在目录；默认为 outDir
 }
 
 // 命令 hooks 声明的事件（命令 hooks 声明第 1 节，F-01-09）
@@ -49,6 +78,7 @@ export interface UapaConfig {
   targets: readonly TargetName[] // 非空，不重复
   outDir?: string // 输出根目录，默认 'dist'；构建报告写在这里
   commandHooks?: readonly CommandHookDecl[] // 原样声明的命令 hooks，见 command-hooks.md
+  marketplace?: MarketplaceConfig
   hosts?: { [H in HostName]?: HostOptions[H] }
 }
 

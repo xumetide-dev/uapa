@@ -1,17 +1,29 @@
-// 计划写出的文件集合（模块接口 §8）：写出（F-03-05、F-03-06）与比对（F-03-08）都从它得出。
-// 每个插件目录汇总各宿主模块生成的文件、构建编排放置的 skills、agents 与 commands
-// （components.ts）与覆盖文件（F-03-12）。合并布局中同名文件内容不同时，标为可合并的 JSON 文件
-// 按命名空间合并（F-03-07，merge.ts），其余为冲突：写入该目录的全部目标失败，该目录不进入集合。
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+// 计划写出的文件集合（构建产物「写出与比对」）：写出（F-03-05、F-03-06）与比对（F-03-08）都从
+// 它得出。每个插件目录汇总各宿主模块生成的文件、构建编排放置的 skills、agents 与 commands
+// （components.ts）、共用文件（F-03-17）与覆盖文件（F-03-12），各宿主的文件表见 placement.ts。
+// 合并布局中同名文件内容不同时，标为可合并的 JSON 文件按命名空间合并（F-03-07，merge.ts），
+// 其余为冲突：写入该目录的全部目标失败，该目录不进入集合。
 import { type PluginDir, resolvePluginDirs } from '../config/layout.ts'
 import { displayPath } from '../config/paths.ts'
 import { type HostName, hostOf } from '../config/targets.ts'
 import { compare } from '../source/files.ts'
-import { OVERRIDES_DIR } from '../source/overrides.ts'
+import { SHARED_DIR } from '../source/shared.ts'
 import type { OutputFile } from '../targets/types.ts'
-import { componentFiles, componentUnion, recordComponentRisks } from './components.ts'
+import {
+  componentFiles,
+  componentPaths,
+  componentUnion,
+  recordComponentRisks,
+} from './components.ts'
 import { mergeJsonExtensions } from './merge.ts'
+import {
+  type DirLayers,
+  type HostFile,
+  hostView,
+  sharedComponentConflicts,
+  sharedFiles,
+  shownIn,
+} from './placement.ts'
 import { type BuildInput, succeeded, type TargetState } from './state.ts'
 
 export interface PlannedFile {
@@ -29,12 +41,6 @@ export interface DirOutput {
   readonly targets: readonly TargetState[] // 写入该目录的成功目标
 }
 
-// 一个宿主在该目录中的文件；覆盖生成文件时继承其 conflictHint 与 merge
-interface HostFile extends PlannedFile {
-  readonly conflictHint?: string
-  readonly merge?: 'json-extensions'
-}
-
 type HostView = readonly [HostName, ReadonlyMap<string, HostFile>]
 
 interface Conflict {
@@ -48,39 +54,44 @@ export async function planOutputs(
   states: readonly TargetState[],
   hostFiles: ReadonlyMap<HostName, readonly OutputFile[]>,
 ): Promise<DirOutput[]> {
+  const shared = await sharedFiles(build.root, build.source.files)
   const outputs: DirOutput[] = []
   for (const dir of resolvePluginDirs(build.config, build.root)) {
-    const output = await planDir(build, dir, states, hostFiles)
+    const output = await planDir(build, dir, states, hostFiles, shared)
     if (output !== null) outputs.push(output)
   }
   return outputs
 }
 
-// 该目录的目标全部失败，或合并布局有冲突时返回 null：该目录不写入也不比对
+// 该目录的目标全部失败，或有来源冲突、合并布局冲突时返回 null：该目录不写入也不比对
 async function planDir(
   build: BuildInput,
   dir: PluginDir,
   states: readonly TargetState[],
   hostFiles: ReadonlyMap<HostName, readonly OutputFile[]>,
+  shared: readonly PlannedFile[],
 ): Promise<DirOutput | null> {
   const targets = states.filter(
     s => dir.hosts.includes(hostOf(s.target)) && succeeded(s),
   )
   if (targets.length === 0) return null
-  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件
+  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件；
+  // 共用文件不复制到源项目根目录，files/ 非空时该目录的目标失败
   const atRoot = dir.path === build.root
-  const present = atRoot ? build.source : componentUnion(targets)
-  const copied = atRoot ? [] : await componentFiles(build.root, present)
-  const views: HostView[] = []
-  for (const host of dir.hosts) {
-    const generated = hostFiles.get(host)
-    if (generated === undefined) continue
-    const own = targets.filter(s => hostOf(s.target) === host)
-    views.push([host, await hostView(build, host, generated, copied, own)])
+  if (atRoot && shared.length > 0) {
+    for (const state of targets) state.errors.push(sharedAtRootMessage(build.root, dir))
+    return null
   }
+  const present = atRoot ? build.source : componentUnion(targets)
+  const layers: DirLayers = {
+    copied: atRoot ? [] : await componentFiles(build.root, present),
+    inPlace: atRoot ? componentPaths(present) : [],
+    shared,
+  }
+  const { views, messages } = await placeHosts(build, dir, targets, hostFiles, layers)
   const { files, conflicts } = mergeViews(views)
-  if (conflicts.length > 0) {
-    const messages = conflicts.map(c => conflictMessage(build.root, dir, c))
+  messages.push(...conflicts.map(c => conflictMessage(build.root, dir, c)))
+  if (messages.length > 0) {
     for (const state of targets) state.errors.push(...messages)
     return null
   }
@@ -88,56 +99,32 @@ async function planDir(
   return { dir, merged: dir.hosts.length > 1, files, targets }
 }
 
-// 生成的文件在前，再放复制的组件，最后用覆盖文件替换或新增；覆盖文件记入该宿主各目标的
-// overridden
-async function hostView(
+// 各宿主在该目录中的文件表，以及组件、共用文件与生成文件之间的来源冲突
+async function placeHosts(
   build: BuildInput,
-  host: HostName,
-  generated: readonly OutputFile[],
-  copied: readonly PlannedFile[],
-  own: readonly TargetState[],
-): Promise<Map<string, HostFile>> {
-  const view = new Map<string, HostFile>()
-  for (const file of generated) view.set(file.path, generatedFile(file))
-  for (const file of copied) view.set(file.path, file)
-  for (const path of build.source.overrides[host] ?? []) {
-    const from = join(build.root, OVERRIDES_DIR, host, ...path.split('/'))
-    const replaced = view.get(path)
-    const hint = replaced?.conflictHint
-    const merge = replaced?.merge
-    const content = await readFile(from)
-    view.set(path, {
-      path,
-      content,
-      copyFrom: from,
-      ...(hint === undefined ? {} : { conflictHint: hint }),
-      ...(merge === undefined ? {} : { merge }),
-    })
-    for (const state of own) state.overridden.push(path)
+  dir: PluginDir,
+  targets: readonly TargetState[],
+  hostFiles: ReadonlyMap<HostName, readonly OutputFile[]>,
+  layers: DirLayers,
+): Promise<{ views: HostView[]; messages: string[] }> {
+  const messages = sharedComponentConflicts(build.root, dir, layers)
+  const views: HostView[] = []
+  for (const host of dir.hosts) {
+    const generated = hostFiles.get(host)
+    if (generated === undefined) continue
+    const own = targets.filter(s => hostOf(s.target) === host)
+    const view = await hostView(build, dir, host, generated, layers, own)
+    views.push([host, view.files])
+    messages.push(...view.conflicts)
   }
-  return view
+  return { views, messages }
 }
 
-function generatedFile(file: OutputFile): HostFile {
-  const segments = file.path.split('/')
-  const valid =
-    file.path !== '' &&
-    !file.path.startsWith('/') &&
-    !file.path.includes('\\') &&
-    !segments.includes('..')
-  if (!valid) throw new Error(`宿主模块返回了无效的文件路径：${file.path}`)
-  const content =
-    typeof file.content === 'string'
-      ? Buffer.from(file.content, 'utf8')
-      : Buffer.from(file.content)
-  const hint = file.conflictHint
-  return {
-    path: file.path,
-    content,
-    copyFrom: null,
-    ...(hint === undefined ? {} : { conflictHint: hint }),
-    ...(file.merge === undefined ? {} : { merge: file.merge }),
-  }
+function sharedAtRootMessage(root: string, dir: PluginDir): string {
+  return (
+    `共用文件：插件目录 ${displayPath(root, dir.path)} 是源项目根目录，${SHARED_DIR}/ 中的文件` +
+    '不复制到这里；把共用文件直接放在根目录，或改用默认布局'
+  )
 }
 
 interface PathEntry {
@@ -196,7 +183,7 @@ function mergeViews(views: readonly HostView[]): {
 }
 
 function conflictMessage(root: string, dir: PluginDir, conflict: Conflict): string {
-  const shown = displayPath(root, join(dir.path, ...conflict.path.split('/')))
+  const shown = shownIn(root, dir, conflict.path)
   const hosts = conflict.hosts.join('、')
   const hints = conflict.hints.map(hint => `；${hint}`).join('')
   return `合并布局冲突：${shown} 由 ${hosts} 生成，内容不同${hints}`

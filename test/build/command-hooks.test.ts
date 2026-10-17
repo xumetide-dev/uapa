@@ -15,6 +15,7 @@ const SOURCE = {
   rules: [],
   commands: [],
   overrides: {},
+  files: [],
 }
 
 function plan(commandHooks: readonly CommandHookDecl[]) {

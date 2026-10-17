@@ -1,4 +1,4 @@
-// Claude Code 的 .claude-plugin/plugin.json（F-05-02）与 .mcp.json（F-05-12）
+// Claude Code 的 .claude-plugin/plugin.json（F-05-02、F-05-20、F-05-25）与 .mcp.json（F-05-12）
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { claudeCodeSubprocess } from '../../src/capabilities/claude-code-subprocess.ts'
@@ -77,14 +77,28 @@ test('宿主选项与可选字段按固定键序写入', async () => {
 
 test('名称不合规或缺少 author 时为每个目标返回错误', async () => {
   type Case = [Partial<UapaConfig>, RegExp]
-  const prefixes = ['claude-', 'anthropic-', 'anthropics-', 'cc-plugin-']
-  const names = ['claude', 'anthropic', 'claude-code', 'claude-mods']
+  // 以 - 分隔的任一段为保留词时失败，原因写明 validate --strict 拒绝（F-05-25）
+  const segments: [string, string][] = [
+    ['claude-tools', 'claude'],
+    ['anthropic-tools', 'anthropic'],
+    ['anthropics-tools', 'anthropics'],
+    ['claude', 'claude'],
+    ['claude-code', 'claude'],
+    ['claude-mods', 'claude'],
+    ['team-claude-tools', 'claude'],
+    ['anthropics', 'anthropics'],
+    ['my-anthropic', 'anthropic'],
+  ]
+  const strict = 'claude plugin validate --strict 拒绝该名称'
   const cases: Case[] = [
     [{ name: 'My_Plugin' }, /不是 kebab-case/],
-    ...prefixes.map(
-      (p): Case => [{ name: `${p}tools` }, new RegExp(`保留前缀 ${p} 开头`)],
+    ...segments.map(
+      ([name, segment]): Case => [
+        { name },
+        new RegExp(`含保留段 ${segment}：${strict}`),
+      ],
     ),
-    ...names.map((name): Case => [{ name }, /保留名/]),
+    [{ name: 'cc-plugin-tools' }, new RegExp(`保留前缀 cc-plugin- 开头：${strict}`)],
     [{ author: undefined }, /claude plugin validate --strict 把缺少 author 判为失败/],
   ]
   for (const [config, message] of cases) {
@@ -96,6 +110,41 @@ test('名称不合规或缺少 author 时为每个目标返回错误', async () 
       JSON.stringify(result.errors),
     )
   }
+})
+
+test('段中含保留词而不等于保留词的名称通过', async () => {
+  for (const name of ['claudette', 'myclaude', 'anthropical-tools']) {
+    assert.ok((await generate({ name })).ok, name)
+  }
+})
+
+test('manifest 透传字段按写入顺序追加在生成的字段之后', async () => {
+  const text = manifestOf(
+    await generate({
+      keywords: ['guard'],
+      hosts: {
+        'claude-code': {
+          displayName: 'Demo',
+          manifest: {
+            license: 'MIT',
+            homepage: 'https://example.com',
+            hooks: './h.json',
+          },
+        },
+      },
+    }),
+  )
+  assert.deepEqual(Object.keys(JSON.parse(text)), [
+    'name',
+    'displayName',
+    'version',
+    'description',
+    'author',
+    'keywords',
+    'license',
+    'homepage',
+    'hooks',
+  ])
 })
 
 test(`.mcp.json：{pluginRoot} 换为 \${CLAUDE_PLUGIN_ROOT}，远程服务器写 type: "http"，不跳过服务器`, async () => {

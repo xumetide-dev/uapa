@@ -55,6 +55,18 @@ export async function componentFiles(
   return files
 }
 
+// 组件在插件目录中的路径，与 componentFiles 的 path 相同；插件目录是源项目根目录时用于同路径
+// 检查（组件已在原位，不复制）
+export function componentPaths(placed: PlacedComponents): string[] {
+  const skills = placed.skills.flatMap(skill =>
+    skill.files.map(file => `skills/${skill.name}/${file}`),
+  )
+  const files = FILE_KINDS.flatMap(kind =>
+    placed[kind].map(component => `${kind}/${component.name}.md`),
+  )
+  return [...skills, ...files]
+}
+
 // 每个目标依次记 skill、agent、command 的风险；不承载 agents 或 commands 的目标（如 Codex 之于
 // agents、agy 之于 commands）不加载对应目录，不记
 export function recordComponentRisks(

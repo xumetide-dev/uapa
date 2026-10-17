@@ -133,9 +133,10 @@ uapa/
 ├── src/
 │   ├── index.ts             公共导出
 │   ├── cli/
-│   ├── config/              含 targets.ts：目标名与宿主标识；layout.ts：插件目录解析
+│   ├── config/              含 targets.ts：目标名与宿主标识；layout.ts：插件目录解析；
+│   │                        marketplace.ts：marketplace 目录
 │   ├── source/              含 guard.ts：读取守卫声明
-│   ├── build/
+│   ├── build/               含 placement.ts：各宿主的文件表与同路径冲突
 │   ├── capabilities/        types.ts、index.ts 与每个目标一个数据模块
 │   ├── targets/             types.ts、index.ts 与 claude-code/、codex/、agy/
 │   ├── runtime/
@@ -145,7 +146,8 @@ uapa/
 │   └── report/
 ├── test/                    node:test 测试
 │   └── fixtures/            源项目夹具与各目标的期望产物
-├── scripts/                 发布与检查脚本；仓库中只有这里允许手写 .mjs
+├── scripts/                 发布与检查脚本；除夹具源项目的 files/ 外，仓库中只有这里允许
+│                            手写 .mjs
 ├── docs/
 │   ├── architecture/        本文、模块接口（含宿主模块接口与写出比对两个子页）、入口与打包接口、
 │   │                        构建报告、命令 hooks 声明、选型文档

@@ -155,3 +155,111 @@ test('hosts.codex.hooksFile 为绝对路径、含 .. 或空段时校验失败', 
     ['hosts.codex.interface'],
   )
 })
+
+// v0.4.0 的配置字段（F-01-14）
+test("hosts['claude-code'].manifest 含保留键或不是对象、onFailure 不是 'block' 时校验失败", () => {
+  const claude = (options: object) => ({
+    ...baseConfig,
+    hosts: { 'claude-code': options },
+  })
+  const manifest = { license: 'MIT', name: 'x', version: '1.0.0', homepage: 'h' }
+  assert.deepEqual(issues(claude({ manifest })), [
+    {
+      file: 'uapa.config.ts',
+      field: 'hosts.claude-code.manifest.name',
+      message: '由 UAPA 生成或依赖默认位置，不能透传',
+    },
+    {
+      file: 'uapa.config.ts',
+      field: 'hosts.claude-code.manifest.version',
+      message: '由 UAPA 生成或依赖默认位置，不能透传',
+    },
+  ])
+  assert.deepEqual(fields(claude({ manifest: ['MIT'] })), [
+    'hosts.claude-code.manifest',
+  ])
+  assert.deepEqual(
+    fields(claude({ manifest: { license: 'MIT', hooks: './h.json' } })),
+    [],
+  )
+  assert.deepEqual(issues(claude({ onFailure: 'none' })), [
+    {
+      file: 'uapa.config.ts',
+      field: 'hosts.claude-code.onFailure',
+      message: "只能为 'block'",
+    },
+  ])
+  assert.deepEqual(fields(claude({ onFailure: 'block' })), [])
+})
+
+test('marketplace 的名称、owner 与未知字段', () => {
+  const market = (marketplace: object) => ({ ...baseConfig, marketplace })
+  const owner = { name: 'A' }
+  assert.deepEqual(fields(market({ name: 'demo-market', owner })), [])
+  assert.deepEqual(
+    fields(
+      market({ name: 'demo-market', owner: { name: 'A', email: 'a@example.com' } }),
+    ),
+    [],
+  )
+  assert.deepEqual(issues(market({ name: 'Demo Market', owner })), [
+    { file: 'uapa.config.ts', field: 'marketplace.name', message: '不是 kebab-case' },
+  ])
+  assert.deepEqual(fields(market({ name: 'm', owner: {} })), ['marketplace.owner.name'])
+  assert.deepEqual(fields(market({ name: 'm', owner, extra: 1 })), [
+    'marketplace.extra',
+  ])
+  assert.deepEqual(fields(market({ name: 'm' })), ['marketplace.owner'])
+})
+
+test('只有 agy 目标时不得配置 marketplace', () => {
+  const agyOnly = {
+    ...baseConfig,
+    targets: ['agy:subprocess'],
+    marketplace: { name: 'm', owner: { name: 'A' } },
+  }
+  const [issue] = issues(agyOnly)
+  assert.equal(issue?.field, 'marketplace')
+  assert.match(issue?.message ?? '', /agy 只支持官方 marketplace/)
+  assert.deepEqual(fields({ ...agyOnly, targets: twoHosts }), [])
+})
+
+test('marketplace.dir 位于默认布局的插件目录内，或插件目录不在其中时校验失败', () => {
+  const at = (dir: string, extra: object = {}) => ({
+    ...baseConfig,
+    targets: ['claude-code:subprocess', 'codex:subprocess', 'agy:subprocess'],
+    marketplace: { name: 'm', owner: { name: 'A' }, dir },
+    ...extra,
+  })
+  // 默认插件目录在 dist/ 下：dist 与源项目根目录都包含它们
+  assert.deepEqual(fields(at('dist')), [])
+  assert.deepEqual(fields(at('.')), [])
+  const cleared = issues(at('dist/claude-code/market'))
+  assert.deepEqual(
+    cleared.map(issue => issue.field),
+    ['marketplace.dir', 'marketplace.dir', 'marketplace.dir'],
+  )
+  assert.match(
+    cleared[0]?.message ?? '',
+    /位于 claude-code 的插件目录 dist\/claude-code 之内/,
+  )
+  assert.match(
+    cleared[1]?.message ?? '',
+    /^claude-code 的插件目录 dist\/claude-code 不在/,
+  )
+  assert.match(
+    cleared[2]?.message ?? '',
+    /^codex 的插件目录 dist\/codex 不在 marketplace 目录/,
+  )
+  // agy 不写 marketplace 条目，它的插件目录不必在 marketplace 目录内
+  const outside = issues(at('market'))
+  assert.deepEqual(
+    outside.map(issue => issue.message.split(' ')[0]),
+    ['claude-code', 'codex'],
+  )
+  // 合并布局的目录不清空，可以就是 marketplace 目录
+  const merged = {
+    hosts: { 'claude-code': { dir: 'plugin' }, codex: { dir: 'plugin' } },
+  }
+  assert.deepEqual(fields(at('plugin', merged)), [])
+})

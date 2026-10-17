@@ -62,4 +62,6 @@ export interface SourceProject {
   readonly commands: readonly Command[] // 按 name 排序，没有 commands/ 时为空
   // overrides/<宿主>/ 下的文件，相对该目录，按字典序
   readonly overrides: Readonly<Partial<Record<HostName, readonly string[]>>>
+  // files/ 下的文件（递归），相对 files/，POSIX 分隔，按字典序；没有 files/ 时为空（F-01-12）
+  readonly files: readonly string[]
 }
