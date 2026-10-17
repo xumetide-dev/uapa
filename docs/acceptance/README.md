@@ -80,6 +80,7 @@ docs/acceptance/
 <!-- acceptance-index:start -->
 | 工单 / Sprint | 主题 | 结论 | 日期 | commit |
 |---|---|---|---|---|
+| [M5-06](M5-06-marketplace-files.md) | marketplace 文件 | 通过 | 2026-10-17 | `ae73911` |
 | [M5-05](M5-05-guard-reliability-and-risks.md) | 守卫可靠性与残余风险 | 通过 | 2026-10-17 | `1f2c616` |
 | [M5-04](M5-04-mcp-server-environment.md) | MCP 服务器的环境变量与插件根 | 通过 | 2026-10-15 | `2a1f79a` |
 | [M5-03](M5-03-converted-rules-and-commands.md) | rules 与 commands 的换算承载 | 通过 | 2026-10-15 | `15afb6e`、`92264a1` |
