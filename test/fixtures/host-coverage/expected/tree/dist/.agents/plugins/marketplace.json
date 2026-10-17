@@ -1,0 +1,9 @@
+{
+  "name": "uapa-fixtures",
+  "plugins": [
+    {
+      "name": "host-coverage",
+      "source": "./codex"
+    }
+  ]
+}

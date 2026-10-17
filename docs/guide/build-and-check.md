@@ -20,8 +20,8 @@
 | `--version` | 显示 UAPA 的版本 |
 
 一次构建依次：加载并校验配置 → 读取源项目与守卫 → 检查各目标的组件承载与守卫能力 → 按宿主生成
-manifest、hooks 配置与入口 → 放置 skills、agents 与覆盖文件 → 写出 → 运行宿主校验 → 写出构建
-报告。
+manifest、hooks 配置与入口 → 放置 skills、agents、commands、共用文件与覆盖文件 → 写出插件目录 →
+运行宿主校验 → 写出 marketplace 文件（配置 `marketplace` 时） → 写出构建报告。
 
 ## 输出与退出码
 
@@ -60,7 +60,8 @@ modified dist/codex/skills/commit-message/SKILL.md
 ```
 
 - `added`：将新增的文件；`modified`：内容不同的文件；`removed`：默认布局下写入前会被清除的文件。
-- 合并布局只比对生成的文件，不列出目录中的其他文件。
+- 合并布局只比对生成的文件，不列出目录中的其他文件；配置 `marketplace` 时一并比对 marketplace
+  文件（只有 `added` 与 `modified`，不列出 `marketplace.dir` 中的其他文件）。
 - 目标失败时 stderr 照常写出错误，以退出码 1 结束。
 
 同样的输入总是生成逐字节相同的产物与报告：报告不含时间、绝对路径与用户名。因此可以把产物提交
@@ -99,7 +100,7 @@ modified dist/codex/skills/commit-message/SKILL.md
 |---|---|
 | `status`、`errors` | `ok` 或 `failed`，以及失败的原因 |
 | `host` | 能力数据核对的宿主版本、日期与出处文档 |
-| `units` | 该目标的插件目录；失败且未写出文件的目标为空 |
+| `units` | 该目标的插件目录（`kind: "plugin"`），以及配置 `marketplace` 时写出的 marketplace 文件（`kind: "marketplace"`）；失败且未写出文件的目标为空 |
 | `skipped` | 未产出的组件与原因，如 Codex 的 `agents/<name>.md`、`mcpServers.<名称>`、`commandHooks[<下标>]` |
 | `degraded` | 以较弱方式执行的决策，如 `{ "decision": "replace", "as": "withhold" }` |
 | `overridden` | 被覆盖文件覆盖或新增的文件，相对插件目录 |

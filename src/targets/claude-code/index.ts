@@ -13,6 +13,7 @@ import type {
 } from '../types.ts'
 import { HOOKS_FILE, hooksKey, SUBPROCESS_ENTRY } from './hooks.ts'
 import { manifest, manifestErrors, userConfig } from './manifest.ts'
+import { marketplaceFiles } from './marketplace.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { MODULES, type ModuleFiles, moduleFiles, moduleSessionEnv } from './module.ts'
 import { claudeCodeRisks } from './risks.ts'
@@ -99,6 +100,44 @@ function mcpFile(plans: readonly TargetPlan[]): OutputFile[] {
   return config === null ? [] : [{ path: MCP_FILE, content: json(config) }]
 }
 
+async function buildClaudeResult(
+  input: HostInput,
+  userConfigValue: unknown,
+): Promise<HostResult> {
+  const subprocess = input.plans.find(p => p.target === 'claude-code:subprocess')
+  const inProcess = input.plans.find(p => p.target === 'claude-code:in-process')
+  const sessionEnv =
+    subprocess && inProcess ? moduleSessionEnv(input.config.name) : null
+  const rules = claudeCodeRules(input.plans)
+  const command = await subprocessFiles(input, subprocess, sessionEnv, rules.command)
+  const hooksModule = inProcess ? await moduleFiles(input, inProcess, sessionEnv) : null
+  const plugin = manifest(input.config, hooksModule?.types ?? null, userConfigValue)
+  const files: OutputFile[] = [
+    { path: '.claude-plugin/plugin.json', content: json(plugin) },
+    ...hooksConfigFile(command, hooksModule),
+    ...(command?.files ?? []),
+    ...(hooksModule?.files ?? []),
+    ...mcpFile(input.plans),
+    ...rules.files,
+  ]
+  const residualRisks = [
+    ...claudeCodeRisks(input, {
+      subprocess,
+      inProcess,
+      moduleWritten: hooksModule !== null,
+    }),
+    ...rules.risks,
+  ]
+  const marketplaces = marketplaceFiles(input)
+  return {
+    ok: true,
+    files,
+    skipped: [],
+    residualRisks,
+    ...(marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }),
+  }
+}
+
 export const claudeCode: HostModule = {
   host: 'claude-code',
   async generate(input) {
@@ -109,29 +148,7 @@ export const claudeCode: HostModule = {
     const checked = input.plans.some(plan => plan.checks.length > 0)
     const config = userConfig(input.config, checked ? (input.guard?.options ?? []) : [])
     if (!config.ok) return failAll(input.plans, config.errors)
-    const subprocess = input.plans.find(p => p.target === 'claude-code:subprocess')
-    const inProcess = input.plans.find(p => p.target === 'claude-code:in-process')
-    // 两个目标都进入 plans 时按会话 id 去重（F-05-08）
-    const sessionEnv =
-      subprocess !== undefined && inProcess !== undefined
-        ? moduleSessionEnv(input.config.name)
-        : null
-    const rules = claudeCodeRules(input.plans)
-    const command = await subprocessFiles(input, subprocess, sessionEnv, rules.command)
-    const hooksModule =
-      inProcess === undefined ? null : await moduleFiles(input, inProcess, sessionEnv)
-    const plugin = manifest(input.config, hooksModule?.types ?? null, config.value)
-    const files: OutputFile[] = [
-      { path: '.claude-plugin/plugin.json', content: json(plugin) },
-      ...hooksConfigFile(command, hooksModule),
-      ...(command?.files ?? []),
-      ...(hooksModule?.files ?? []),
-      ...mcpFile(input.plans),
-      ...rules.files,
-    ]
-    const forms = { subprocess, inProcess, moduleWritten: hooksModule !== null }
-    const residualRisks = [...claudeCodeRisks(input, forms), ...rules.risks]
-    return { ok: true, files, skipped: [], residualRisks }
+    return buildClaudeResult(input, config.value)
   },
   async verify(dir) {
     return validatePlugin(dir)

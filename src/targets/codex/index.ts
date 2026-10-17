@@ -26,6 +26,7 @@ import {
   NO_HOOKS,
   NO_MCP_SERVERS,
 } from './manifest.ts'
+import { marketplaceFiles } from './marketplace.ts'
 import { MCP_FILE, mcpConfig } from './mcp.ts'
 import { hooksRisks, mcpRisks, TARGET } from './risks.ts'
 import { codexRules, RULES_ENTRY } from './rules.ts'
@@ -124,6 +125,30 @@ async function hooksFiles(
   return files
 }
 
+function codexNotes(
+  input: HostInput,
+  plan: TargetPlan,
+  hooksFile: string,
+  hooks: Readonly<Record<string, unknown>> | null,
+  mcp: ReturnType<typeof mcpConfig>,
+  rules: ReturnType<typeof codexRules>,
+) {
+  const residualRisks = [
+    ...(hooks === null ? [] : hooksRisks(input, plan, hooksFile)),
+    ...(mcp.config === null ? [] : mcpRisks()),
+    ...mcp.risks.map(message => ({ target: TARGET, message })),
+    ...rules.risks.map(message => ({ target: TARGET, message })),
+    ...nestedSkillRisks(plan.skills).map(message => ({ target: TARGET, message })),
+  ]
+  const skipped = [
+    ...skillSkips(TARGET, input.config.name, plan.skills),
+    ...mcp.skipped,
+    ...rules.skipped,
+    ...commandSkips(TARGET, plan.commands),
+  ]
+  return { skipped, residualRisks }
+}
+
 export const codex: HostModule = {
   host: 'codex',
   async generate(input) {
@@ -153,19 +178,12 @@ export const codex: HostModule = {
       ...(mcp.config === null ? [] : [{ path: MCP_FILE, content: json(mcp.config) }]),
       ...rules.files,
     ]
-    const residualRisks = [
-      ...(hooks === null ? [] : hooksRisks(input, plan, hooksFile)),
-      ...(mcp.config === null ? [] : mcpRisks()),
-      ...mcp.risks.map(message => ({ target: TARGET, message })),
-      ...rules.risks.map(message => ({ target: TARGET, message })),
-      ...nestedSkillRisks(plan.skills).map(message => ({ target: TARGET, message })),
-    ]
-    const skipped = [
-      ...skillSkips(TARGET, input.config.name, plan.skills),
-      ...mcp.skipped,
-      ...rules.skipped,
-      ...commandSkips(TARGET, plan.commands),
-    ]
-    return { ok: true, files, skipped, residualRisks }
+    const marketplaces = marketplaceFiles(input)
+    return {
+      ok: true,
+      files,
+      ...codexNotes(input, plan, hooksFile, hooks, mcp, rules),
+      ...(marketplaces === undefined ? {} : { marketplaceFiles: marketplaces }),
+    }
   },
 }

@@ -75,19 +75,13 @@ async function planDir(
     s => dir.hosts.includes(hostOf(s.target)) && succeeded(s),
   )
   if (targets.length === 0) return null
-  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件；
-  // 共用文件不复制到源项目根目录，files/ 非空时该目录的目标失败
   const atRoot = dir.path === build.root
   if (atRoot && shared.length > 0) {
     for (const state of targets) state.errors.push(sharedAtRootMessage(build.root, dir))
     return null
   }
   const present = atRoot ? build.source : componentUnion(targets)
-  const layers: DirLayers = {
-    copied: atRoot ? [] : await componentFiles(build.root, present),
-    inPlace: atRoot ? componentPaths(present) : [],
-    shared,
-  }
+  const layers = await dirLayers(build.root, atRoot, present, shared)
   const { views, messages } = await placeHosts(build, dir, targets, hostFiles, layers)
   const { files, conflicts } = mergeViews(views)
   messages.push(...conflicts.map(c => conflictMessage(build.root, dir, c)))
@@ -97,6 +91,20 @@ async function planDir(
   }
   recordComponentRisks(targets, present)
   return { dir, merged: dir.hosts.length > 1, files, targets }
+}
+
+async function dirLayers(
+  root: string,
+  atRoot: boolean,
+  present: ReturnType<typeof componentUnion>,
+  shared: readonly PlannedFile[],
+): Promise<DirLayers> {
+  // 合并布局的目录就是源项目根目录时，组件已在原位，不复制，宿主加载源项目中的全部组件
+  return {
+    copied: atRoot ? [] : await componentFiles(root, present),
+    inPlace: atRoot ? componentPaths(present) : [],
+    shared,
+  }
 }
 
 // 各宿主在该目录中的文件表，以及组件、共用文件与生成文件之间的来源冲突
@@ -135,12 +143,7 @@ interface PathEntry {
   differs: boolean
 }
 
-// 各宿主的同名文件内容一致时只写一次；不一致而都标为可合并时按命名空间合并，合并结果作为生成
-// 的文件；否则记为冲突，列出写入该文件的全部宿主
-function mergeViews(views: readonly HostView[]): {
-  files: PlannedFile[]
-  conflicts: Conflict[]
-} {
+function collectPathEntries(views: readonly HostView[]): Map<string, PathEntry> {
   const entries = new Map<string, PathEntry>()
   for (const [host, view] of views) {
     for (const file of view.values()) {
@@ -163,6 +166,16 @@ function mergeViews(views: readonly HostView[]): {
       if (!entry.file.content.equals(file.content)) entry.differs = true
     }
   }
+  return entries
+}
+
+// 各宿主的同名文件内容一致时只写一次；不一致而都标为可合并时按命名空间合并，合并结果作为生成
+// 的文件；否则记为冲突，列出写入该文件的全部宿主
+function mergeViews(views: readonly HostView[]): {
+  files: PlannedFile[]
+  conflicts: Conflict[]
+} {
+  const entries = collectPathEntries(views)
   for (const entry of entries.values()) {
     if (!entry.differs) continue
     const merged = mergeJsonExtensions(entry.versions)

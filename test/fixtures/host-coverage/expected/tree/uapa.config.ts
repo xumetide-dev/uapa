@@ -18,4 +18,8 @@ export default {
       onFailure: 'block',
     },
   },
+  marketplace: {
+    name: 'uapa-fixtures',
+    owner: { name: 'UAPA Fixtures' },
+  },
 } satisfies UapaConfig

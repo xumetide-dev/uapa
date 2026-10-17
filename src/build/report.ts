@@ -34,7 +34,10 @@ function toTargetReport(state: TargetState): TargetReport {
     status: succeeded(state) ? 'ok' : 'failed',
     errors: state.errors,
     host: { ...state.capabilities.host },
-    units: state.unit === null ? [] : [{ kind: 'plugin', path: state.unit }],
+    units: [
+      ...(state.unit === null ? [] : [{ kind: 'plugin' as const, path: state.unit }]),
+      ...state.marketplaceUnits.map(path => ({ kind: 'marketplace' as const, path })),
+    ],
     skipped: state.skipped,
     degraded: state.degraded,
     overridden: state.overridden,

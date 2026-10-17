@@ -7,6 +7,7 @@ import { readGuard, readSource } from '../source/index.ts'
 import { compareOutputs } from './compare.ts'
 import { generateHosts, type HostDeps } from './generate.ts'
 import type { BuildOutcome } from './index.ts'
+import { planMarketplaces, writeMarketplaces } from './marketplace.ts'
 import { planOutputs } from './outputs.ts'
 import { planTargets } from './plan.ts'
 import { toReport, writeReport } from './report.ts'
@@ -35,14 +36,21 @@ export async function runBuild(
   }
   const build = { config, root, source: source.value, guard: guard.value }
   const states = planTargets(config, source.value, guard.value, deps.targetCapabilities)
-  const hostFiles = await generateHosts(build, states, deps)
-  const outputs = await planOutputs(build, states, hostFiles)
+  const generated = await generateHosts(build, states, deps)
+  const initialOutputs = await planOutputs(build, states, generated.hostFiles)
+  const { outputs, marketplaces } = await planMarketplaces(
+    build,
+    states,
+    generated,
+    initialOutputs,
+  )
   if (options.check) {
-    const changes = await compareOutputs(root, outputs)
+    const changes = await compareOutputs(root, outputs, marketplaces)
     return { kind: 'done', report: toReport(states), reportPath: null, changes }
   }
   await writeOutputs(root, outputs)
   await verifyHosts(config, root, states, deps.hostModules)
+  await writeMarketplaces(states, marketplaces)
   const report = toReport(states)
   const reportPath = await writeReport(config, root, report)
   return { kind: 'done', report, reportPath, changes: null }

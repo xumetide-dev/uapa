@@ -89,7 +89,7 @@ hosts: {
 
 配置 `marketplace` 后，UAPA 在 `marketplace.dir` 中为 Claude Code 写
 `.claude-plugin/marketplace.json`、为 Codex 写 `.agents/plugins/marketplace.json`，条目指向
-各自的插件目录（目前只做校验，随 M5-06 生成文件）：
+各自的插件目录（见[安装与分发](install.md#分发给团队)）：
 
 ```ts
 marketplace: { name: 'team-tools', owner: { name: 'Example Team' }, dir: 'dist' },

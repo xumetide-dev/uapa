@@ -2,8 +2,8 @@
 
 本文说明怎样把构建出的插件目录装进 Claude Code、Codex 与 agy，以及分发给团队的方式。本地目录的
 加载与安装步骤已用 UAPA 的夹具产物实测，见
-[M2-05 验收](../acceptance/M2-05-three-host-live-tests.md)；经 marketplace 从 git 分发的方式取自
-各宿主的官方文档，未以 UAPA 产物实测。
+[M2-05 验收](../acceptance/M2-05-three-host-live-tests.md)与
+[Claude Code 本地实测记录](../research/coding-agent-plugin-manifests/claude-code-local-tests.md#v040-覆盖审查21296容器)。
 
 ## 前提条件
 
@@ -18,38 +18,38 @@
 claude --plugin-dir dist/claude-code
 ```
 
+配置了 [`marketplace`](configuration.md#marketplace) 时（默认写在 `dist/.claude-plugin/marketplace.json`），
+也可以添加本地 marketplace 并安装到用户配置（Claude Code 2.1.296 容器实测）：
+
+```bash
+claude plugin marketplace add dist
+claude plugin install <插件名>@<marketplace 名>
+```
+
 - 会话中重新构建后，用 `/reload-plugins` 重载。
 - `/plugin` 面板的 Errors 标签页显示插件的加载错误。
-- UAPA 在写出后已运行 `claude plugin validate --strict`（PATH 中有 `claude` 时）；手动运行：
+- UAPA 在写出后已对插件目录运行 `claude plugin validate --strict`（PATH 中有 `claude` 时）；手动校验插件目录或生成的 marketplace 文件：
 
 ```bash
 claude plugin validate dist/claude-code --strict
+claude plugin validate dist/.claude-plugin/marketplace.json --strict
 ```
 
 ## Codex
 
 Codex 从 marketplace 安装插件，安装后须信任插件的 hooks（codex-cli 0.162.1 容器实测）。
 
-1. 建立本地 marketplace 目录，把 `dist/codex` 复制为其中的 `plugins/<插件名>/`：
-
-   ```text
-   <marketplace 目录>/
-   ├── .agents/plugins/marketplace.json
-   └── plugins/team-rules/        dist/codex 的副本
-   ```
-
-   `marketplace.json`：
+1. 在 `uapa.config.ts` 中配置 [`marketplace`](configuration.md#marketplace)（如
+   `marketplace: { name: 'team-local', owner: { name: 'Team' } }`），运行 `uapa build` 后，
+   `dist/.agents/plugins/marketplace.json` 含指向 `./codex` 的插件条目：
 
    ```json
    {
      "name": "team-local",
-     "interface": { "displayName": "Team Local" },
      "plugins": [
        {
          "name": "team-rules",
-         "source": "./plugins/team-rules",
-         "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-         "category": "Developer Tools"
+         "source": "./codex"
        }
      ]
    }
@@ -58,7 +58,7 @@ Codex 从 marketplace 安装插件，安装后须信任插件的 hooks（codex-c
 2. 登记 marketplace 并安装插件：
 
    ```bash
-   codex plugin marketplace add <marketplace 目录>
+   codex plugin marketplace add dist
    ```
 
    ```bash
@@ -92,23 +92,28 @@ agy plugin list --json
 
 ## 分发给团队
 
-UAPA 不生成 marketplace 文件。分发时把产物与手写的 marketplace 文件一起提交进仓库，使用者按各
-宿主的方式从 git 安装：
+在 `uapa.config.ts` 中配置 [`marketplace`](configuration.md#marketplace)（把产物提交进仓库根目录分发时设 `dir: '.'`），
+`uapa build` 在 `marketplace.dir` 中生成 Claude Code 与 Codex 的 marketplace 文件。把产物与生成的
+marketplace 文件一起提交进仓库，使用者按各宿主的方式从 git 安装：
 
-| 宿主 | marketplace 文件 | 条目的 `source` | 安装命令 |
+| 宿主 | 生成的 marketplace 文件 | 条目的 `source` | 安装命令 |
 |---|---|---|---|
-| Claude Code | `.claude-plugin/marketplace.json`（`name`、`owner`、`plugins`） | 以 `./` 开头、不含 `..` 的相对路径，或 `github` 等来源 | `claude plugin marketplace add <仓库>`，再 `claude plugin install <插件>@<marketplace>` |
-| Codex | `.agents/plugins/marketplace.json`（`name`、`plugins`） | `local` 路径、`url`、`git-subdir` 等；条目须写 `policy.installation` 与 `category` | `codex plugin marketplace add <owner/repo>`，再 `codex plugin add <插件>@<marketplace>` |
-| agy | 不需要 | — | `agy plugin install <GitHub 仓库 URL>` |
+| Claude Code | `.claude-plugin/marketplace.json`（`name`、`owner`、`metadata.description`、`plugins`） | 从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径（相同目录时为 `"./"`） | `claude plugin marketplace add <仓库>`，再 `claude plugin install <插件>@<marketplace>` |
+| Codex | `.agents/plugins/marketplace.json`（`name`、`plugins`） | 同上；`policy` 与 `category` 省略时取宿主默认 `AVAILABLE` 与 `ON_INSTALL` | `codex plugin marketplace add <owner/repo>`，再 `codex plugin add <插件>@<marketplace>` |
+| agy | 不生成（只支持官方 marketplace） | — | `agy plugin install <GitHub 仓库 URL>`（1.0.7 起支持从 GitHub 仓库子路径安装并解析分支） |
 
-- marketplace 条目的 `name` 应与插件 `plugin.json` 的 `name` 一致；Codex 的文档另要求与插件目录名
-  一致。
+- **只配置 Claude Code 时 Codex 的误装风险**：Codex 查找 marketplace 时先读
+  `.agents/plugins/marketplace.json`，不存在时回退读取 `.claude-plugin/marketplace.json`
+  （rust-v0.162.1 `core-plugins/src/marketplace.rs`）。同时配置 Claude Code 与 Codex 时两个文件并存，
+  Codex 读取 `.agents/plugins/marketplace.json` 并安装 Codex 产物；若只配置 Claude Code（未生成
+  `.agents/plugins/marketplace.json`），不要在 Codex 中添加该 marketplace，否则 Codex 会把
+  Claude Code 的插件目录当作 Codex 插件安装。
 - 要让仓库根目录本身就是 Claude Code 与 Codex 的插件，使用
-  [合并布局](configuration.md#合并布局)。
+  [合并布局](configuration.md#合并布局)并设 `marketplace.dir: '.'`。
 - 在安装说明中写明 Codex 的信任步骤与 Node ≥ 22 的要求。
 
 字段与来源类型见各宿主调研：
 
-- [Claude Code「marketplace.json」](../research/coding-agent-plugin-manifests/claude-code-plugins.md)
+- [Claude Code「marketplace.json」](../research/coding-agent-plugin-manifests/claude-code-plugins.md#marketplacejson-字段)
 - [Codex「marketplace.json」](../research/coding-agent-plugin-manifests/codex-plugins.md#marketplacejson)
 - [agy「安装与管理」](../research/coding-agent-plugin-manifests/agy-plugins.md#安装与管理)

@@ -30,6 +30,7 @@ export interface TargetState {
   readonly hostRisks: string[] // HostResult.residualRisks 中本目标的条目
   plan: TargetPlan | null // 未通过能力检查时为 null
   unit: string | null // 写出的插件目录（显示路径）
+  readonly marketplaceUnits: string[] // 写出的 marketplace 文件（显示路径，F-03-18）
   hostValidation: 'passed' | 'failed' | 'skipped' | 'none'
 }
 
@@ -49,6 +50,7 @@ export function newState(
     hostRisks: [],
     plan: null,
     unit: null,
+    marketplaceUnits: [],
     hostValidation: 'none',
   }
 }

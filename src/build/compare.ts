@@ -5,23 +5,22 @@ import { join, relative, sep } from 'node:path'
 import { displayPath } from '../config/paths.ts'
 import { compare } from '../source/files.ts'
 import type { FileChange } from './index.ts'
+import type { PlannedMarketplace } from './marketplace.ts'
 import type { DirOutput } from './outputs.ts'
 
 export async function compareOutputs(
   root: string,
   outputs: readonly DirOutput[],
+  marketplaces: readonly PlannedMarketplace[] = [],
 ): Promise<FileChange[]> {
   const changes: FileChange[] = []
   for (const output of outputs) {
     const dir = output.dir.path
     const shown = (path: string) => displayPath(root, join(dir, ...path.split('/')))
     for (const file of output.files) {
-      const existing = await onDisk(join(dir, ...file.path.split('/')))
-      if (existing === 'missing')
-        changes.push({ change: 'added', path: shown(file.path) })
-      else if (existing === 'not-a-file' || !existing.equals(file.content)) {
-        changes.push({ change: 'modified', path: shown(file.path) })
-      }
+      const target = join(dir, ...file.path.split('/'))
+      const change = await compareFile(target, shown(file.path), file.content)
+      if (change !== null) changes.push(change)
     }
     if (output.merged) continue
     const planned = new Set(output.files.map(file => file.path))
@@ -29,7 +28,24 @@ export async function compareOutputs(
       if (!planned.has(path)) changes.push({ change: 'removed', path: shown(path) })
     }
   }
+  for (const item of marketplaces) {
+    const change = await compareFile(item.targetPath, item.shownPath, item.content)
+    if (change !== null) changes.push(change)
+  }
   return changes.sort((a, b) => compare(a.path, b.path))
+}
+
+async function compareFile(
+  target: string,
+  shownPath: string,
+  content: Buffer,
+): Promise<FileChange | null> {
+  const existing = await onDisk(target)
+  if (existing === 'missing') return { change: 'added', path: shownPath }
+  if (existing === 'not-a-file' || !existing.equals(content)) {
+    return { change: 'modified', path: shownPath }
+  }
+  return null
 }
 
 // 路径不存在（或上级不是目录）时为 missing，是目录时为 not-a-file

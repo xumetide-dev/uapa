@@ -1,6 +1,6 @@
 // marketplace 目录（F-01-14，SD-41）：配置校验与构建编排共用。marketplace 文件写在该目录，
 // 其中的插件条目以相对该目录的路径指向 Claude Code 与 Codex 的插件目录。
-import { resolve } from 'node:path'
+import { relative, resolve, sep } from 'node:path'
 import type { InputIssue } from './issues.ts'
 import { outDirOf, type PluginDir, resolvePluginDirs } from './layout.ts'
 import { displayPath, isInside } from './paths.ts'
@@ -16,6 +16,18 @@ export function marketplaceDirOf(config: UapaConfig, root: string): string | nul
   if (marketplace === undefined) return null
   if (marketplace.dir === undefined) return outDirOf(config, root)
   return resolve(root, marketplace.dir)
+}
+
+// 从 marketplace.dir 到插件目录的相对路径，以 ./ 开头；两者相同时为 './'；未配置时为 null
+export function marketplaceSourceOf(
+  config: UapaConfig,
+  root: string,
+  pluginDir: string,
+): string | null {
+  const dir = marketplaceDirOf(config, root)
+  if (dir === null) return null
+  const rel = relative(dir, pluginDir).split(sep).join('/')
+  return rel === '' ? './' : `./${rel}`
 }
 
 export function checkMarketplace(

@@ -14,6 +14,10 @@
         {
           "kind": "plugin",
           "path": "dist/claude-code"
+        },
+        {
+          "kind": "marketplace",
+          "path": "dist/.claude-plugin/marketplace.json"
         }
       ],
       "skipped": [],
@@ -39,6 +43,10 @@
         {
           "kind": "plugin",
           "path": "dist/claude-code"
+        },
+        {
+          "kind": "marketplace",
+          "path": "dist/.claude-plugin/marketplace.json"
         }
       ],
       "skipped": [],
@@ -66,6 +74,10 @@
         {
           "kind": "plugin",
           "path": "dist/codex"
+        },
+        {
+          "kind": "marketplace",
+          "path": "dist/.agents/plugins/marketplace.json"
         }
       ],
       "skipped": [

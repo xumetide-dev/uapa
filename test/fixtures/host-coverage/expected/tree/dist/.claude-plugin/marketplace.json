@@ -1,0 +1,16 @@
+{
+  "name": "uapa-fixtures",
+  "owner": {
+    "name": "UAPA Fixtures"
+  },
+  "metadata": {
+    "description": "v0.4.0 补齐的宿主能力，配置四个目标、默认布局的夹具"
+  },
+  "plugins": [
+    {
+      "name": "host-coverage",
+      "source": "./claude-code",
+      "description": "v0.4.0 补齐的宿主能力，配置四个目标、默认布局的夹具"
+    }
+  ]
+}

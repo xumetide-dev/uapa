@@ -26,6 +26,8 @@ export interface HostInput {
   // 与本宿主写入同一插件目录的其他宿主，按 targets.ts 中的顺序；默认布局为空
   readonly sharedWith: readonly HostName[]
   readonly bundle: (request: BundleRequest) => Promise<string>
+  // 配置 marketplace 时为本宿主插件目录相对 marketplace.dir 的路径，以 './' 开头；未配置时为 null（F-03-18）
+  readonly marketplaceSource?: string | null
 }
 
 export interface OutputFile {
@@ -56,6 +58,7 @@ export type HostResult =
       readonly files: readonly OutputFile[]
       readonly skipped: readonly TargetSkip[]
       readonly residualRisks: readonly TargetNote[]
+      readonly marketplaceFiles?: readonly OutputFile[] // 路径相对 marketplace.dir（F-03-18）
     }
   | { readonly ok: false; readonly errors: readonly TargetNote[] }
 
