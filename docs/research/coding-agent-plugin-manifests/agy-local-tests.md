@@ -1,7 +1,7 @@
 # agy 实测记录
 
 本文记录调研中依赖实测的 agy 行为，供复现。「本地实测」一节为 agy 1.3.4，于 2026-10-14 在 macOS
-上实测；其余各节为 agy 1.3.5，于 2026-10-14～2026-10-15 在 Linux 测试容器中实测。文档与更新日志
+上实测；其余各节为 agy 1.3.5，于 2026-10-14～2026-10-17 在 Linux 测试容器中实测。文档与更新日志
 的结论见 [agy 插件机制](agy-plugins.md)。测试插件均为最小示例，提示只要求运行标记命令。
 
 ## 本地实测
@@ -24,9 +24,10 @@ agy --model gemini-3.8-flash-low --dangerously-skip-permissions -p "Use only the
 - 本机全局 `hooks.json` 另有一个对全部工具返回 `ask` 的 `PreToolUse` hook，两处的 hooks 都加载；
   在 `--dangerously-skip-permissions` 下，插件返回 `allow` 的调用照常执行。
 - 卸载后 `~/.gemini/config/` 中留下安装时创建的 `import_manifest.json` 与空的 `plugins/` 目录。
-- 未测：Windows、`.antigravity-plugin/` 与 `.gemini-plugin/` 中的 manifest、`PreToolUse` 输出为空，
-  以及插件目录同时含 `.claude-plugin/` 时安装命令的处理。`Stop` 的超时与输出无法解析见下文
-  「`Stop` 的超时与无效输出（1.3.5，容器）」，继续的次数上限见「v0.4.0 覆盖审查（1.3.5，容器）」。
+- 未测：Windows、`.gemini-plugin/` 中的 manifest 与 `PreToolUse` 输出为空。`Stop` 的超时与输出无法
+  解析见下文「`Stop` 的超时与无效输出（1.3.5，容器）」，继续的次数上限见「v0.4.0 覆盖审查
+  （1.3.5，容器）」，`.antigravity-plugin/plugin.json` 与含 `.claude-plugin/` 的合并目录见
+  「替代 manifest 位置与合并目录（1.3.5，容器）」。
 
 ## agents 与 MCP 服务器（1.3.5，容器）
 
@@ -133,3 +134,25 @@ agent（一个 frontmatter 含 `targets`，另一个的 `name` 与文件名不�
 
 - 未测：内置子代理（如 research）与 `inheritCustomizations: false` 的自定义代理中的 hooks；交互式
   会话中的 `/btw`；插件 MCP 工具的调用是否触发 `PreToolUse`；`args` 中 `${PLUGIN_ROOT}` 的展开。
+
+## 替代 manifest 位置与合并目录（1.3.5，容器）
+
+2026-10-17，测试容器中的 agy 1.3.5；模型 `gemini-4-argon-medium`。分别构造三个探测目录，以
+`agy plugin validate`、`agy plugin install`、`agy plugin list --json` 与打印模式会话验证，结束后
+卸载：
+
+- 目录 A（只含 `.antigravity-plugin/plugin.json`，无根 `plugin.json`）：含 `skills/s1/SKILL.md`、
+  `agents/a1.md`、`commands/c1.md`、`rules/always.md`、根 `mcp_config.json` 与根 `hooks.json`。
+- 目录 B（三宿主合并目录，无根 `plugin.json`）：同时含 `.claude-plugin/plugin.json`、
+  `.codex-plugin/plugin.json`、`.antigravity-plugin/plugin.json`、`skills/s1/SKILL.md` 与根
+  `hooks.json`（`PreToolUse` 运行记录 stdin 的脚本并返回 `{"decision":"allow"}`）。
+- 目录 C（含 `.claude-plugin/plugin.json` 与根 `plugin.json`）：将目录 B 的
+  `.antigravity-plugin/plugin.json` 移至根 `plugin.json`。
+
+| 项目 | 做法 | 结果 |
+|---|---|---|
+| 仅 `.antigravity-plugin/plugin.json` 的校验与安装 | 对目录 A 运行 `agy plugin validate` 与 `agy plugin install` | 两个命令均输出 `skills : 1 processed`、`agents : 1 processed`、`commands : 1 processed (converted to skills)`、`mcpServers : 1 processed`、`hooks : 1 processed`；`agy plugin list --json` 的 `source` 为 `"antigravity"`，`rules` 列出 `["always.md"]`，安装目录中保留 `.antigravity-plugin/plugin.json` |
+| 三宿主合并目录的校验与安装 | 对目录 B 运行 `claude plugin validate --strict`、`agy plugin validate` 与 `agy plugin install` | Claude Code 与 agy 校验均通过；`agy plugin list --json` 的 `source` 为 `"antigravity"`，列出 `skills` 与 `hooks`，未把含 `.claude-plugin/` 的目录按 Claude Code 插件转换 |
+| 三宿主合并目录的会话与 `workspacePaths` | 在临时工作区目录中运行 `agy -p` 触发 `run_command`（只运行 `echo uapa-merged-probe-ok`） | 根 `hooks.json` 的 `PreToolUse` 触发，stdin 的 `workspacePaths` 为 `["<临时工作区目录>"]`（`workspacePaths[0]` 与 `toolCall.args.Cwd` 同为会话工作目录） |
+| 根 `plugin.json` 与 `.claude-plugin/` 并存 | 对目录 C 运行 `agy plugin validate` 与 `agy plugin install` | `agy plugin list --json` 的 `source` 同样为 `"antigravity"`，列出 `skills` 与 `hooks` |
+

@@ -6,12 +6,14 @@
 > - Codex 的本地 MCP 服务器能取得声明的环境变量。
 > - 构建可以生成 Claude Code 与 Codex 的 marketplace 文件。
 > - Claude Code 可以透传 manifest 字段，并选择守卫入口出错时阻断。
+> - 三宿主合并布局下 agy 写 `.antigravity-plugin/plugin.json`，命令 hooks 支持单条超时，MCP 服务器
+>   支持按目标限定与 `${user_config.<KEY>}` 衔接，子进程守卫可读取会话工作目录与工作区文件。
 > - 已知的产物缺陷已修正，漏记的残余风险已补全。
 
 | 项 | 内容 |
 |---|---|
-| Sprint 目标 | 功能清单阶段 v0.4.0 的全部 24 个功能（[功能清单](../feature-list/README.md)「阶段」） |
-| 范围来源 | 范围决策 SD-36～SD-43（[范围决策](../feature-list/scope-decisions.md)）；不排期的审查项见 SD-44、SD-45 |
+| Sprint 目标 | 功能清单阶段 v0.4.0 的全部 31 个功能（[功能清单](../feature-list/README.md)「阶段」） |
+| 范围来源 | 范围决策 SD-36～SD-43、SD-47～SD-50（[范围决策](../feature-list/scope-decisions.md)）；不排期的审查项见 SD-44、SD-45 |
 | 前置 | v0.3.0 已以 tag `v0.3.0` 发布；Sprint M4 收口的条件已关闭；v0.4.0 的功能条目已随功能清单提交 |
 | 周期 | 2026-10-15 起，按工单顺序推进，不设截止日期 |
 | 关联 issue | 无 |
@@ -22,24 +24,30 @@ Sprint 编号 `M5` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 
 ## 目标与已定决策
 
-- 范围来自 2026-10-15 的覆盖审查：按 Claude Code、Codex、agy 分别对照官方文档、公开源码与已有
-  调研，找出宿主已承载而 UAPA 没有覆盖的能力。审查结论按三类处理：
-  - 本 Sprint 实现：SD-37～SD-43。
-  - 需要改守卫公共类型的语义扩展：延后到 M6，SD-44。
+- 范围来自 2026-10-15 的覆盖审查及 2026-10-17 的多宿主合并布局与兼容补充：按 Claude Code、
+  Codex、agy 分别对照官方文档、公开源码与已有调研，找出宿主已承载而 UAPA 没有覆盖的能力。审查
+  结论按三类处理：
+  - 本 Sprint 实现：SD-37～SD-43、SD-47～SD-50。
+  - 需要改守卫决策或事件模型的语义扩展：延后到 M6，SD-44。
   - 价值有限或已有替代做法：不排期，SD-45。
 - 技术栈与 v0.3.0 相同，以[架构 §0](../architecture/architecture.md#0-技术选型总览) 为准；
   本 Sprint 不升级依赖，不新增生产依赖。
 - 目标仍为 `claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、
-  `agy:subprocess`（SD-28、SD-36）；不改守卫公共类型（`GuardPlugin`、`GuardCheck`、决策种类）。
+  `agy:subprocess`（SD-28、SD-36）；不改守卫检查名与决策种类，只在 `GuardContext` 中增加只读字段
+  `cwd`（SD-50）。
 - 换算只改格式，不在运行时模拟宿主缺少的能力：
   - rules 在 Claude Code 与 Codex 上写为技能，或由 `SessionStart` 命令 hook 输出（SD-38）。
   - commands 在 agy 上原样复制，agy 安装时转换为技能（SD-39，M5-01 实测）。
   - 语义差异写为残余风险。
-- 宿主行为先实测、后实现：SD-38～SD-41 与 SD-43 中标为待实测的各项由 M5-01 核实。
+- 宿主行为先实测、后实现：SD-38～SD-41 与 SD-43 中标为待实测的各项由 M5-01 核实；SD-47～SD-50
+  中 agy 的 `.antigravity-plugin/plugin.json`、三宿主合并目录与 stdin `workspacePaths` 已在
+  agy 1.3.5 与 Claude Code 2.1.296 容器中实测核实。
   - 结论写入调研文档后，再改功能条目与接口。
   - 结论不成立的换算，对应功能改为预留，并另立 SD，不按推测实现。M5-01 据此把 F-11-13 改为
     预留（SD-46）：agy 1.3.5 的 hook 进程中没有 `PLUGIN_DATA`。
-- 7 张工单：M5-01 定事实与接口，M5-07 做产物实测，中间 5 张按功能分组，各自可以独立提交与验证。
+- 8 张工单：M5-01 定事实与接口，M5-07 做产物实测，中间 6 张（M5-02～M5-06、M5-08）按功能分组，
+  各自可以独立提交与验证；超过 7 张是因为在 M5-06 之后补充了四项跨宿主兼容与合并布局改进
+  （M5-08，SD-47～SD-50），单列一单避免回改已验收的 M5-02～M5-06。
 - 本 Sprint 不发布。是否以 v0.4.0 发布由维护者在收口后决定；创建与推送 tag 各需维护者确认。
   `README.md` 的「支持的宿主」与「版本与路线图」描述已发布的版本，在发布 v0.4.0 时一并更新
   （rules 与 commands 的承载自 M5-03 改变）。
@@ -72,6 +80,7 @@ Sprint 编号 `M5` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 | 生成的 marketplace 能被添加并安装（SD-41） | M5-01 对 Claude Code 实测；Codex 按源码核对，CLI 实测须维护者确认 | 只按源码与文档生成，残余风险写明未实测 |
 | `Monitor`、`NotebookEdit` 的入参与 agy hook 的 `PLUGIN_DATA`（SD-43） | M5-01 实测 | 不换算，残余风险写明 |
 | Claude Code 2.1.299、2.1.300 的 hooks 变化 | 容器钉在 2.1.296；升级容器中的 Claude Code 须维护者确认（下载可执行文件） | 能力数据仍以 2.1.296 为准，变化记入调研文档 |
+| agy 的 `.antigravity-plugin/plugin.json` 与三宿主合并目录（SD-47、SD-50） | 在容器（agy 1.3.5、Claude Code 2.1.296）中验证 `agy plugin validate`、`claude plugin validate --strict`、`agy plugin install` 与 `agy -p` 会话中 `workspacePaths[0]`（已于 2026-10-17 实测通过） | 不改默认 manifest 路径，保持单宿主布局 |
 
 ## 工单构成
 
@@ -83,7 +92,8 @@ Sprint 编号 `M5` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 | [M5-04](M5-04-mcp-server-environment.md) | MCP 服务器的环境变量与插件根 | `F-01-13`、`F-05-26`、`F-06-12`、`F-11-12` | M5-01 | 只改 MCP 的读取与生成，可与 M5-03 并行 |
 | [M5-05](M5-05-guard-reliability-and-risks.md) | 守卫可靠性与残余风险 | `F-05-21`、`F-05-22`、`F-05-23`、`F-06-14`、`F-06-16`、`F-11-14` | M5-01、M5-03 | 改三个宿主模块的 hooks 与残余风险，排在 M5-03 之后 |
 | [M5-06](M5-06-marketplace-files.md) | marketplace 文件 | `F-03-18`、`F-05-24`、`F-06-15` | M5-02 | 改构建编排的写出与比对 |
-| [M5-07](M5-07-v0-4-0-live-tests.md) | v0.4.0 产物的宿主实测 | 无（TA-27） | M5-02～M5-06 | 最后 |
+| [M5-08](M5-08-merged-manifest-timeout-mcp-cwd.md) | 合并布局 manifest、命令超时、MCP 目标过滤与守卫工作目录 | `F-01-15`、`F-02-06`、`F-03-20`、`F-04-10`、`F-05-27`、`F-06-17`、`F-11-15` | M5-03、M5-04、M5-05 | 改配置、守卫上下文、三个宿主模块与子进程入口，排在 M5-05 之后、M5-07 之前 |
+| [M5-07](M5-07-v0-4-0-live-tests.md) | v0.4.0 产物的宿主实测 | 无（TA-27） | M5-02～M5-06、M5-08 | 最后 |
 
 功能编号取自[功能清单](../feature-list/README.md)的模块文件。本表是本 Sprint 覆盖哪些功能、
 工单之间如何依赖的权威源；工单表头与验收 §2 是它的副本，不一致时以本表为准。
@@ -93,16 +103,16 @@ Sprint 编号 `M5` 与功能清单的里程碑 M1～M6 是两套编号；本目�
 | # | 判定条目 | 证据形式 |
 |---|---|---|
 | 1 | `pnpm check` 通过：两套 `tsc` 配置、Biome、`node --test`、功能清单关系检查 | 命令输出与测试计数 |
-| 2 | [夹具表](../feature-list/modules/10-repo-release.md#夹具) 的全部夹具（含新增的 `host-coverage`，以及更新后的 `rules-commands`、`command-hooks`）比对与入口用例通过 | `node --test` 中夹具测试的计数 |
-| 3 | TA-25 的结论写入调研文档；SD-38～SD-41、SD-43 的状态不再是待实测 | 调研文档与范围决策 |
+| 2 | [夹具表](../feature-list/modules/10-repo-release.md#夹具) 的全部夹具（含新增的 `host-coverage`，以及更新后的 `rules-commands`、`command-hooks`、`merged`）比对与入口用例通过 | `node --test` 中夹具测试的计数 |
+| 3 | TA-25 的结论写入调研文档；SD-38～SD-41、SD-43、SD-47～SD-50 的状态不再是待实测 | 调研文档与范围决策 |
 | 4 | 能力数据的 `converted` 承载、新增的工具名与 agy 的宿主版本注明实测或源码核对出处 | 能力数据与调研文档 |
-| 5 | TA-27：换算的规则与命令、共用文件、marketplace 安装与 `onFailure` 在宿主会话中按调研结论生效 | 宿主实测记录 |
-| 6 | M5-01～M5-07 的验收结论均为通过，表头有 commit 号 | 各验收文件 |
+| 5 | TA-27：换算的规则与命令、共用文件、marketplace 安装、`onFailure`、agy 的 `.antigravity-plugin/plugin.json` 合并布局与守卫 `ctx.cwd` 在宿主会话中按调研结论生效 | 宿主实测记录 |
+| 6 | M5-01～M5-08 的验收结论均为通过（或有条件通过且条件写明去向），表头有 commit 号 | 各验收文件 |
 
 ## 边界
 
 - 不实现 SD-44、SD-45 中的项，不实现预留的功能模块 07、08，不新增目标与宿主（SD-28）。
-- 不改守卫公共类型与入口协议的语义：
+- 不改守卫决策种类与检查方法签名（`GuardContext` 只增加只读字段 `cwd`，SD-50）：
   - agy 停机计数的目录不改（SD-46）。
   - `onFailure` 只改 hooks 配置。
 - 现有夹具的期望产物只在本 Sprint 的功能改变产物时更新，并在验收 §5 写明。

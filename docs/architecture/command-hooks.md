@@ -9,7 +9,7 @@ hooks 的入口与命令见[入口与打包接口](runtime-interfaces.md)，模�
 ## 1. 配置字段
 
 ```ts
-// src/config/types.ts（F-01-09），由 src/index.ts 导出
+// src/config/types.ts（F-01-09、F-01-15），由 src/index.ts 导出
 export type CommandHookEvent =
   | 'SessionStart' | 'SessionEnd' | 'UserPromptSubmit'
   | 'PreToolUse' | 'PostToolUse' | 'Stop'
@@ -17,15 +17,18 @@ export interface CommandHookDecl {
   readonly event: CommandHookEvent
   readonly command: string // 原样写入 hooks 配置；插件根目录写作 {pluginRoot}
   readonly targets?: readonly TargetName[] // 限定目标；省略时适用于全部已配置目标
+  readonly timeout?: number // v0.4.0（F-01-15，SD-48）：正整数，单位秒；省略时取目标能力数据的 hookTimeoutSeconds
 }
 // UapaConfig.commandHooks?: readonly CommandHookDecl[]
 ```
 
 - 声明的命令不经守卫逻辑。UAPA 不读取、不换算命令的 stdin、stdout、stderr 与退出码；各宿主的
   输入输出协议见宿主调研，由插件作者负责。
-- 校验（F-01-09）：`command` 为非空单行字符串；`targets` 非空、不重复，只含已配置的目标。
-- v0.1.0 不支持 `matcher` 与超时字段。工具名因宿主而异，matcher 无法写成宿主无关的形式；
-  工具事件上的命令对全部工具触发（省略 matcher 时的宿主行为见 SD-23）。
+- 校验（F-01-09、F-01-15）：`command` 为非空单行字符串；`targets` 非空、不重复，只含已配置的目标；
+  v0.4.0 起 `timeout` 为正整数（`Number.isInteger(n) && n >= 1`）。
+- v0.1.0 不支持 `matcher` 与超时字段；v0.4.0（F-01-15，SD-48）增加单条命令的 `timeout`，仍不支持
+  `matcher`。工具名因宿主而异，matcher 无法写成宿主无关的形式；工具事件上的命令对全部工具触发
+  （省略 matcher 时的宿主行为见 SD-23）。
 
 ## 2. 各目标承载的事件
 
@@ -72,11 +75,13 @@ export interface CommandHookDecl {
   `TargetPlan.commandHooks`。适用但为 `null` 时：`targets` 显式列出该目标则该目标失败；否则在该
   目标报告的 `skipped` 中写 `{ component: 'commandHooks[<下标>]', reason }`，同一宿主的另一目标
   承载该声明时不写（如同时配置两个 Claude Code 目标时的 `claude-code:in-process`）。
-- 生成（F-05-15、F-06-08、F-11-06）：宿主模块按 `TargetPlan.commandHooks` 在该目标的
-  hooks 配置中写入条目，事件名取 `commandHookEvents`，条目结构与超时同该目标的守卫条目，不写
-  matcher（agy 的工具事件同其守卫条目写 `"matcher": ""`）；同一事件下排在守卫条目之后，按声明顺序。
-  例外（v0.4.0，F-06-14）：Codex 的 `SessionEnd` 写 `timeout: 3`，宿主把更大的值压到 3 秒并在每次
-  会话开始时告警（rust-v0.162.1 `hooks/src/engine/discovery.rs`）。v0.4.0 起 Claude Code 与 Codex
+- 生成（F-05-15、F-05-27、F-06-08、F-06-17、F-11-06、F-11-15）：宿主模块按 `TargetPlan.commandHooks`
+  在该目标的 hooks 配置中写入条目，事件名取 `commandHookEvents`，条目结构同该目标的守卫条目，超时在
+  v0.4.0 起取 `hook.timeout ?? capabilities.hookTimeoutSeconds`，不写 matcher（agy 的工具事件同其
+  守卫条目写 `"matcher": ""`）；同一事件下排在守卫条目之后，按声明顺序。例外（v0.4.0，F-06-14、
+  F-06-17）：Codex 的 `SessionEnd` 写 `Math.min(hook.timeout ?? 30, 3)`，省略或 `hook.timeout > 3`
+  时压到 3 秒并在报告中写残余风险（rust-v0.162.1 `hooks/src/engine/discovery.rs`），
+  `hook.timeout <= 3` 时按原值写出且不写该残余风险。v0.4.0 起 Claude Code 与 Codex
   的 `SessionStart` 中，规则输出脚本的条目排在声明的命令之前（宿主模块接口「v0.4.0 的生成规则」）。
 - `TargetPlan.checks` 为空而 `commandHooks` 非空时，宿主模块只生成 hooks 配置与 manifest 中指向它
   的字段，不生成入口。

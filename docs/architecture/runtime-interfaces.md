@@ -118,7 +118,8 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
   该 hook 以 0 退出的纯文本 stdout 作为上下文加入（Claude Code 2.1.296 容器实测；Codex 按
   rust-v0.162.1 `hooks/src/events/session_start.rs`）。
 - 不同宿主的生成文件不同名；例外是按 SD-07 处理的 hooks 配置。agy 的根 `plugin.json` 不能与
-  其他宿主的根 `plugin.json` 合并（F-11-02）。
+  其他宿主的根 `plugin.json` 合并（F-11-02）；v0.4.0（F-11-15，SD-47）起合并布局默认写
+  `.antigravity-plugin/plugin.json`。
 
 ## 3. 子进程入口
 
@@ -127,6 +128,9 @@ export function bundle(request: BundleRequest): Promise<string> // ES2022 ESM �
 export type CheckArg = 'before-tool' | 'before-prompt' | 'before-stop' | 'after-tool'
 export interface HostEvent {
   readonly sessionId: string
+  // v0.4.0（F-04-10，SD-50）：宿主 stdin 中的会话工作目录（Claude Code 与 Codex 为 cwd，
+  // agy 为 workspacePaths[0]）；缺失、非字符串或空串时静默退化为 null，不抛错
+  readonly cwd?: string | null
   readonly tool?: {
     readonly name: string
     readonly input: Readonly<Record<string, unknown>>
@@ -164,7 +168,7 @@ export interface SubprocessProtocol {
 }
 export function runSubprocessEntry(protocol: SubprocessProtocol): Promise<void>
 
-// src/runtime/core/options.ts（F-04-09）：不做 I/O，子进程入口与 hooks 模块入口共用
+// src/runtime/core/options.ts（F-04-09、F-04-10）：不做 I/O，子进程入口与 hooks 模块入口共用
 export type OptionsResult =
   | { readonly ok: true; readonly options: Readonly<Record<string, GuardOptionValue>> }
   | { readonly ok: false; readonly name: string } // 按 name 顺序第一个无效的选项
@@ -178,8 +182,10 @@ export function optionsFromValues(
   declared: readonly RuntimeOption[], values: unknown,
 ): OptionsResult
 // 传给检查方法的 GuardContext；无效时 reason 为 `uapa: 守卫选项无效: <选项名>`。两种入口的
-// callGuard 收到 ok 为 false 时不调用守卫，按守卫出错收口
-export function guardContext(result: OptionsResult): Checked<GuardContext>
+// callGuard 收到 ok 为 false 时不调用守卫，按守卫出错收口；cwd 省略或为 undefined 时写 null
+export function guardContext(
+  result: OptionsResult, cwd?: string | null,
+): Checked<GuardContext>
 ```
 
 - 公共部分负责读取参数与 stdin、工具名换算、选项取值、调用守卫、异常收口与停机计数（计数文件
@@ -196,9 +202,11 @@ export function guardContext(result: OptionsResult): Checked<GuardContext>
   守卫选项无效（v0.3.0），原因为 `uapa: 守卫选项无效: <选项名>`。
 - 守卫未实现该检查，或检查为 `before-prompt` 而 `TargetRuntimeData.capabilities.promptGate`
   为 `false`、为 `after-tool` 而 `withholdOutput` 为 `false` 时，调用 `allow` 结束，不调用守卫。
-- 守卫选项（v0.3.0，SD-35）：要调用守卫时，公共部分先以
-  `optionsFromText(data.options, name => protocol.optionValue?.(name, env))` 得出取值，再以
-  `{ options }` 作为最后一个参数调用该检查；没有声明选项时 `options` 为空对象。文本的解析：string
+- 守卫选项与工作目录（v0.3.0，SD-35；v0.4.0，SD-50）：要调用守卫时，公共部分先以
+  `optionsFromText(data.options, name => protocol.optionValue?.(name, env))` 得出取值，再经
+  `guardContext(result, event.cwd ?? null)` 构造 `{ options, cwd }` 作为最后一个参数调用该检查；
+  没有声明选项时 `options` 为空对象，宿主未提供工作目录或为 `claude-code:in-process` 时 `cwd` 为
+  `null`。文本的解析：string
   原样取用；number 要求去掉首尾空白后非空且 `Number(文本)` 为有限数；boolean 只接受 `true` 与
   `false`。只有 `claude-code-subprocess.ts` 实现 `optionValue`，返回
   `env['CLAUDE_PLUGIN_OPTION_' + 选项名的全大写]`（F-05-18）；Codex 与 agy 不实现，取 `default`

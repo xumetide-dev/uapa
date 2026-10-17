@@ -4,8 +4,8 @@
 |---|---|
 | 状态 | v0.1.0、v0.2.0、v0.3.0 以 tag 发布；§1、§2 描述模块与目录 |
 | 选型依据 | [ARCH-001](ARCH-001-agent-plugin-build-tool.md) |
-| 更新日期 | 2026-10-15 |
-| 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06。2026-10-14：v0.1.0 目标改为 Claude Code 两种形态、Codex 与 agy；Copilot CLI 与 Kimi Code 改为预留（SD-25～SD-27） |
+| 更新日期 | 2026-10-17 |
+| 变更记录 | 2026-10-14：落实范围决策 SD-09、SD-13～SD-21，见[范围决策](../feature-list/scope-decisions.md)。2026-10-14：`TargetRuntimeData` 移入 `runtime/core`，`BundleRequest` 移入 `src/bundle/types.ts`，入口源码的类型声明、守卫返回值检查与插件目录解析的位置（SD-24）。2026-10-14：落实 SD-05（新增[命令 hooks 声明](command-hooks.md)）与 SD-06。2026-10-14：v0.1.0 目标改为 Claude Code 两种形态、Codex 与 agy；Copilot CLI 与 Kimi Code 改为预留（SD-25～SD-27）。2026-10-17：落实 SD-47～SD-50（agy 合并布局 `.antigravity-plugin/plugin.json` 与原位 `rules/` 保护、命令 hooks 单条 `timeout`、MCP `targets` 与 `${user_config.<KEY>}` 衔接、守卫上下文 `cwd` 与子进程 `node:` 内置模块边界） |
 
 本文是 UAPA 的权威架构文档：由哪些模块组成、模块之间的依赖方向、各层的硬约束、目录与发布方式。
 模块之间交换的数据类型见 [模块接口](module-interfaces.md)、

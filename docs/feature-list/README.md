@@ -17,7 +17,7 @@
 | v0.1.0 | 四个目标：`claude-code:in-process`、`claude-code:subprocess`、`codex:subprocess`、`agy:subprocess`；组件只含 skills，另生成守卫 hooks 与配置中声明的命令 hooks；守卫检查含执行前、提示提交前与停机前 |
 | v0.2.0 | 同一批目标补全 agents、MCP 服务器与执行后检查 |
 | v0.3.0 | 同一批目标补 rules 与 commands、守卫选项，以及按命名空间合并共用 JSON 的 F-03-07 |
-| v0.4.0 | 同一批目标补齐三个宿主已承载的能力：共用文件、rules 与 commands 的换算承载、MCP 服务器的环境变量、marketplace 文件、Claude Code 的 manifest 透传字段，以及守卫可靠性与残余风险 |
+| v0.4.0 | 同一批目标补齐三个宿主已承载的能力：共用文件、rules 与 commands 的换算承载、MCP 服务器的环境变量与目标过滤、marketplace 文件、Claude Code 的 manifest 透传字段、命令 hooks 的单条超时、agy 的合并布局 manifest 位置、子进程守卫的工作目录与文件 I/O，以及守卫可靠性与残余风险 |
 | 预留 | 设计保留、尚未排期：Copilot CLI（07）与 Kimi Code（08）的全部功能；恢复排期时改为具体版本 |
 
 其余目标与组件的安排见 [SD-01、SD-02](scope-decisions.md)，v0.2.0 的目标范围见 SD-28，
@@ -42,7 +42,7 @@ v0.3.0 的范围见 SD-31，v0.4.0 的范围见 SD-36，预留的理由与恢复
 | 08 | [Kimi Code 目标](modules/08-kimi-code.md)（预留） | 能力数据、`kimi.plugin.json`、hook 规则与入口 | `src/targets/kimi/`、`src/capabilities/kimi-subprocess.ts`、`src/runtime/entries/kimi-subprocess.ts` |
 | 09 | [命令行](modules/09-cli.md) | 命令、参数、终端输出与退出码 | `src/cli/` |
 | 10 | [仓库工程与发布](modules/10-repo-release.md) | 本地检查、测试夹具、包结构、发布与安装冒烟 | `scripts/`、`test/fixtures/`、`package.json`、`tsconfig*.json`、`biome.json` |
-| 11 | [agy 目标](modules/11-agy.md) | 能力数据、根 `plugin.json`、根 `hooks.json` 与入口 | `src/targets/agy/`、`src/capabilities/agy-subprocess.ts`、`src/runtime/entries/agy-subprocess.ts` |
+| 11 | [agy 目标](modules/11-agy.md) | 能力数据、`plugin.json` 或 `.antigravity-plugin/plugin.json`、根 `hooks.json` 与入口 | `src/targets/agy/`、`src/capabilities/agy-subprocess.ts`、`src/runtime/entries/agy-subprocess.ts` |
 
 `src/index.ts` 只做重新导出，不归单一功能模块：F-01-01 导出 `defineConfig` 与 `UapaConfig`，
 F-02-01、F-02-02 导出守卫公共类型。

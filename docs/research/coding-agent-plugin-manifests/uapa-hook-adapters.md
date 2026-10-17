@@ -21,7 +21,9 @@ Codex、agy）的行，是 v0.1.0 的实现依据，功能清单逐条引用；�
 
 - 守卫逻辑只用第 2 节的公共类型与语言内置对象，不导入 Node、Bun 或宿主 API，不做 I/O。
   同一份代码要在 Claude Code hooks 模块（没有 Node）、OpenCode（Bun）、DSH（Node）与子进程
-  入口中运行。
+  入口中运行。插件配置的 `targets` 只含子进程目标（不含 `claude-code:in-process`）时，守卫逻辑
+  可以静态导入 `node:` 内置模块（如 `node:fs`、`node:path`），配合 `GuardContext.cwd` 读取工作区
+  文件；一旦 `targets` 含 `claude-code:in-process`，导入 `node:` 模块会在打包（F-04-07）时失败。
 - 适配器只做协议转换，不含业务判断。
 - Claude Code hooks 模块只能导入相对路径文件与 `'claude-code'`，构建时把守卫逻辑打包为模块
   旁的相对文件。
@@ -68,8 +70,10 @@ export type GuardOption =
   | { type: 'boolean'; title: string; description: string; default: boolean }
 
 // v0.3.0：本次调用的选项取值，键为选项名；守卫没有声明选项时为空对象
+// v0.4.0（F-02-06）：子进程目标提供宿主当前会话工作目录 cwd，进程内目标或未提供时为 null
 export interface GuardContext {
   readonly options: Readonly<Record<string, string | number | boolean>>
+  readonly cwd: string | null
 }
 
 export interface GuardPlugin {
@@ -99,7 +103,10 @@ v0.1.0 的 `GuardPlugin` 不含 `afterTool`，包入口不导出 `AfterTool`；`
 各检查方法的最后一个参数，不使用选项的守卫可以不写，v0.2.0 的守卫逻辑无需修改。取值来源按目标
 不同：Claude Code 为用户在插件设置中保存的取值，未设置时为 `default`；Codex 与 agy 总是
 `default`。取值无效时按守卫出错处理，见
-[入口与打包接口第 3 节](../../architecture/runtime-interfaces.md#3-子进程入口)。
+[入口与打包接口第 3 节](../../architecture/runtime-interfaces.md#3-子进程入口)。v0.4.0（SD-50）在
+`GuardContext` 中增加 `cwd`：`claude-code:subprocess` 与 `codex:subprocess` 取 stdin 的 `cwd`，
+`agy:subprocess` 取 stdin 的 `workspacePaths[0]`（1.3.5 容器实测），字段缺失或为空串时退化为
+`null`；`claude-code:in-process` 的事件对象不含工作目录（2.1.296 实测），`cwd` 固定为 `null`。
 
 ## 3. 工具名映射
 

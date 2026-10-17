@@ -37,3 +37,5 @@
 | F-05-24 | v0.4.0 | 分发 | 生成 `marketplace.json` | 配置 `marketplace` 时返回 `.claude-plugin/marketplace.json`：`name`、`owner`、`metadata.description`（取配置的 `description`），`plugins` 只含本插件一项（`name`、`source`、`description`），不写 `version`（版本以 `plugin.json` 为准）；`source` 为从 `marketplace.dir` 到插件目录、以 `./` 开头的相对路径，两者相同时为 `"./"`；产物通过 `claude plugin validate --strict`，按 TA-25（2.1.296）能添加并安装（SD-41） | F-03-18, F-05-02 |
 | F-05-25 | v0.4.0 | manifest | 插件名按段检查保留词 | 名称中以 `-` 分隔的任一段为 `claude`、`anthropic`、`anthropics`，或名称以 `cc-plugin-` 开头时生成失败，原因写明 `claude plugin validate --strict` 拒绝；代替 F-05-02 中按前缀与全名的检查（Claude Code 文档「manifest reference」，SD-43） | F-05-02 |
 | F-05-26 | v0.4.0 | 组件 | MCP 服务器的环境变量声明 | 本地服务器继承会话环境（TA-25，2.1.296）：`envVars` 不写入 `.mcp.json`，不写残余风险；`${…}` 由宿主展开（SD-40） | F-01-13, F-05-12 |
+| F-05-27 | v0.4.0 | 命令 hooks 与入口 | 单条命令超时与守卫工作目录 | 声明的命令 hook 指定 `timeout` 时，生成的处理器写该值，省略时写能力数据的 `hookTimeoutSeconds`（30）；`claude-code-subprocess.ts` 从 stdin 的 `cwd` 提取工作目录传入 `GuardContext.cwd`（缺失或空串为 `null`），`claude-code-in-process.ts` 传入 `null`（宿主模块事件不含工作目录，2.1.296 实测）（SD-48、SD-50） | F-01-15, F-04-10, F-05-04, F-05-05, F-05-15 |
+

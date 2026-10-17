@@ -18,7 +18,11 @@
 ## 插件 manifest
 
 插件根目录的 `plugin.json` 为必需文件 [A1]；1.3.2 起 manifest 也可放在 `.antigravity-plugin/` 或
-`.gemini-plugin/` 目录中 [A3]。
+`.gemini-plugin/` 目录中 [A3]。1.3.5 容器实测：只含 `.antigravity-plugin/plugin.json`（无根
+`plugin.json`）的目录，以及同时含 `.claude-plugin/plugin.json`、`.codex-plugin/plugin.json` 与
+`.antigravity-plugin/plugin.json`（或根 `plugin.json`）的合并目录，经 `agy plugin install` 安装后
+`source` 均为 `"antigravity"`，skills、agents、commands、rules、MCP 服务器与根 `hooks.json` 照常
+加载，见[实测记录「替代 manifest 位置与合并目录（1.3.5，容器）」](agy-local-tests.md#替代-manifest-位置与合并目录135容器)。
 
 | 字段 | 必填 | 含义 |
 |---|---|---|
@@ -229,7 +233,8 @@ stdin 为 camelCase 字段的 JSON [A2]：
 ## 实测记录
 
 会话实测的做法与结果见 [agy 实测记录](agy-local-tests.md)：1.3.4 的本地实测，以及 1.3.5 在测试
-容器中的 agents 与 MCP 服务器、UAPA 夹具产物、`Stop` 的超时与无效输出、rules、v0.4.0 覆盖审查。
+容器中的 agents 与 MCP 服务器、UAPA 夹具产物、`Stop` 的超时与无效输出、rules、v0.4.0 覆盖审查、
+替代 manifest 位置与合并目录。
 
 ## 来源
 

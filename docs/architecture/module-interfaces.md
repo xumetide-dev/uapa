@@ -57,7 +57,9 @@ export interface UapaConfig {
     codex?: HostDir & {
       interface?: Readonly<Record<string, unknown>>; hooksFile?: string
     }
-    agy?: HostDir
+    agy?: HostDir & {
+      manifest?: 'plugin.json' | '.antigravity-plugin/plugin.json' // v0.4.0（F-01-15，SD-47）
+    }
   }
 }
 export function defineConfig(config: UapaConfig): UapaConfig
@@ -86,11 +88,12 @@ export function resolvePluginDirs(config: UapaConfig, root: string): readonly Pl
   的插件目录；合并布局的插件目录可以是源项目根目录。
 - 以下情况配置校验失败（F-01-03）：`hosts` 中出现未列入 `targets` 的宿主、出现未知键、
   `hosts.codex.hooksFile` 为绝对路径或含 `..`，或违反上一条。
-- v0.4.0 的字段（F-01-14）另有以下情况配置校验失败，`field` 写到键：
+- v0.4.0 的字段（F-01-14、F-01-15）另有以下情况配置校验失败，`field` 写到键：
   - `hosts['claude-code'].manifest` 不是对象，或含 UAPA 生成或依赖默认位置的键：`name`、
     `version`、`description`、`author`、`keywords`、`displayName`、`userConfig`、`dependencies`、
     `$schema`、`types`、`skills`、`agents`、`commands`、`mcpServers`（SD-42）。
   - `hosts['claude-code'].onFailure` 不是 `'block'`。
+  - `hosts.agy.manifest` 不是 `'plugin.json'` 或 `'.antigravity-plugin/plugin.json'`（SD-47）。
   - `marketplace.name` 不是 kebab-case，或 `owner.name` 为空。
   - `targets` 中没有 Claude Code 或 Codex 的目标却配置了 `marketplace`：agy 只支持官方
     marketplace，不生成文件（SD-41）。
@@ -119,9 +122,11 @@ export interface Agent {
 export type McpServer =
   | { readonly name: string; readonly kind: 'local'; readonly command: string
       readonly args?: readonly string[]; readonly env?: Readonly<Record<string, string>>
-      readonly envVars?: readonly string[] } // v0.4.0（F-01-13，SD-40）
+      readonly envVars?: readonly string[] // v0.4.0（F-01-13，SD-40）
+      readonly targets: readonly TargetName[] | null } // v0.4.0（F-01-15，SD-49）；未写为 null
   | { readonly name: string; readonly kind: 'remote'; readonly url: string
-      readonly headers?: Readonly<Record<string, string>> }
+      readonly headers?: Readonly<Record<string, string>>
+      readonly targets: readonly TargetName[] | null }
 // v0.3.0（F-01-10，SD-32）：rules/ 下一层的 <name>.md；宿主模块按自身格式重写 frontmatter
 export type RuleActivation = 'always' | 'model' | 'glob'
 export interface Rule {
@@ -181,9 +186,11 @@ export interface GuardDeclaration {
   `{pluginRoot}`，只出现在本地服务器的这三个字段中。其他字段、类型不符、两类字段混用、远程服务器
   含 `{pluginRoot}` 时返回 `InputIssue`，`field` 写到服务器名与字段，如
   `mcpServers.docs.args[0]`。
-- v0.4.0（F-01-13）：本地服务器可写 `envVars`，为服务器需要从会话环境取得的变量名，非空、元素
-  匹配 `^[A-Za-z_][A-Za-z0-9_]*$` 且不重复；远程服务器写 `envVars` 时返回 `InputIssue`，`field`
-  写到元素，如 `mcpServers.docs.envVars[1]`。
+- v0.4.0（F-01-13、F-01-15）：本地服务器可写 `envVars`，为服务器需要从会话环境取得的变量名，非空、
+  元素匹配 `^[A-Za-z_][A-Za-z0-9_]*$` 且不重复；远程服务器写 `envVars` 时返回 `InputIssue`，`field`
+  写到元素，如 `mcpServers.docs.envVars[1]`。本地与远程服务器均可写可选的 `targets`（非空、不重复，
+  只含已登记的目标名，规则同 F-01-05；未写时 `targets` 为 `null`），违反时返回 `InputIssue`，`field`
+  如 `mcpServers.docs.targets[0]`（SD-49）。
 - v0.4.0（F-01-12）：`files/` 只列出文件，不读取内容；复制由构建编排完成，见
   [写出、比对与退出码](build-output.md)。
 - rules 与 commands（v0.3.0）只读各自目录下一层的 `.md` 文件，其他项忽略；`<name>` 只含字母、

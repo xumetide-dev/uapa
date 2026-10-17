@@ -14,7 +14,7 @@ export interface TargetPlan { // 构建编排按能力数据算出（F-03-02、F
   readonly capabilities: TargetCapabilities
   readonly skills: readonly Skill[] // 已按 frontmatter 与承载能力筛选
   readonly agents: readonly Agent[] // v0.2.0；规则同 skills
-  readonly mcpServers: readonly McpServer[] // v0.2.0；目标不承载 MCP 时为空
+  readonly mcpServers: readonly McpServer[] // v0.2.0；目标不承载 MCP 时为空，v0.4.0 起按 targets 筛选（F-03-20）
   readonly rules: readonly Rule[] // v0.3.0；规则同 skills（F-03-16）
   readonly commands: readonly Command[] // v0.3.0；规则同 skills（F-03-16）
   readonly checks: readonly GuardCheck[] // 本目标要生成 hook 的检查；已去掉省略的检查
@@ -30,6 +30,8 @@ export interface HostInput {
   // v0.4.0（F-03-18，SD-41）：配置 marketplace 时为本宿主插件目录相对 marketplace.dir 的路径，
   // 以 './' 开头，两者相同时为 './'；未配置时为 null
   readonly marketplaceSource: string | null
+  // v0.4.0（F-06-17，SD-49）：源项目是否声明了 MCP 服务器（含被 targets 过滤排除的服务器）
+  readonly hasMcpServers?: boolean
 }
 export interface OutputFile {
   readonly path: string // 相对插件目录，POSIX 分隔，不含 '..'
@@ -105,13 +107,14 @@ export interface HostModule {
   中排在最前的宿主的文件为基准，保留其键序；`extensions` 中各命名空间按字典序写出；按上一条的
   格式序列化。
 - Codex 的 `.codex-plugin/plugin.json` 依次写 `name`、`version`、`description`，配置有值时写
-  `keywords`，再按需写 `hooks`、`mcpServers`、`interface`（F-06-02、F-06-06）。没有 hooks 配置而
+  `keywords`，再按需写 `hooks`、`mcpServers`、`interface`（F-06-02、F-06-06、F-06-17）。没有 hooks 配置而
   `sharedWith` 非空时，`hooks` 写 `{"hooks": {}}`，使 Codex 不读取其他宿主写出的
-  `hooks/hooks.json`；同理，生成了 `mcp.json` 时 `mcpServers` 写 `"./mcp.json"`，源项目有服务器
-  而全部跳过、`sharedWith` 非空时写 `{}`，使 Codex 不读取 Claude Code 为这些服务器写出的
-  `.mcp.json`；源项目没有服务器时其他宿主也不生成 MCP 配置，不写。
+  `hooks/hooks.json`；同理，生成了 `mcp.json` 时 `mcpServers` 写 `"./mcp.json"`，本目标无写出服务器
+  （全部因承载限制跳过或因 `targets` 过滤排除）而 `sharedWith` 非空且源项目有服务器
+  （`plan.mcpServers.length > 0` 或 `input.hasMcpServers === true`）时，`mcpServers` 写 `{}`，使 Codex
+  不读取 Claude Code 为这些服务器写出的 `.mcp.json`；源项目没有服务器时其他宿主也不生成 MCP 配置，不写。
 - `sharedWith` 由构建编排按 `resolvePluginDirs` 得出，与目标是否成功无关；宿主模块只用它决定
-  manifest 的写法与残余风险（F-06-02、F-06-03、F-11-03），不据此读取其他宿主的文件。
+  manifest 的写法与残余风险（F-06-02、F-06-03、F-11-03、F-11-15），不据此读取其他宿主的文件。
 - `$schema` 格式的根 `plugin.json`（预留的 Copilot CLI）顶层依次写 `$schema`
   （`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`）、`name`、`version`、
   `description`，配置有值时写 `author`、`keywords`，最后写 `extensions`（没有内容时不写）；各宿主
@@ -139,8 +142,17 @@ export interface HostModule {
   笼统的残余风险。
 - agy 的 commands（F-11-11，SD-39）：`components.commands` 为 `package`，按上文 commands 的规则由
   构建编排原样复制；宿主模块不返回命令文件，只写模型自动选用的残余风险。
-- MCP 服务器的环境变量（F-05-26、F-06-12、F-11-12，SD-40）：Codex 把本地服务器的 `envVars` 写为
-  `env_vars`，排在 `env` 之后；Claude Code 与 agy 的本地服务器继承会话环境，不写。
+- MCP 服务器的环境变量与用户配置占位符（F-05-26、F-06-12、F-06-17、F-11-12、F-11-15，SD-40、SD-49）：
+  Codex 把本地服务器的 `envVars` 写为 `env_vars`，排在 `env` 之后；Claude Code 与 agy 的本地服务器
+  继承会话环境，不写。本地服务器的 `env` 含 `${user_config.<KEY>}` 时，Claude Code 原样写出；Codex
+  与 agy 从生成的 `env` 中剥离该键（剥离后为空对象时省略 `env`，`{pluginRoot}` 换算与 `${` 字面传递
+  残余风险只按保留的键计算），写残余风险列出已剥离的键，Codex 另把整值匹配 `${user_config.<KEY>}`
+  且 `<KEY>` 为合法环境变量名的项并入 `env_vars`（去重）。
+- agy 的 manifest 位置与合并布局（F-11-15，SD-47）：`hosts.agy.manifest` 指定时按指定路径写出，
+  省略时默认布局（`sharedWith` 为空）写 `plugin.json`、合并布局（`sharedWith` 非空）写
+  `.antigravity-plugin/plugin.json`；与 Claude Code 共用目录时不再写 F-11-03 的安装转换未实测残余
+  风险；与 Codex 共用目录且显式设 `hosts.agy.manifest: 'plugin.json'` 时写残余风险说明 Codex 优先
+  读取根 `plugin.json` 而不加载任何 hooks。
 - Claude Code 的 manifest 透传字段（F-05-20，SD-42）：`hosts['claude-code'].manifest` 的字段按写入
   顺序追加在生成的字段之后。`onFailure`（F-05-21）只写在 `PreToolUse` 与 `UserPromptSubmit` 的守卫
   条目中。

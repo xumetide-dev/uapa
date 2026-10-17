@@ -157,7 +157,7 @@ matcher，`timeout` 为 3）、`PostToolUse`、`UserPromptSubmit`、`Stop`、`Se
 | 项目 | 做法 | 结果 |
 |---|---|---|
 | 两个不带 matcher 的处理函数 | 同一插件在 `tool.call` 上注册两次 | 模块校验失败（registered twice without a matcher），插件的模块不加载 |
-| `e` 的字段 | 记录 Bash 调用的 `e` | `command`、`description`、`tool`、`tool_use_id` |
+| `e` 的字段 | 记录 Bash 调用的 `e` | `command`、`description`、`tool`、`tool_use_id`（不含 `cwd`；`prompt.submit` 与 `classic.Stop` 的 `e` 同样不含 `cwd`） |
 | `next` 的结果 | 记录 Bash 与 Read 的结果 | `{ ref, result, text, isReadOnly }`：`result` 的形状同命令 hooks 的 `tool_response`，`text` 为模型读到的文本，Read 的 `text` 带行号前缀 |
 | 报错的结果 | 运行 `echo uapa-after-tool-probe; false`；另运行被宿主拦下的命令 | `{ ref, result, text, isError: true }`（前者另有 `isReadOnly`），`result` 为以 `Error: ` 开头的字符串 |
 | 替换 Bash 输出 | 返回 `{ ...ran, result: { ...ran.result, stdout } }`，或只返回 `{ result }` | 模型读到改后的 `stdout` |

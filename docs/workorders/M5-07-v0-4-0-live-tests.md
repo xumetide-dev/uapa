@@ -3,14 +3,14 @@
 > 在测试容器中，用 v0.4.0 的产物复测本 Sprint 的换算与新字段（TA-27）：
 > - Claude Code：经生成的 marketplace 安装 `host-coverage`；复测共用文件、三种规则、`Monitor` 的
 >   守卫与 `onFailure`。
-> - agy：安装 `rules-commands` 并调用复制的命令。
+> - agy：安装 `rules-commands`、`host-coverage` 与三宿主合并布局产物，复测复制的命令、`.antigravity-plugin/plugin.json` 与守卫 `ctx.cwd`。
 > - Codex：同类实测须维护者确认后进行。
 
 | 项 | 内容 |
 |---|---|
 | 所属 Sprint | [M5-00](M5-00-v0-4-0-host-coverage.md) |
 | 覆盖功能点 | 无（TA-27） |
-| 依赖工单 | [M5-02](M5-02-shared-files-and-claude-code-config.md)、[M5-03](M5-03-converted-rules-and-commands.md)、[M5-04](M5-04-mcp-server-environment.md)、[M5-05](M5-05-guard-reliability-and-risks.md)、[M5-06](M5-06-marketplace-files.md) |
+| 依赖工单 | [M5-02](M5-02-shared-files-and-claude-code-config.md)、[M5-03](M5-03-converted-rules-and-commands.md)、[M5-04](M5-04-mcp-server-environment.md)、[M5-05](M5-05-guard-reliability-and-risks.md)、[M5-06](M5-06-marketplace-files.md)、[M5-08](M5-08-merged-manifest-timeout-mcp-cwd.md) |
 | 关联 issue | 无 |
 | 验收文件 | [M5-07](../acceptance/M5-07-v0-4-0-live-tests.md)（commit 号与验收结论只记在那里） |
 
@@ -22,7 +22,7 @@
   - `test/container/run.sh shell` 的认证卷。
 - 已有但不对：无。
 - 完全没有：v0.4.0 产物的会话实测。
-- 宿主事实：以 M5-01 写入调研文档的 TA-25 结论为对照。
+- 宿主事实：以 M5-01 与 M5-08 写入调研文档的 TA-25 结论为对照。
 
 ## ⚠️ 关键落地约束（必须先验证）
 
@@ -45,7 +45,7 @@
 
 | 硬约束 | 是否触碰 | 如何验证 |
 |---|---|---|
-| 守卫不静默失效 | 是 | 宿主实测：`Monitor` 运行的标记命令被拒绝；入口无法启动时 `onFailure` 阻断标记命令 |
+| 守卫不静默失效 | 是 | 宿主实测：`Monitor` 运行的标记命令被拒绝；入口无法启动时 `onFailure` 阻断标记命令；agy 会话中守卫经 `ctx.cwd` 读取工作目录文件并拒绝标记命令 |
 | 产物零依赖 | 否 | 不改产物 |
 | 不在运行时推断宿主 | 否 | 不改入口 |
 | 确定性输出 | 否 | 不改生成逻辑 |
@@ -72,9 +72,10 @@
 ### 2. agy（容器，1.3.5）
 
 - 安装 `rules-commands`，以 `/<插件名>:<命令名>` 调用复制的命令。
-- 安装 `host-coverage`，确认 `files/` 中的服务器启动。在容器内的副本中给该服务器的 `args` 加一个
+- 安装 `host-coverage`，确认 `files/` 中的服务器启动，以及守卫在 `agy -p` 会话中通过 `ctx.cwd` 读取工作目录并拒绝标记命令。在容器内的副本中给该服务器的 `args` 加一个
   `${…}` 变量，服务器只记录收到的参数是否仍以 `${` 开头（不记录变量的值），确认 F-11-12 中
   “`args` 与 `env` 按字面传递”的残余风险；1.3.5 只实测了 `command`。
+- 安装 `merged` 夹具构建出的三宿主合并产物（仅含 `.antigravity-plugin/plugin.json`、不含根 `plugin.json`），确认 `agy plugin validate`、`claude plugin validate --strict` 与 `agy plugin install` 均通过，并在 `agy -p` 会话中触发守卫。
 
 ### 3. Codex（须维护者确认）
 
@@ -124,5 +125,5 @@ test/container/run.sh shell
 
 ## 依赖
 
-M5-02～M5-06 的产物；容器中的 Claude 令牌与 agy 登录；Codex 实测与 Claude Code 的升级须维护者
+M5-02～M5-06、M5-08 的产物；容器中的 Claude 令牌与 agy 登录；Codex 实测与 Claude Code 的升级须维护者
 确认。
