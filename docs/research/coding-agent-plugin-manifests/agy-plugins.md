@@ -2,7 +2,7 @@
 
 本文说明 Google Antigravity CLI（命令 `agy`）插件的 manifest、组件位置、安装命令与 hooks 的配置
 结构和控制语义。官方文档以 `antigravity.google/docs` 为准，核对日期为 2026-10-14；文档未写明的
-行为以 agy 1.3.4 的本地实测补充，agents 与 MCP 服务器以 1.3.5 的容器实测补充，见「本地实测」
+行为以 agy 1.3.4 的本地实测补充，agents、MCP 服务器、rules、commands、替代 manifest 位置与合并目录以 1.3.5 的容器实测补充，见「本地实测」
 一节。
 
 ## 版本背景

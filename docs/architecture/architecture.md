@@ -141,7 +141,7 @@ uapa/
 │   ├── build/               含 placement.ts：各宿主的文件表与同路径冲突；merge.ts：JSON 合并；
 │   │                        marketplace.ts：marketplace 文件规划与比对
 │   ├── capabilities/        types.ts、index.ts 与每个目标一个数据模块
-│   ├── targets/             types.ts、index.ts、rule-skills.ts 与 claude-code/、codex/、agy/
+│   ├── targets/             types.ts、index.ts、rule-skills.ts 与 claude-code/、codex/、agy/（各含 risks.ts）
 │   ├── runtime/
 │   │   ├── core/
 │   │   └── entries/         subprocess.ts、每个目标一个入口与打包时名称的类型声明

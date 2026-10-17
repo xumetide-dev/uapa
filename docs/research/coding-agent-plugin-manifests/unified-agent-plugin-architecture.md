@@ -223,7 +223,7 @@ import type { TargetCapabilities } from './types.ts'
 
 export const codexSubprocess: TargetCapabilities = {
   target: 'codex:subprocess',
-  host: { name: 'codex', version: '0.162.1', checked: '2026-10-15', source: 'codex-plugins.md' },
+  host: { name: 'codex', version: '0.162.1', checked: '2026-10-14', source: 'codex-plugins.md' },
   components: {
     skills: 'package',
     mcp: 'package',
@@ -252,6 +252,14 @@ export const codexSubprocess: TargetCapabilities = {
     apply_patch: 'edit_file',
     spawn_agent: 'subagent',
     update_plan: 'todo',
+  },
+  commandHookEvents: {
+    SessionStart: 'SessionStart',
+    SessionEnd: 'SessionEnd',
+    UserPromptSubmit: 'UserPromptSubmit',
+    PreToolUse: 'PreToolUse',
+    PostToolUse: 'PostToolUse',
+    Stop: 'Stop',
   },
 }
 ```
